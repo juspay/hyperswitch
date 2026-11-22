@@ -314,7 +314,6 @@ struct GooglePayPublicKeyData<'a> {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct GooglePayDisplayData {
     mode: api_resources::GooglePayResourceMode,
-    environment: api_resources::GooglePayResourceEnvironment,
     google_merchant_id: String,
     public_key: String,
     protocol_version: String,
@@ -325,7 +324,6 @@ struct GooglePayDisplayData {
 struct GooglePayResourceData {
     merchant_id: id_type::MerchantId,
     mode: api_resources::GooglePayResourceMode,
-    environment: api_resources::GooglePayResourceEnvironment,
     google_merchant_id: String,
     public_key: String,
     protocol_version: String,
@@ -344,7 +342,6 @@ impl From<GooglePayResourceData> for GooglePayDisplayData {
     fn from(data: GooglePayResourceData) -> Self {
         Self {
             mode: data.mode,
-            environment: data.environment,
             google_merchant_id: data.google_merchant_id,
             public_key: data.public_key,
             protocol_version: data.protocol_version,
@@ -367,21 +364,6 @@ struct GooglePayResourceKeyWrapper {
 struct GooglePayResourceCachePayload {
     resource_id: id_type::ResourceId,
     data: GooglePayDisplayData,
-}
-
-fn validate_google_pay_environment(
-    environment: api_resources::GooglePayResourceEnvironment,
-) -> RouterResult<()> {
-    let is_production = matches!(router_env::env::which(), router_env::env::Env::Production);
-    common_utils::fp_utils::when(
-        is_production != (environment == api_resources::GooglePayResourceEnvironment::Production),
-        || {
-            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                message: "Google Pay resource environment must match the Hyperswitch environment"
-                    .to_string(),
-            }))
-        },
-    )
 }
 
 fn parse_google_pay_resource_data(
@@ -437,7 +419,6 @@ impl HierarchicalResourceHandler for GooglePayResource {
                 }))
             },
         )?;
-        validate_google_pay_environment(configuration.environment)?;
 
         let (private_key, public_key) = generate_google_pay_direct_keypair()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -470,7 +451,6 @@ impl HierarchicalResourceHandler for GooglePayResource {
         let resource_data = GooglePayResourceData {
             merchant_id: merchant_account.get_id().clone(),
             mode: configuration.mode,
-            environment: configuration.environment,
             google_merchant_id: configuration.google_merchant_id.clone(),
             public_key,
             protocol_version: "ECv2".to_string(),
@@ -516,7 +496,6 @@ impl HierarchicalResourceHandler for GooglePayResource {
         Secret::new(serde_json::json!({
             "google_merchant_id": "Google Merchant ID",
             "mode": "Tokenization mode",
-            "environment": "Environment",
             "public_key": "Public key",
             "protocol_version": "Protocol version",
             "recipient_id": "Recipient ID"
@@ -561,7 +540,6 @@ impl HierarchicalResourceHandler for GooglePayResource {
                 message: "resource not found".to_string(),
             }))
         })?;
-        validate_google_pay_environment(data.environment)?;
         common_utils::fp_utils::when(!data.is_linkable(resource), || {
             Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Google Pay resource is not ready for linking".to_string(),
