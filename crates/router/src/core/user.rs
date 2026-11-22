@@ -405,9 +405,29 @@ pub async fn connect_account(
         .unwrap_or(false)
     {
         if state.conf.user.signup_disabled {
+            let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
+
+            let email_contents = email_types::SignupContact {
+                recipient_email: user_email,
+                contact_email: state.conf.user.signup_contact_email.clone(),
+                theme_config: theme
+                    .map(|theme| theme.email_config())
+                    .unwrap_or(state.conf.theme.email_config.clone()),
+            };
+
+            let send_email_result = state
+                .email_client
+                .compose_and_send_email(
+                    user_utils::get_base_url(&state),
+                    Box::new(email_contents),
+                    state.conf.proxy.https_url.as_ref(),
+                )
+                .await;
+            logger::info!(?send_email_result);
+
             return Ok(ApplicationResponse::Json(
                 user_api::ConnectAccountResponse {
-                    is_email_sent: true,
+                    is_email_sent: send_email_result.is_ok(),
                     user_id: String::new(),
                 },
             ));
