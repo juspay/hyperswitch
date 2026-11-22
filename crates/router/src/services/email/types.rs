@@ -93,6 +93,14 @@ pub enum EmailBody {
         background_color: String,
         foreground_color: String,
     },
+    SignupContact {
+        contact_email: String,
+        entity_name: String,
+        entity_logo_url: String,
+        primary_color: String,
+        background_color: String,
+        foreground_color: String,
+    },
     AnalyticsReport {
         report_name: String,
         noun: String,
@@ -281,6 +289,24 @@ Email         : {user_email}
                     lineage_info = lineage_info,
                     entity_name = entity_name,
                     entity_logo_url = entity_logo_url,
+                    background_color = background_color,
+                    foreground_color = foreground_color
+                )
+            }
+            EmailBody::SignupContact {
+                contact_email,
+                entity_name,
+                entity_logo_url,
+                primary_color,
+                background_color,
+                foreground_color,
+            } => {
+                format!(
+                    include_str!("assets/signup_contact.html"),
+                    contact_email = contact_email,
+                    entity_name = entity_name,
+                    entity_logo_url = entity_logo_url,
+                    primary_color = primary_color,
                     background_color = background_color,
                     foreground_color = foreground_color
                 )
@@ -763,6 +789,36 @@ impl EmailData for WelcomeToCommunity {
 
         Ok(EmailContents {
             subject: "Thank you for signing up on Hyperswitch Dashboard!".to_string(),
+            body: external_services::email::IntermediateString::new(body),
+            recipients: self.recipient_email.clone().into_inner().into(),
+        })
+    }
+}
+
+pub struct SignupContact {
+    pub recipient_email: domain::UserEmail,
+    pub contact_email: String,
+    pub theme_config: EmailThemeConfig,
+}
+
+#[async_trait::async_trait]
+impl EmailData for SignupContact {
+    async fn get_email_data(&self, _base_url: &str) -> CustomResult<EmailContents, EmailError> {
+        let body = html::get_html_body(EmailBody::SignupContact {
+            contact_email: self.contact_email.clone(),
+            entity_name: self.theme_config.entity_name.clone().into_inner(),
+            entity_logo_url: self
+                .theme_config
+                .entity_logo_url
+                .get_string_repr()
+                .to_string(),
+            primary_color: self.theme_config.primary_color.clone().into_inner(),
+            background_color: self.theme_config.background_color.clone().into_inner(),
+            foreground_color: self.theme_config.foreground_color.clone().into_inner(),
+        });
+
+        Ok(EmailContents {
+            subject: format!("Sign up for {}", self.theme_config.entity_name.as_str()),
             body: external_services::email::IntermediateString::new(body),
             recipients: self.recipient_email.clone().into_inner().into(),
         })

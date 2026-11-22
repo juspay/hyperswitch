@@ -1030,6 +1030,7 @@ pub struct UserSettings {
     pub forgot_password_max_attempts: u16,
     pub forgot_password_attempts_window_in_secs: i64,
     pub signup_disabled: bool,
+    pub signup_contact_email: String,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
