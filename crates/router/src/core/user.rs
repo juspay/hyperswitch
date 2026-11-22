@@ -315,17 +315,19 @@ pub async fn signin_token_only_flow(
             }
         })?;
 
-    let user_from_db = match user_from_db {
-        Some(user) if user.compare_password(&request.password)? => user,
-        _ => {
-            let attempts =
-                utils::user::password::increment_password_attempts_in_redis(&state, &user_email)
-                    .await?;
-            if attempts >= max_attempts {
-                return Err(UserErrors::MaxPasswordAttemptsReached.into());
-            }
-            return Err(UserErrors::InvalidCredentials.into());
+    let are_creds_correct = match &user_from_db {
+        Some(user) => user.compare_password(&request.password)?,
+        None => false,
+    };
+
+    let Some(user_from_db) = user_from_db.filter(|_| are_creds_correct) else {
+        let attempts =
+            utils::user::password::increment_password_attempts_in_redis(&state, &user_email)
+                .await?;
+        if attempts >= max_attempts {
+            return Err(UserErrors::MaxPasswordAttemptsReached.into());
         }
+        return Err(UserErrors::InvalidCredentials.into());
     };
 
     let _ = utils::user::password::delete_password_attempts_from_redis(&state, &user_email)

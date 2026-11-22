@@ -141,8 +141,6 @@ fn get_temp_password_inner() -> String {
     )
 }
 
-/// Builds a Redis key for the email from a SHA-256 hash of it, so that emails are not stored in
-/// Redis in plain text.
 fn get_email_key(prefix: &str, email: &domain::UserEmail) -> UserResult<RedisKey> {
     let email_hash = crypto::Sha256
         .generate_digest(email.clone().get_secret().expose().as_bytes())
@@ -202,9 +200,6 @@ pub async fn delete_password_attempts_from_redis(
         .map(|_| ())
 }
 
-/// Counts a forgot password request for the email and returns the number of requests made in
-/// the current window, including this one. The window starts with the first request and is not
-/// extended by later ones.
 pub async fn increment_forgot_password_attempts_in_redis(
     state: &SessionState,
     email: &domain::UserEmail,
