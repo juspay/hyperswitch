@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Debug, ops::Deref};
+use std::{collections::HashMap, fmt::Debug, ops::Deref, str::FromStr};
 
 use api_models::{self, enums as api_enums, payments};
 use common_enums::{enums, AttemptStatus, PaymentChargeType, StripeChargeType};
@@ -8,11 +8,11 @@ use common_types::{
 };
 use common_utils::{
     collect_missing_value_keys,
-    errors::CustomResult,
+    errors::{CustomResult, ParsingError},
     ext_traits::{ByteSliceExt, Encode, OptionExt as _},
     pii::{self, Email},
     request::{Method, RequestContent},
-    types::MinorUnit,
+    types::{AmountConvertor, MinorUnit},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -73,6 +73,77 @@ use crate::{
 pub mod auth_headers {
     pub const STRIPE_API_VERSION: &str = "stripe-version";
     pub const STRIPE_VERSION: &str = "2022-11-15";
+}
+
+/// Stripe takes amounts in the currency's minor unit, except for currencies it still represents
+/// with two decimals for backwards compatibility although they have none (UGX: 5 UGX is `500`).
+#[derive(Debug, Clone, Copy)]
+pub struct StripeAmountConvertor;
+
+impl StripeAmountConvertor {
+    fn is_two_decimal_at_stripe(currency: enums::Currency) -> bool {
+        matches!(currency, enums::Currency::UGX)
+    }
+
+    /// Converts a core minor-unit amount to the amount Stripe expects for `currency`
+    pub fn amount_to_stripe(
+        amount: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ConnectorError>> {
+        Self.convert(amount, currency)
+            .change_context(ConnectorError::AmountConversionFailed)
+    }
+
+    /// Converts an amount Stripe returned for `currency` (as Stripe spells it) to the core minor unit
+    pub fn amount_from_stripe(
+        amount: MinorUnit,
+        currency: &str,
+    ) -> Result<MinorUnit, error_stack::Report<ConnectorError>> {
+        let currency = enums::Currency::from_str(currency.to_uppercase().as_str())
+            .change_context(ConnectorError::ParsingFailed)?;
+        Self::amount_from_stripe_in(amount, currency)
+    }
+
+    /// Converts an amount Stripe returned for `currency` to the core minor unit
+    pub fn amount_from_stripe_in(
+        amount: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ConnectorError>> {
+        Self.convert_back(amount, currency)
+            .change_context(ConnectorError::AmountConversionFailed)
+    }
+}
+
+impl AmountConvertor for StripeAmountConvertor {
+    type Output = MinorUnit;
+
+    fn convert(
+        &self,
+        amount: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        if Self::is_two_decimal_at_stripe(currency) {
+            amount
+                .get_amount_as_i64()
+                .checked_mul(100)
+                .map(MinorUnit::new)
+                .ok_or_else(|| error_stack::report!(ParsingError::IntegerOverflow))
+        } else {
+            Ok(amount)
+        }
+    }
+
+    fn convert_back(
+        &self,
+        amount: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        if Self::is_two_decimal_at_stripe(currency) {
+            Ok(MinorUnit::new(amount.get_amount_as_i64() / 100))
+        } else {
+            Ok(amount)
+        }
+    }
 }
 
 /// Tokenization method sent to Stripe for decrypted wallet tokens
@@ -2319,22 +2390,22 @@ fn get_stripe_moto_flag(
 
 fn create_stripe_line_items_data(
     l2_l3_data: &Option<Box<hyperswitch_domain_models::router_data::L2L3Data>>,
-) -> Option<StripeLineItemsData> {
+    currency: enums::Currency,
+) -> Result<Option<StripeLineItemsData>, error_stack::Report<ConnectorError>> {
+    let to_stripe = |amount: MinorUnit| StripeAmountConvertor::amount_to_stripe(amount, currency);
     l2_l3_data.as_ref().map(|data| {
         let customer_reference = data.get_customer_id().map(|id| id.get_string_repr().to_string());
         let order_reference = data.get_merchant_order_reference_id();
 
         let shipping_from_postal_code = data.get_shipping_origin_zip();
         let shipping_to_postal_code = data.get_shipping_zip();
-        let shipping_amount = data.get_shipping_cost();
+        let shipping_amount = data.get_shipping_cost().map(to_stripe).transpose()?;
 
-        let discount_amount = data.get_discount_amount();
+        let discount_amount = data.get_discount_amount().map(to_stripe).transpose()?;
 
         // Stripe requires tax to be either at order level OR line-item level, not both
-        let (line_items, order_tax_amount) = data.get_order_details().map_or((None, data.get_order_tax_amount()), |order_details| {
-            if order_details.is_empty() {
-                (None, data.get_order_tax_amount())
-            } else {
+        let (line_items, order_tax_amount) = match data.get_order_details() {
+            Some(order_details) if !order_details.is_empty() => {
                 let mut items_map = HashMap::new();
                 let mut has_line_item_tax = false;
 
@@ -2345,7 +2416,7 @@ fn create_stripe_line_items_data(
                     );
                     items_map.insert(
                         format!("amount_details[line_items][{}][unit_cost]", index),
-                        order_item.amount.get_amount_as_i64().to_string(),
+                        to_stripe(order_item.amount)?.get_amount_as_i64().to_string(),
                     );
                     items_map.insert(
                         format!("amount_details[line_items][{}][quantity]", index),
@@ -2364,7 +2435,7 @@ fn create_stripe_line_items_data(
                         has_line_item_tax = true;
                         items_map.insert(
                             format!("amount_details[line_items][{}][tax][total_tax_amount]", index),
-                            tax_amount.get_amount_as_i64().to_string(),
+                            to_stripe(tax_amount)?.get_amount_as_i64().to_string(),
                         );
                     }
 
@@ -2379,7 +2450,7 @@ fn create_stripe_line_items_data(
                     if let Some(line_discount) = order_item.unit_discount_amount {
                         items_map.insert(
                             format!("amount_details[line_items][{}][discount_amount]", index),
-                            line_discount.get_amount_as_i64().to_string(),
+                            to_stripe(line_discount)?.get_amount_as_i64().to_string(),
                         );
                     }
 
@@ -2399,9 +2470,11 @@ fn create_stripe_line_items_data(
 
                 (Some(items_map), order_tax)
             }
-        });
+            _ => (None, data.get_order_tax_amount()),
+        };
+        let order_tax_amount = order_tax_amount.map(to_stripe).transpose()?;
 
-        StripeLineItemsData {
+        Ok(StripeLineItemsData {
             customer_reference,
             order_reference,
             shipping_from_postal_code,
@@ -2410,8 +2483,9 @@ fn create_stripe_line_items_data(
             order_tax_amount,
             discount_amount,
             line_items,
-        }
+        })
     })
+    .transpose()
 }
 
 pub fn is_payment_method_tokenize_flow_required(data: &PaymentsAuthorizeRouterData) -> bool {
@@ -2821,14 +2895,18 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
 
         let charges = match &item.request.split_payments {
             Some(SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment)) => {
+                let application_fee_amount = stripe_split_payment
+                    .application_fees
+                    .map(|fee| StripeAmountConvertor::amount_to_stripe(fee, item.request.currency))
+                    .transpose()?;
                 match &stripe_split_payment.charge_type {
                     PaymentChargeType::Stripe(charge_type) => match charge_type {
                         StripeChargeType::Direct => Some(IntentCharges {
-                            application_fee_amount: stripe_split_payment.application_fees,
+                            application_fee_amount,
                             destination_account_id: None,
                         }),
                         StripeChargeType::Destination => Some(IntentCharges {
-                            application_fee_amount: stripe_split_payment.application_fees,
+                            application_fee_amount,
                             destination_account_id: Some(
                                 stripe_split_payment.transfer_account_id.clone(),
                             ),
@@ -2946,7 +3024,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             charges,
             moto: is_moto,
             on_behalf_of,
-            line_items: create_stripe_line_items_data(&item.l2_l3_data),
+            line_items: create_stripe_line_items_data(&item.l2_l3_data, item.request.currency)?,
         })
     }
 }
@@ -3883,7 +3961,18 @@ where
             .response
             .latest_charge
             .as_ref()
-            .and_then(StripeChargeEnum::get_maximum_capturable_amount);
+            .and_then(StripeChargeEnum::get_maximum_capturable_amount)
+            .map(|amount| {
+                StripeAmountConvertor::amount_from_stripe(amount, &item.response.currency)
+            })
+            .transpose()?;
+        let minor_amount_captured = item
+            .response
+            .amount_received
+            .map(|amount| {
+                StripeAmountConvertor::amount_from_stripe(amount, &item.response.currency)
+            })
+            .transpose()?;
 
         Ok(Self {
             status,
@@ -3894,11 +3983,8 @@ where
             three_ds_form,
             */
             response,
-            amount_captured: item
-                .response
-                .amount_received
-                .map(|amount| amount.get_amount_as_i64()),
-            minor_amount_captured: item.response.amount_received,
+            amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
+            minor_amount_captured,
             connector_response: connector_response_data,
             minor_amount_capturable,
             ..item.data
@@ -4209,14 +4295,19 @@ where
             })
         };
 
+        let minor_amount_captured = item
+            .response
+            .amount_received
+            .map(|amount| {
+                StripeAmountConvertor::amount_from_stripe(amount, &item.response.currency)
+            })
+            .transpose()?;
+
         Ok(Self {
             status,
             response,
-            amount_captured: item
-                .response
-                .amount_received
-                .map(|amount| amount.get_amount_as_i64()),
-            minor_amount_captured: item.response.amount_received,
+            amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
+            minor_amount_captured,
             connector_response: connector_response_data,
             ..item.data
         })
@@ -4569,7 +4660,10 @@ pub struct ChargeRefundRequest {
 impl<F> TryFrom<&RefundsRouterData<F>> for ChargeRefundRequest {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: &RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let amount = item.request.minor_refund_amount;
+        let amount = StripeAmountConvertor::amount_to_stripe(
+            item.request.minor_refund_amount,
+            item.request.currency,
+        )?;
         match item.request.split_refunds.as_ref() {
             None => Err(ConnectorError::MissingRequiredField {
                 field_name: "split_refunds".into(),
@@ -5069,6 +5163,7 @@ pub struct ChargeSyncResponse {
     pub status: StripePaymentStatus,
     pub payment_intent: Option<String>,
     pub amount_captured: Option<MinorUnit>,
+    pub currency: Option<String>,
     pub failure_code: Option<String>,
     pub failure_message: Option<String>,
     pub outcome: Option<StripeChargeOutcome>,
@@ -5141,14 +5236,18 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargeSyncResponse, T, PaymentsResponse
             })
         };
 
+        let minor_amount_captured = match (item.response.amount_captured, &item.response.currency) {
+            (Some(amount), Some(currency)) => {
+                Some(StripeAmountConvertor::amount_from_stripe(amount, currency)?)
+            }
+            (amount, _) => amount,
+        };
+
         Ok(Self {
             status,
             response,
-            amount_captured: item
-                .response
-                .amount_captured
-                .map(|amount| amount.get_amount_as_i64()),
-            minor_amount_captured: item.response.amount_captured,
+            amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
+            minor_amount_captured,
             ..item.data
         })
     }

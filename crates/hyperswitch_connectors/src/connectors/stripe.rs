@@ -12,10 +12,7 @@ use common_utils::{
     errors::CustomResult,
     ext_traits::{ByteSliceExt as _, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{
-        AmountConvertor, MinorUnit, MinorUnitForConnector, StringMinorUnit,
-        StringMinorUnitForConnector,
-    },
+    types::{AmountConvertor, MinorUnit, StringMinorUnit, StringMinorUnitForConnector},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -106,7 +103,7 @@ pub struct Stripe {
 impl Stripe {
     pub const fn new() -> &'static Self {
         &Self {
-            amount_converter: &MinorUnitForConnector,
+            amount_converter: &stripe::StripeAmountConvertor,
             amount_converter_webhooks: &StringMinorUnitForConnector,
         }
     }
@@ -3034,7 +3031,11 @@ impl IncomingWebhook for Stripe {
         Ok(DisputePayload {
             amount: utils::convert_amount(
                 self.amount_converter_webhooks,
-                amt,
+                utils::convert_back_amount_to_minor_units(
+                    self.amount_converter,
+                    amt,
+                    details.event_data.event_object.currency,
+                )?,
                 details.event_data.event_object.currency,
             )?,
             currency: details.event_data.event_object.currency,

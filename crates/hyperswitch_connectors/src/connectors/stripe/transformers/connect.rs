@@ -1,17 +1,22 @@
 use common_enums::{enums, Currency};
-use common_utils::{ext_traits::OptionExt as _, pii::Email};
+use common_utils::{ext_traits::OptionExt as _, pii::Email, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::types::{PayoutsResponseData, PayoutsRouterData};
 use hyperswitch_interfaces::errors;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use super::ErrorDetails;
+use super::{ErrorDetails, StripeAmountConvertor};
 use crate::{
     types::{PayoutIndividualDetailsExt as _, PayoutsResponseRouterData},
     utils::{CustomerDetails as _, PayoutsData as _, RouterData},
 };
 type Error = error_stack::Report<errors::ConnectorError>;
+
+fn payout_amount_to_stripe(amount: i64, currency: Currency) -> Result<i64, Error> {
+    StripeAmountConvertor::amount_to_stripe(MinorUnit::new(amount), currency)
+        .map(MinorUnit::get_amount_as_i64)
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -260,7 +265,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectPayoutCreateRequest {
         let request = item.request.to_owned();
         let connector_customer_id = item.get_connector_customer_id()?;
         Ok(Self {
-            amount: request.amount,
+            amount: payout_amount_to_stripe(request.amount, request.destination_currency)?,
             currency: request.destination_currency,
             destination: connector_customer_id,
             transfer_group: item.connector_request_reference_id.clone(),
@@ -300,7 +305,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectPayoutFulfillRequest {
     fn try_from(item: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         let request = item.request.to_owned();
         Ok(Self {
-            amount: request.amount,
+            amount: payout_amount_to_stripe(request.amount, request.destination_currency)?,
             currency: request.destination_currency,
         })
     }
@@ -337,7 +342,10 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectReversalRequest {
     type Error = Error;
     fn try_from(item: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         Ok(Self {
-            amount: item.request.amount,
+            amount: payout_amount_to_stripe(
+                item.request.amount,
+                item.request.destination_currency,
+            )?,
         })
     }
 }
