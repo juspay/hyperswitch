@@ -723,6 +723,10 @@ pub async fn reset_password_token_only_flow(
     let _ = auth::blacklist::insert_user_in_blacklist(&state, &user.user_id)
         .await
         .map_err(|error| logger::error!(?error));
+    let _ =
+        utils::user::password::delete_signin_attempts_from_redis(&state, &email_token.get_email()?)
+            .await
+            .map_err(|error| logger::error!(?error));
 
     auth::cookies::remove_cookie_response()
 }
