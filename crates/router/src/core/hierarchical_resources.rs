@@ -17,6 +17,7 @@ use openssl::{
 use storage_impl::behaviour::ForeignInto;
 
 use crate::{
+    consts,
     core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
     db::AccountsStorageInterface,
     routes::SessionState,
@@ -333,7 +334,7 @@ struct GooglePayResourceData {
 impl GooglePayResourceData {
     fn is_linkable(&self, resource: &domain::HierarchicalResource) -> bool {
         resource.encrypted_data.is_some()
-            && self.protocol_version == "ECv2"
+            && self.protocol_version == consts::PROTOCOL
             && !self.public_key.is_empty()
     }
 }
@@ -453,8 +454,12 @@ impl HierarchicalResourceHandler for GooglePayResource {
             mode: configuration.mode,
             google_merchant_id: configuration.google_merchant_id.clone(),
             public_key,
-            protocol_version: "ECv2".to_string(),
-            recipient_id: format!("merchant:{}", configuration.google_merchant_id),
+            protocol_version: consts::PROTOCOL.to_string(),
+            recipient_id: format!(
+                "{}{}",
+                consts::GOOGLE_PAY_MERCHANT_RECIPIENT_PREFIX,
+                configuration.google_merchant_id
+            ),
         };
         let public_key_data = serde_json::to_value(GooglePayPublicKeyData {
             public_key: &resource_data.public_key,
@@ -1047,7 +1052,7 @@ fn parse_resource_type(
 }
 
 fn parse_certificate_from_base64_der(certificate_base64: &str) -> RouterResult<X509> {
-    let der_bytes = crate::consts::BASE64_ENGINE
+    let der_bytes = consts::BASE64_ENGINE
         .decode(certificate_base64)
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "certificate is not valid base64".to_string(),
@@ -1342,7 +1347,7 @@ async fn create_organization_key_store(
         key_manager_state,
         EncryptionTransferRequest {
             identifier: identifier.clone(),
-            key: hyperswitch_masking::StrongSecret::new(crate::consts::BASE64_ENGINE.encode(key)),
+            key: hyperswitch_masking::StrongSecret::new(consts::BASE64_ENGINE.encode(key)),
         },
     )
     .await

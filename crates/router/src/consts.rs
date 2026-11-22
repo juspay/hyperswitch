@@ -309,6 +309,9 @@ pub(crate) const SENDER_ID: &[u8] = b"Google";
 /// recipient from configuration instead of taking it from the merchant.
 pub(crate) const GOOGLE_PAY_GATEWAY_RECIPIENT_PREFIX: &str = "gateway:";
 
+/// Recipient prefix for Google Pay DIRECT merchant tokens.
+pub(crate) const GOOGLE_PAY_MERCHANT_RECIPIENT_PREFIX: &str = "merchant:";
+
 /// Default value for the number of attempts to retry fetching forex rates
 pub const DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS: u64 = 3;
 
