@@ -653,6 +653,7 @@ pub async fn rotate_password(
     if user.compare_password(&request.password)? {
         return Err(UserErrors::ChangePasswordError.into());
     }
+    let user_email = domain::UserEmail::from_pii_email(user.get_email())?;
 
     let user = state
         .global_store
@@ -666,6 +667,9 @@ pub async fn rotate_password(
         .change_context(UserErrors::InternalServerError)?;
 
     let _ = auth::blacklist::insert_user_in_blacklist(&state, &user.user_id)
+        .await
+        .map_err(|error| logger::error!(?error));
+    let _ = utils::user::password::delete_signin_attempts_from_redis(&state, &user_email)
         .await
         .map_err(|error| logger::error!(?error));
 
