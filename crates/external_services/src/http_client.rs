@@ -129,6 +129,7 @@ pub async fn send_request(
         url.host_str().unwrap_or_default().to_owned()
     ));
 
+    let method = request.method;
     let request_builder = {
         match request.method {
             Method::Get => client.get(url),
@@ -227,18 +228,19 @@ pub async fn send_request(
         metrics_tag,
     )
     .await;
-    // Retry once if the response is connection closed.
+    // Retry a GET once if the response is connection closed.
     //
     // This is just due to the racy nature of networking.
     // hyper has a connection pool of idle connections, and it selected one to send your request.
     // Most of the time, hyper will receive the server’s FIN and drop the dead connection from its pool.
     // But occasionally, a connection will be selected from the pool
     // and written to at the same time the server is deciding to close the connection.
-    // Since hyper already wrote some of the request,
-    // it can’t really retry it automatically on a new connection, since the server may have acted already
+    // Since hyper already wrote some of the request, the server may have acted on it already,
+    // so only a GET is safe to send again; any other request could be applied twice.
     let response = match response {
         Err(error)
-            if error.current_context() == &HttpClientError::ConnectionClosedIncompleteMessage =>
+            if error.current_context() == &HttpClientError::ConnectionClosedIncompleteMessage
+                && method == Method::Get =>
         {
             metrics::AUTO_RETRY_CONNECTION_CLOSED.add(1, metrics_tag);
             match cloned_send_request {
@@ -276,4 +278,60 @@ fn is_connection_closed_before_message_could_complete(error: &reqwest::Error) ->
         source = err.source();
     }
     false
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod tests {
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+
+    use tokio::{io::AsyncReadExt, net::TcpListener};
+
+    use super::*;
+
+    /// A server that reads each request and closes the connection without answering,
+    /// counting the connections it accepted.
+    async fn closing_server() -> (String, Arc<AtomicUsize>) {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}/", listener.local_addr().unwrap());
+        let accepted = Arc::new(AtomicUsize::new(0));
+        let counter = Arc::clone(&accepted);
+        tokio::spawn(async move {
+            while let Ok((mut socket, _)) = listener.accept().await {
+                counter.fetch_add(1, Ordering::SeqCst);
+                let mut buf = [0u8; 4096];
+                let _ = socket.read(&mut buf).await;
+            }
+        });
+        (url, accepted)
+    }
+
+    async fn send_to_closing_server(method: Method) -> (HttpClientError, usize) {
+        let (url, accepted) = closing_server().await;
+        let request = RequestBuilder::new().method(method).url(&url).build();
+        let error = send_request(&Proxy::default(), request, Some(5))
+            .await
+            .expect_err("server never answers");
+        (
+            error.current_context().clone(),
+            accepted.load(Ordering::SeqCst),
+        )
+    }
+
+    #[tokio::test]
+    async fn connection_closed_post_is_not_sent_again() {
+        let (error, connections) = send_to_closing_server(Method::Post).await;
+        assert_eq!(error, HttpClientError::ConnectionClosedIncompleteMessage);
+        assert_eq!(connections, 1);
+    }
+
+    #[tokio::test]
+    async fn connection_closed_get_is_sent_again() {
+        let (error, connections) = send_to_closing_server(Method::Get).await;
+        assert_eq!(error, HttpClientError::ConnectionClosedIncompleteMessage);
+        assert_eq!(connections, 2);
+    }
 }
