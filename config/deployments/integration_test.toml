@@ -256,7 +256,7 @@ base_url = "https://integ.hyperswitch.io"
 force_two_factor_auth = false
 force_cookies = false
 signup_disabled = false
-signup_contact_email = "support.global@juspay.io"
+signup_contact_email = "signup@example.com"
 accept_password_on_signup_with_merchant_id = false
 internal_merchant_id = "juspay000"
 
