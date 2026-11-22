@@ -2306,21 +2306,18 @@ pub async fn send_verification_mail(
     )
     .await?;
 
-    let user = state
+    let user = match state
         .global_store
         .find_active_user_by_user_email(&user_email)
         .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::UserNotFound)
-            } else {
-                e.change_context(UserErrors::InternalServerError)
-            }
-        })?;
-
-    if user.is_verified {
-        return Err(UserErrors::UserAlreadyVerified.into());
-    }
+    {
+        Ok(user) if user.is_verified => return Ok(ApplicationResponse::StatusOk),
+        Ok(user) => user,
+        Err(error) if error.current_context().is_db_not_found() => {
+            return Ok(ApplicationResponse::StatusOk);
+        }
+        Err(error) => return Err(error.change_context(UserErrors::InternalServerError)),
+    };
 
     let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
 
