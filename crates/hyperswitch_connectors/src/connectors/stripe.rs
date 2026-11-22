@@ -912,8 +912,19 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Str
     where
         PaymentsResponseData: Clone,
     {
-        let id = data.request.connector_transaction_id.clone();
-        match id.get_connector_transaction_id() {
+        let id = data
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            // An incoming webhook can arrive for an attempt whose authorize response was lost,
+            // so no connector transaction id is stored yet; take Stripe's id from the event object
+            .or_else(|err| {
+                res.response
+                    .parse_struct::<stripe::WebhookEventObjectData>("WebhookEventObjectData")
+                    .map(|event_object| event_object.id)
+                    .map_err(|_| err)
+            });
+        match id {
             Ok(x) if x.starts_with("set") => {
                 let response: stripe::SetupIntentResponse = res
                     .response
