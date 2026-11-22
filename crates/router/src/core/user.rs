@@ -297,7 +297,7 @@ pub async fn signin_token_only_flow(
     let max_attempts = i64::from(state.conf.user.password_max_attempts);
 
     let attempts =
-        utils::user::password::get_password_attempts_from_redis(&state, &user_email).await?;
+        utils::user::password::get_signin_attempts_from_redis(&state, &user_email).await?;
     if attempts >= max_attempts {
         return Err(UserErrors::MaxPasswordAttemptsReached.into());
     }
@@ -322,15 +322,14 @@ pub async fn signin_token_only_flow(
 
     let Some(user_from_db) = user_from_db.filter(|_| are_creds_correct) else {
         let attempts =
-            utils::user::password::increment_password_attempts_in_redis(&state, &user_email)
-                .await?;
+            utils::user::password::increment_signin_attempts_in_redis(&state, &user_email).await?;
         if attempts >= max_attempts {
             return Err(UserErrors::MaxPasswordAttemptsReached.into());
         }
         return Err(UserErrors::InvalidCredentials.into());
     };
 
-    let _ = utils::user::password::delete_password_attempts_from_redis(&state, &user_email)
+    let _ = utils::user::password::delete_signin_attempts_from_redis(&state, &user_email)
         .await
         .inspect_err(|error| logger::error!(?error));
 

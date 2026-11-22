@@ -148,7 +148,7 @@ fn get_email_key(prefix: &str, email: &domain::UserEmail) -> UserResult<RedisKey
     Ok(format!("{prefix}{}", hex::encode(email_hash)).into())
 }
 
-fn get_password_attempts_key(email: &domain::UserEmail) -> UserResult<RedisKey> {
+fn get_signin_attempts_key(email: &domain::UserEmail) -> UserResult<RedisKey> {
     get_email_key(consts::user::REDIS_PASSWORD_ATTEMPTS_PREFIX, email)
 }
 
@@ -156,24 +156,24 @@ fn get_forgot_password_attempts_key(email: &domain::UserEmail) -> UserResult<Red
     get_email_key(consts::user::REDIS_FORGOT_PASSWORD_ATTEMPTS_PREFIX, email)
 }
 
-pub async fn get_password_attempts_from_redis(
+pub async fn get_signin_attempts_from_redis(
     state: &SessionState,
     email: &domain::UserEmail,
 ) -> UserResult<i64> {
     let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     redis_conn
-        .get_key::<Option<i64>>(&get_password_attempts_key(email)?)
+        .get_key::<Option<i64>>(&get_signin_attempts_key(email)?)
         .await
         .change_context(UserErrors::InternalServerError)
         .map(|v| v.unwrap_or(0))
 }
 
-pub async fn increment_password_attempts_in_redis(
+pub async fn increment_signin_attempts_in_redis(
     state: &SessionState,
     email: &domain::UserEmail,
 ) -> UserResult<i64> {
     let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
-    let key = get_password_attempts_key(email)?;
+    let key = get_signin_attempts_key(email)?;
     let lock_duration_in_secs = state.conf.user.password_lock_duration_in_secs;
 
     let attempts = redis_conn
@@ -188,13 +188,13 @@ pub async fn increment_password_attempts_in_redis(
     Ok(attempts)
 }
 
-pub async fn delete_password_attempts_from_redis(
+pub async fn delete_signin_attempts_from_redis(
     state: &SessionState,
     email: &domain::UserEmail,
 ) -> UserResult<()> {
     let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     redis_conn
-        .delete_key(&get_password_attempts_key(email)?)
+        .delete_key(&get_signin_attempts_key(email)?)
         .await
         .change_context(UserErrors::InternalServerError)
         .map(|_| ())
