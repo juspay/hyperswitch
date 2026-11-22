@@ -6,7 +6,7 @@ use argon2::{
     Argon2,
 };
 use common_utils::{
-    crypto::{self, SignMessage},
+    crypto::{self, GenerateDigest},
     errors::CustomResult,
 };
 use error_stack::ResultExt;
@@ -141,27 +141,17 @@ fn get_temp_password_inner() -> String {
     )
 }
 
-/// Builds a Redis key for the email from an HMAC of it, so that emails are not stored in Redis in
-/// plain text and cannot be recovered by hashing a list of known emails without the secret.
-fn get_email_key(
-    state: &SessionState,
-    prefix: &str,
-    email: &domain::UserEmail,
-) -> UserResult<RedisKey> {
-    let email_hash = crypto::HmacSha256
-        .sign_message(
-            state.conf.secrets.get_inner().jwt_secret.peek().as_bytes(),
-            email.clone().get_secret().expose().as_bytes(),
-        )
+/// Builds a Redis key for the email from a SHA-256 hash of it, so that emails are not stored in
+/// Redis in plain text.
+fn get_email_key(prefix: &str, email: &domain::UserEmail) -> UserResult<RedisKey> {
+    let email_hash = crypto::Sha256
+        .generate_digest(email.clone().get_secret().expose().as_bytes())
         .change_context(UserErrors::InternalServerError)?;
-    Ok(format!("{}{}", prefix, hex::encode(email_hash)).into())
+    Ok(format!("{prefix}{}", hex::encode(email_hash)).into())
 }
 
-fn get_password_attempts_key(
-    state: &SessionState,
-    email: &domain::UserEmail,
-) -> UserResult<RedisKey> {
-    get_email_key(state, consts::user::REDIS_PASSWORD_ATTEMPTS_PREFIX, email)
+fn get_password_attempts_key(email: &domain::UserEmail) -> UserResult<RedisKey> {
+    get_email_key(consts::user::REDIS_PASSWORD_ATTEMPTS_PREFIX, email)
 }
 
 fn get_forgot_password_attempts_key(
@@ -181,7 +171,7 @@ pub async fn get_password_attempts_from_redis(
 ) -> UserResult<i64> {
     let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     redis_conn
-        .get_key::<Option<i64>>(&get_password_attempts_key(state, email)?)
+        .get_key::<Option<i64>>(&get_password_attempts_key(email)?)
         .await
         .change_context(UserErrors::InternalServerError)
         .map(|v| v.unwrap_or(0))
@@ -192,7 +182,7 @@ pub async fn increment_password_attempts_in_redis(
     email: &domain::UserEmail,
 ) -> UserResult<i64> {
     let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
-    let key = get_password_attempts_key(state, email)?;
+    let key = get_password_attempts_key(email)?;
     let lock_duration_in_secs = state.conf.user.password_lock_duration_in_secs;
 
     let attempts = redis_conn
@@ -213,7 +203,7 @@ pub async fn delete_password_attempts_from_redis(
 ) -> UserResult<()> {
     let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     redis_conn
-        .delete_key(&get_password_attempts_key(state, email)?)
+        .delete_key(&get_password_attempts_key(email)?)
         .await
         .change_context(UserErrors::InternalServerError)
         .map(|_| ())
@@ -229,7 +219,7 @@ pub async fn increment_forgot_password_attempts_in_redis(
     let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
     redis_conn
         .increment_key_with_expiry(
-            &get_forgot_password_attempts_key(state, email)?,
+            &get_forgot_password_attempts_key(email)?,
             state.conf.user.forgot_password_attempts_window_in_secs,
         )
         .await
