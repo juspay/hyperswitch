@@ -534,6 +534,7 @@ pub async fn change_password(
 
     let new_password_hash =
         utils::user::password::generate_password_hash(new_password.get_secret())?;
+    let user_email = domain::UserEmail::from_pii_email(user.get_email())?;
 
     let _ = state
         .global_store
@@ -548,6 +549,9 @@ pub async fn change_password(
         .attach_printable("Failed to update user password in the database")?;
 
     let _ = auth::blacklist::insert_user_in_blacklist(&state, user.get_user_id())
+        .await
+        .map_err(|error| logger::error!(?error));
+    let _ = utils::user::password::delete_signin_attempts_from_redis(&state, &user_email)
         .await
         .map_err(|error| logger::error!(?error));
 
