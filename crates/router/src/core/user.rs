@@ -292,8 +292,6 @@ pub async fn signin_token_only_flow(
     )
     .await?;
 
-    // Attempts are counted per email and checked before the user is looked up, so that sign in
-    // behaves the same whether or not a user exists with the email
     let max_attempts = i64::from(state.conf.user.password_max_attempts);
 
     let attempts =
@@ -586,8 +584,6 @@ pub async fn forgot_password(
     )
     .await?;
 
-    // Requests are counted per email before the user is looked up, so that the limit applies the
-    // same whether or not a user exists with the email
     let attempts =
         utils::user::password::increment_forgot_password_attempts_in_redis(&state, &user_email)
             .await?;
@@ -596,8 +592,6 @@ pub async fn forgot_password(
         || Err(UserErrors::MaxForgotPasswordAttemptsReached),
     )?;
 
-    // An unknown email gets the same response as a known one, so that the response does not
-    // reveal whether a user exists with the email
     let user_from_db = match state
         .global_store
         .find_active_user_by_user_email(&user_email)
