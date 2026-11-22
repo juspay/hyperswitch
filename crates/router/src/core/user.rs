@@ -237,6 +237,10 @@ pub async fn signup_token_only_flow(
     state: SessionState,
     request: user_api::SignUpRequest,
 ) -> UserResponse<user_api::TokenResponse> {
+    if state.conf.user.signup_disabled {
+        return Err(report!(UserErrors::SignupDisabled));
+    }
+
     let user_email = domain::UserEmail::from_pii_email(request.email.clone())?;
     utils::user::validate_email_domain_auth_type_using_db(
         &state,
@@ -290,31 +294,42 @@ pub async fn signin_token_only_flow(
     )
     .await?;
 
-    let user_from_db: domain::UserFromStorage = state
-        .global_store
-        .find_active_user_by_user_email(&user_email)
-        .await
-        .to_not_found_response(UserErrors::InvalidCredentials)?
-        .into();
-
-    let user_id = user_from_db.get_user_id();
     let max_attempts = i64::from(state.conf.user.password_max_attempts);
 
-    let attempts = utils::user::password::get_password_attempts_from_redis(&state, user_id).await?;
+    let attempts =
+        utils::user::password::get_signin_attempts_from_redis(&state, &user_email).await?;
     if attempts >= max_attempts {
         return Err(UserErrors::MaxPasswordAttemptsReached.into());
     }
 
-    if !user_from_db.compare_password(&request.password)? {
+    let user_from_db = state
+        .global_store
+        .find_active_user_by_user_email(&user_email)
+        .await
+        .map(|user| Some(domain::UserFromStorage::from(user)))
+        .or_else(|error| {
+            if error.current_context().is_db_not_found() {
+                Ok(None)
+            } else {
+                Err(error.change_context(UserErrors::InternalServerError))
+            }
+        })?;
+
+    let are_creds_correct = match &user_from_db {
+        Some(user) => user.compare_password(&request.password)?,
+        None => false,
+    };
+
+    let Some(user_from_db) = user_from_db.filter(|_| are_creds_correct) else {
         let attempts =
-            utils::user::password::increment_password_attempts_in_redis(&state, user_id).await?;
+            utils::user::password::increment_signin_attempts_in_redis(&state, &user_email).await?;
         if attempts >= max_attempts {
             return Err(UserErrors::MaxPasswordAttemptsReached.into());
         }
         return Err(UserErrors::InvalidCredentials.into());
-    }
+    };
 
-    let _ = utils::user::password::delete_password_attempts_from_redis(&state, user_id)
+    let _ = utils::user::password::delete_signin_attempts_from_redis(&state, &user_email)
         .await
         .inspect_err(|error| logger::error!(?error));
 
@@ -389,8 +404,13 @@ pub async fn connect_account(
         .err()
         .unwrap_or(false)
     {
-        if matches!(env::which(), env::Env::Production) {
-            return Err(report!(UserErrors::InvalidCredentials));
+        if state.conf.user.signup_disabled {
+            return Ok(ApplicationResponse::Json(
+                user_api::ConnectAccountResponse {
+                    is_email_sent: true,
+                    user_id: String::new(),
+                },
+            ));
         }
 
         let new_user = domain::NewUser::try_from(request)?;
@@ -523,6 +543,7 @@ pub async fn change_password(
 
     let new_password_hash =
         utils::user::password::generate_password_hash(new_password.get_secret())?;
+    let user_email = domain::UserEmail::from_pii_email(user.get_email())?;
 
     let _ = state
         .global_store
@@ -537,6 +558,9 @@ pub async fn change_password(
         .attach_printable("Failed to update user password in the database")?;
 
     let _ = auth::blacklist::insert_user_in_blacklist(&state, user.get_user_id())
+        .await
+        .map_err(|error| logger::error!(?error));
+    let _ = utils::user::password::delete_signin_attempts_from_redis(&state, &user_email)
         .await
         .map_err(|error| logger::error!(?error));
 
@@ -573,18 +597,25 @@ pub async fn forgot_password(
     )
     .await?;
 
-    let user_from_db = state
+    let attempts =
+        utils::user::password::increment_forgot_password_attempts_in_redis(&state, &user_email)
+            .await?;
+    fp_utils::when(
+        attempts > i64::from(state.conf.user.forgot_password_max_attempts),
+        || Err(UserErrors::MaxForgotPasswordAttemptsReached),
+    )?;
+
+    let user_from_db = match state
         .global_store
         .find_active_user_by_user_email(&user_email)
         .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::UserNotFound)
-            } else {
-                e.change_context(UserErrors::InternalServerError)
-            }
-        })
-        .map(domain::UserFromStorage::from)?;
+    {
+        Ok(user) => domain::UserFromStorage::from(user),
+        Err(error) if error.current_context().is_db_not_found() => {
+            return Ok(ApplicationResponse::StatusOk);
+        }
+        Err(error) => return Err(error.change_context(UserErrors::InternalServerError)),
+    };
 
     let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
 
@@ -631,6 +662,7 @@ pub async fn rotate_password(
     if user.compare_password(&request.password)? {
         return Err(UserErrors::ChangePasswordError.into());
     }
+    let user_email = domain::UserEmail::from_pii_email(user.get_email())?;
 
     let user = state
         .global_store
@@ -644,6 +676,9 @@ pub async fn rotate_password(
         .change_context(UserErrors::InternalServerError)?;
 
     let _ = auth::blacklist::insert_user_in_blacklist(&state, &user.user_id)
+        .await
+        .map_err(|error| logger::error!(?error));
+    let _ = utils::user::password::delete_signin_attempts_from_redis(&state, &user_email)
         .await
         .map_err(|error| logger::error!(?error));
 
@@ -705,6 +740,10 @@ pub async fn reset_password_token_only_flow(
     let _ = auth::blacklist::insert_user_in_blacklist(&state, &user.user_id)
         .await
         .map_err(|error| logger::error!(?error));
+    let _ =
+        utils::user::password::delete_signin_attempts_from_redis(&state, &email_token.get_email()?)
+            .await
+            .map_err(|error| logger::error!(?error));
 
     auth::cookies::remove_cookie_response()
 }
@@ -2271,21 +2310,18 @@ pub async fn send_verification_mail(
     )
     .await?;
 
-    let user = state
+    let user = match state
         .global_store
         .find_active_user_by_user_email(&user_email)
         .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::UserNotFound)
-            } else {
-                e.change_context(UserErrors::InternalServerError)
-            }
-        })?;
-
-    if user.is_verified {
-        return Err(UserErrors::UserAlreadyVerified.into());
-    }
+    {
+        Ok(user) if user.is_verified => return Ok(ApplicationResponse::StatusOk),
+        Ok(user) => user,
+        Err(error) if error.current_context().is_db_not_found() => {
+            return Ok(ApplicationResponse::StatusOk);
+        }
+        Err(error) => return Err(error.change_context(UserErrors::InternalServerError)),
+    };
 
     let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
 
