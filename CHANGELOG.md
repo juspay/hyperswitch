@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.11.1-hotfix9
+
+### Features
+
+- **users:** Rate limit password sign in and forgot password per email ([#15357](https://github.com/juspay/hyperswitch/pull/15357)) ([`59b4d5a`](https://github.com/juspay/hyperswitch/commit/59b4d5a58c56426649ba5f283c3dc10e4afbcce8))
+
+**Full Changelog:** [`2026.11.11.1-hotfix8...2026.11.11.1-hotfix9`](https://github.com/juspay/hyperswitch/compare/2026.11.11.1-hotfix8...2026.11.11.1-hotfix9)
+
+- - -
+
 ## 2026.11.11.1-hotfix8
 
 ### Bug Fixes
