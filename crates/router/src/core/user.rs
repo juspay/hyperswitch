@@ -403,7 +403,12 @@ pub async fn connect_account(
         .unwrap_or(false)
     {
         if state.conf.user.signup_disabled {
-            return Err(report!(UserErrors::InvalidCredentials));
+            return Ok(ApplicationResponse::Json(
+                user_api::ConnectAccountResponse {
+                    is_email_sent: true,
+                    user_id: String::new(),
+                },
+            ));
         }
 
         let new_user = domain::NewUser::try_from(request)?;
