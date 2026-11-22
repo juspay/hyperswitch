@@ -292,31 +292,43 @@ pub async fn signin_token_only_flow(
     )
     .await?;
 
-    let user_from_db: domain::UserFromStorage = state
-        .global_store
-        .find_active_user_by_user_email(&user_email)
-        .await
-        .to_not_found_response(UserErrors::InvalidCredentials)?
-        .into();
-
-    let user_id = user_from_db.get_user_id();
+    // Attempts are counted per email and checked before the user is looked up, so that sign in
+    // behaves the same whether or not a user exists with the email
     let max_attempts = i64::from(state.conf.user.password_max_attempts);
 
-    let attempts = utils::user::password::get_password_attempts_from_redis(&state, user_id).await?;
+    let attempts =
+        utils::user::password::get_password_attempts_from_redis(&state, &user_email).await?;
     if attempts >= max_attempts {
         return Err(UserErrors::MaxPasswordAttemptsReached.into());
     }
 
-    if !user_from_db.compare_password(&request.password)? {
-        let attempts =
-            utils::user::password::increment_password_attempts_in_redis(&state, user_id).await?;
-        if attempts >= max_attempts {
-            return Err(UserErrors::MaxPasswordAttemptsReached.into());
-        }
-        return Err(UserErrors::InvalidCredentials.into());
-    }
+    let user_from_db = state
+        .global_store
+        .find_active_user_by_user_email(&user_email)
+        .await
+        .map(|user| Some(domain::UserFromStorage::from(user)))
+        .or_else(|error| {
+            if error.current_context().is_db_not_found() {
+                Ok(None)
+            } else {
+                Err(error.change_context(UserErrors::InternalServerError))
+            }
+        })?;
 
-    let _ = utils::user::password::delete_password_attempts_from_redis(&state, user_id)
+    let user_from_db = match user_from_db {
+        Some(user) if user.compare_password(&request.password)? => user,
+        _ => {
+            let attempts =
+                utils::user::password::increment_password_attempts_in_redis(&state, &user_email)
+                    .await?;
+            if attempts >= max_attempts {
+                return Err(UserErrors::MaxPasswordAttemptsReached.into());
+            }
+            return Err(UserErrors::InvalidCredentials.into());
+        }
+    };
+
+    let _ = utils::user::password::delete_password_attempts_from_redis(&state, &user_email)
         .await
         .inspect_err(|error| logger::error!(?error));
 
@@ -573,18 +585,29 @@ pub async fn forgot_password(
     )
     .await?;
 
-    let user_from_db = state
+    // Requests are counted per email before the user is looked up, so that the limit applies the
+    // same whether or not a user exists with the email
+    let attempts =
+        utils::user::password::increment_forgot_password_attempts_in_redis(&state, &user_email)
+            .await?;
+    fp_utils::when(
+        attempts > i64::from(state.conf.user.forgot_password_max_attempts),
+        || Err(UserErrors::MaxForgotPasswordAttemptsReached),
+    )?;
+
+    // An unknown email gets the same response as a known one, so that the response does not
+    // reveal whether a user exists with the email
+    let user_from_db = match state
         .global_store
         .find_active_user_by_user_email(&user_email)
         .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::UserNotFound)
-            } else {
-                e.change_context(UserErrors::InternalServerError)
-            }
-        })
-        .map(domain::UserFromStorage::from)?;
+    {
+        Ok(user) => domain::UserFromStorage::from(user),
+        Err(error) if error.current_context().is_db_not_found() => {
+            return Ok(ApplicationResponse::StatusOk);
+        }
+        Err(error) => return Err(error.change_context(UserErrors::InternalServerError)),
+    };
 
     let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
 

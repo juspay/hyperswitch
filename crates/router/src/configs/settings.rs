@@ -1027,7 +1027,8 @@ pub struct UserSettings {
     pub email_token_expiry_in_secs: u64,
     pub password_max_attempts: u16,
     pub password_lock_duration_in_secs: i64,
-    #[serde(default)]
+    pub forgot_password_max_attempts: u16,
+    pub forgot_password_attempts_window_in_secs: i64,
     pub signup_disabled: bool,
 }
 
