@@ -97,7 +97,6 @@ pub enum EmailBody {
         contact_email: String,
         entity_name: String,
         entity_logo_url: String,
-        primary_color: String,
         background_color: String,
         foreground_color: String,
     },
@@ -297,7 +296,6 @@ Email         : {user_email}
                 contact_email,
                 entity_name,
                 entity_logo_url,
-                primary_color,
                 background_color,
                 foreground_color,
             } => {
@@ -306,7 +304,6 @@ Email         : {user_email}
                     contact_email = contact_email,
                     entity_name = entity_name,
                     entity_logo_url = entity_logo_url,
-                    primary_color = primary_color,
                     background_color = background_color,
                     foreground_color = foreground_color
                 )
@@ -812,7 +809,6 @@ impl EmailData for SignupContact {
                 .entity_logo_url
                 .get_string_repr()
                 .to_string(),
-            primary_color: self.theme_config.primary_color.clone().into_inner(),
             background_color: self.theme_config.background_color.clone().into_inner(),
             foreground_color: self.theme_config.foreground_color.clone().into_inner(),
         });
