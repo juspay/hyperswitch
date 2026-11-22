@@ -154,15 +154,8 @@ fn get_password_attempts_key(email: &domain::UserEmail) -> UserResult<RedisKey> 
     get_email_key(consts::user::REDIS_PASSWORD_ATTEMPTS_PREFIX, email)
 }
 
-fn get_forgot_password_attempts_key(
-    state: &SessionState,
-    email: &domain::UserEmail,
-) -> UserResult<RedisKey> {
-    get_email_key(
-        state,
-        consts::user::REDIS_FORGOT_PASSWORD_ATTEMPTS_PREFIX,
-        email,
-    )
+fn get_forgot_password_attempts_key(email: &domain::UserEmail) -> UserResult<RedisKey> {
+    get_email_key(consts::user::REDIS_FORGOT_PASSWORD_ATTEMPTS_PREFIX, email)
 }
 
 pub async fn get_password_attempts_from_redis(
