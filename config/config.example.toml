@@ -689,6 +689,9 @@ internal_merchant_id = "juspay000"   # Merchant id of the internal merchant that
 email_token_expiry_in_secs = 86400   # Number of seconds for which email links (verify, reset password, invite, etc.) stay valid
 password_max_attempts = 5            # Wrong passwords in a row before password sign in is locked
 password_lock_duration_in_secs = 1800 # Lock time. The failed attempt count also clears after this long without a wrong password
+forgot_password_max_attempts = 5     # Forgot password requests allowed per email within the window
+forgot_password_attempts_window_in_secs = 1800 # Window for forgot password requests. It starts with the first request
+signup_disabled = false              # Whether to reject self-serve sign ups (magic link and password)
 
 [oidc.key.k1]
 kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
