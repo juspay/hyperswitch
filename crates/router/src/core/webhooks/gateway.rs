@@ -553,10 +553,18 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                         serde_json::Value::Null
                     }));
 
-                let ack_response = handle_response
-                    .event_ack_response
-                    .map(ucs_ack_to_webhook_response)
-                    .unwrap_or_default();
+                let ack_response = match handle_response.event_ack_response {
+                    Some(ack) => ucs_ack_to_webhook_response(ack),
+                    None => ctx
+                        .connector
+                        .get_webhook_api_response(
+                            request,
+                            None,
+                            Some(mca.connector_account_details.clone()),
+                        )
+                        .switch()
+                        .attach_printable("Failed to build webhook ack via connector")?,
+                };
 
                 WebhookOutcome::Processed {
                     reference,
