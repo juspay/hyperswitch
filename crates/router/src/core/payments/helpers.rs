@@ -1469,58 +1469,57 @@ pub(super) fn validate_connector_mandate_currency(
     match original_currency {
         Some(original_currency) => {
             if original_currency == payment_currency {
-                return Ok(());
-            }
-            if !config.connector_list.contains(&connector) {
-                return Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                    reason: "Cross currency mandates not supported".into(),
-                }));
-            }
-
-            let currency_rule = payment_method_type
-                .and_then(|method| config.currency_rules.get(&connector)?.get(&method))
-                .filter(|currencies| !currencies.is_empty());
-            let allowed = match currency_rule {
-                Some(currencies) => {
-                    currencies.contains(&original_currency)
-                        && currencies.contains(&payment_currency)
-                }
-                None => {
-                    let filter = payment_method_type.and_then(|method| {
-                        let key =
-                            crate::configs::settings::PaymentMethodFilterKey::PaymentMethodType(
-                                method,
-                            );
-                        pm_filters
-                            .0
-                            .get(&connector.to_string())
-                            .and_then(|filters| filters.0.get(&key))
-                            .or_else(|| {
-                                pm_filters
-                                    .0
-                                    .get("default")
-                                    .and_then(|filters| filters.0.get(&key))
-                            })
-                    });
-                    match filter.and_then(|filter| filter.currency.as_ref()) {
-                        Some(currencies) => currencies.contains(&payment_currency),
-                        None => true,
-                    }
-                }
-            };
-            if allowed {
-                logger::info!(
-                    %connector,
-                    ?payment_method_type,
-                    %original_currency,
-                    %payment_currency,
-                    "allowing cross-currency connector mandate"
-                );
                 Ok(())
-            } else {
+            } else if !config.connector_list.contains(&connector) {
                 Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
                     reason: "Cross currency mandates not supported".into(),
                 }))
+            } else {
+                let currency_rule = payment_method_type
+                    .and_then(|method| config.currency_rules.get(&connector)?.get(&method))
+                    .filter(|currencies| !currencies.is_empty());
+                let allowed = match currency_rule {
+                    Some(currencies) => {
+                        currencies.contains(&original_currency)
+                            && currencies.contains(&payment_currency)
+                    }
+                    None => {
+                        let filter = payment_method_type.and_then(|method| {
+                            let key =
+                                crate::configs::settings::PaymentMethodFilterKey::PaymentMethodType(
+                                    method,
+                                );
+                            pm_filters
+                                .0
+                                .get(&connector.to_string())
+                                .and_then(|filters| filters.0.get(&key))
+                                .or_else(|| {
+                                    pm_filters
+                                        .0
+                                        .get("default")
+                                        .and_then(|filters| filters.0.get(&key))
+                                })
+                        });
+                        match filter.and_then(|filter| filter.currency.as_ref()) {
+                            Some(currencies) => currencies.contains(&payment_currency),
+                            None => true,
+                        }
+                    }
+                };
+                if allowed {
+                    logger::info!(
+                        %connector,
+                        ?payment_method_type,
+                        %original_currency,
+                        %payment_currency,
+                        "allowing cross-currency connector mandate"
+                    );
+                    Ok(())
+                } else {
+                    Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+                        reason: "Cross currency mandates not supported".into(),
+                    }))
+                }
             }
         }
         None => Ok(()),
