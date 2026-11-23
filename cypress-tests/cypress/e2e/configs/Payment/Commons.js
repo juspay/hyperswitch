@@ -1164,6 +1164,10 @@ const externalSurchargeConfirm = {
   Response: succeededResponse,
 };
 
+// InterPayments rejects a billing address in Germany with this error code. The
+// payment goes on without a surcharge and keeps the error in error_details.
+const externalSurchargeError = { error_code: "INVALID_DATA_COUNTRY" };
+
 export const connectorDetails = {
   customer: {
     CreateInvalidPhoneCountryCode: {
@@ -2458,6 +2462,35 @@ export const connectorDetails = {
     },
     ExternalSurchargeRetrieve: {
       Response: externalSurchargeResponse,
+    },
+    ExternalSurchargeErrorEligibility: {
+      ExpectSurchargeError: externalSurchargeError,
+      Request: {
+        payment_method_type: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: {
+            address: {
+              line1: "Unter den Linden 1",
+              city: "Berlin",
+              state: "Berlin",
+              zip: "10115",
+              country: "DE",
+              first_name: "John",
+              last_name: "Doe",
+            },
+          },
+        },
+      },
+    },
+    ExternalSurchargeErrorConfirm: {
+      ...externalSurchargeConfirm,
+      ExpectSurcharge: undefined,
+      ExpectSurchargeError: externalSurchargeError,
+    },
+    ExternalSurchargeErrorRetrieve: {
+      ExpectSurchargeError: externalSurchargeError,
+      Response: succeededResponse,
     },
     PaymentIntent: getCustomExchange({
       Request: {

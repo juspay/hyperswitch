@@ -829,6 +829,36 @@ function assertPaymentSurcharge(paymentBody, globalState, expectation) {
       (paymentBody.shipping_cost ?? 0) +
       (paymentBody.order_tax_amount ?? 0)
   );
+
+  // A successful calculation has no connector error.
+  expect(surchargeDetails.error_details, "error_details").to.be.null;
+}
+
+// The surcharge connector rejected the calculation: no fee is added, the payment
+// goes on, and the connector's error is kept in surcharge_details.error_details.
+function assertPaymentSurchargeError(paymentBody, expectation) {
+  const surchargeDetails = paymentBody.surcharge_details;
+  expect(surchargeDetails, "surcharge_details").to.be.an("object");
+  expect(surchargeDetails.surcharge_amount, "surcharge_amount").to.equal(0);
+  assertSurchargeErrorDetails(
+    surchargeDetails.error_details,
+    expectation.error_code
+  );
+  expect(paymentBody.net_amount, "net_amount").to.equal(
+    paymentBody.amount +
+      (paymentBody.shipping_cost ?? 0) +
+      (paymentBody.order_tax_amount ?? 0)
+  );
+}
+
+function assertSurchargeErrorDetails(errorDetails, expectedErrorCode) {
+  expect(errorDetails, "error_details").to.be.an("object");
+  expect(errorDetails.error_code, "error_details.error_code").to.equal(
+    expectedErrorCode
+  );
+  expect(errorDetails.error_message, "error_details.error_message").to.be.a(
+    "string"
+  ).and.not.be.empty;
 }
 
 function validateErrorMessage(response, resData) {
@@ -3598,6 +3628,7 @@ Cypress.Commands.add(
       Request: reqData,
       Response: resData,
       ExpectSurcharge: expectSurcharge,
+      ExpectSurchargeError: expectSurchargeError,
     } = data || {};
 
     const apiKey = globalState.get("publishableKey");
@@ -3696,6 +3727,9 @@ Cypress.Commands.add(
         } else if (response.status === 200) {
           if (expectSurcharge) {
             assertPaymentSurcharge(response.body, globalState, expectSurcharge);
+          }
+          if (expectSurchargeError) {
+            assertPaymentSurchargeError(response.body, expectSurchargeError);
           }
           if (response.body.next_action?.redirect_to_url) {
             globalState.set(
@@ -5235,7 +5269,11 @@ Cypress.Commands.add(
     unconfirmedPayment = false,
     allKeysRequired = false,
   }) => {
-    const { Configs: configs = {}, Response: resData = {} } = data || {};
+    const {
+      Configs: configs = {},
+      Response: resData = {},
+      ExpectSurchargeError: expectSurchargeError,
+    } = data || {};
 
     const configInfo = execConfig(validateConfig(configs));
     const payment_id = globalState.get("paymentID");
@@ -5288,6 +5326,9 @@ Cypress.Commands.add(
               globalState,
               resData.body.surcharge_details
             );
+          }
+          if (expectSurchargeError) {
+            assertPaymentSurchargeError(response.body, expectSurchargeError);
           }
 
           if (
@@ -9423,6 +9464,53 @@ Cypress.Commands.add(
   }
 );
 
+// Eligibility where the surcharge connector rejects the calculation. The call
+// still returns 200 with a zero surcharge, no percentage and the connector's
+// error in surcharge_details.error_details.
+Cypress.Commands.add(
+  "surchargeEligibilityErrorTest",
+  (requestBody, data, globalState) => {
+    const { Request: reqData, ExpectSurchargeError: expectation } = data || {};
+    const paymentId = globalState.get("paymentID");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/${paymentId}/eligibility`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+      },
+      body: {
+        ...requestBody,
+        client_secret: globalState.get("clientSecret"),
+        ...reqData,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status, "status_code").to.equal(200);
+        expect(response.body.payment_id, "payment_id").to.equal(paymentId);
+
+        const surchargeDetails = response.body.surcharge_details;
+        expect(surchargeDetails, "surcharge_details").to.be.an("object");
+        expect(surchargeDetails.surcharge, "surcharge").to.deep.equal({
+          type: "fixed",
+          value: 0,
+        });
+        expect(surchargeDetails.display_surcharge_amount).to.equal(0);
+        expect(surchargeDetails.surcharge_percentage, "surcharge_percentage").to
+          .be.null;
+        assertSurchargeErrorDetails(
+          surchargeDetails.error_details,
+          expectation.error_code
+        );
+      });
+    });
+  }
+);
+
 Cypress.Commands.add(
   "paymentsEligibilityCheck",
   (requestBody, data, globalState) => {
@@ -9489,6 +9577,7 @@ Cypress.Commands.add(
               "surcharge_details"
             );
             const surchargeDetails = response.body.surcharge_details;
+            expect(surchargeDetails.error_details, "error_details").to.be.null;
             expect(surchargeDetails, "surcharge_details.surcharge_percentage")
               .to.have.property("surcharge_percentage")
               .to.be.a("number");
