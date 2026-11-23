@@ -1572,30 +1572,6 @@ impl Settings<SecuredSecret> {
             .with_list_parse_key("report_download_config.process_tracker_reports")
             .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id");
 
-        // Currency rules are arrays; register dynamic connector/payment-method environment keys.
-        let environment_source = std::env::vars_os()
-            .filter_map(|(key, _)| {
-                let key = key.to_str()?;
-                let suffix = key.strip_prefix(
-                    "ROUTER__MANDATES__CROSS_CURRENCY_MIT_SUPPORTED_CONNECTORS__CURRENCY_RULES__",
-                )?;
-                let (connector, payment_method_type) = suffix.split_once("__")?;
-                if connector.is_empty()
-                    || payment_method_type.is_empty()
-                    || payment_method_type.contains("__")
-                {
-                    return None;
-                }
-                Some(format!(
-                    "mandates.cross_currency_mit_supported_connectors.currency_rules.{}.{}",
-                    connector.to_ascii_lowercase(),
-                    payment_method_type.to_ascii_lowercase(),
-                ))
-            })
-            .fold(environment_source, |source, key| {
-                source.with_list_parse_key(&key)
-            });
-
         #[cfg(feature = "deja")]
         let environment_source =
             environment_source.with_list_parse_key("deja.recording.kafka.brokers");
