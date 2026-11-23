@@ -116,6 +116,50 @@ pub async fn payouts_cancel() {}
 )]
 pub async fn payouts_fulfill() {}
 
+/// Payouts - Accept
+///
+/// Accept a payout in `requires_review` status and fulfill it using the payout fulfillment flow.
+/// Payouts in any other status cannot be accepted.
+#[utoipa::path(
+    post,
+    path = "/payouts/{payout_id}/accept",
+    params(
+        ("payout_id" = String, Path, description = "The identifier for payout")
+    ),
+    responses(
+        (status = 200, description = "Payout accepted and fulfilled", body = PayoutCreateResponse),
+        (status = 400, description = "Missing mandatory fields"),
+        (status = 404, description = "Payout does not exist in the merchant's records"),
+        (status = 422, description = "Payout is not in requires_review status")
+    ),
+    tag = "Payouts",
+    operation_id = "Accept a Payout",
+    security(("api_key" = []))
+)]
+pub async fn payouts_accept() {}
+
+/// Payouts - Reject
+///
+/// Reject a payout in `requires_review` status and cancel it using the payout cancellation flow.
+/// Payouts in any other status cannot be rejected.
+#[utoipa::path(
+    post,
+    path = "/payouts/{payout_id}/reject",
+    params(
+        ("payout_id" = String, Path, description = "The identifier for payout")
+    ),
+    responses(
+        (status = 200, description = "Payout rejected and cancelled", body = PayoutCreateResponse),
+        (status = 400, description = "Missing mandatory fields"),
+        (status = 404, description = "Payout does not exist in the merchant's records"),
+        (status = 422, description = "Payout is not in requires_review status")
+    ),
+    tag = "Payouts",
+    operation_id = "Reject a Payout",
+    security(("api_key" = []))
+)]
+pub async fn payouts_reject() {}
+
 /// Payouts - List
 #[utoipa::path(
     get,

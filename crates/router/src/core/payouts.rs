@@ -127,6 +127,13 @@ macro_rules! handle_payout_pre_frm_result {
 pub(super) use handle_payout_pre_frm_result;
 
 // ********************************************** TYPES **********************************************
+/// Selects state validation for payout actions and manual review decisions.
+#[derive(Clone, Copy, Debug)]
+pub enum PayoutActionType {
+    Standard,
+    Review,
+}
+
 #[derive(Clone)]
 pub struct PayoutData {
     pub billing_address: Option<domain_models::address::Address>,
@@ -798,6 +805,7 @@ pub async fn payouts_confirm_core(
             storage_enums::PayoutStatus::Ineligible,
             storage_enums::PayoutStatus::NotPermitted,
             storage_enums::PayoutStatus::RequiresFulfillment,
+            storage_enums::PayoutStatus::RequiresReview,
             storage_enums::PayoutStatus::RequiresVendorAccountCreation,
         ],
         "confirm",
@@ -976,36 +984,35 @@ pub async fn payouts_cancel_core(
     profile_id: Option<id_type::ProfileId>,
     header_payload: HeaderPayload,
     req: payouts::PayoutActionRequest,
+    action_type: PayoutActionType,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    let mut payout_data = Box::pin(make_payout_data(
+    let review_validation = match action_type {
+        PayoutActionType::Standard => None,
+        PayoutActionType::Review => Some((api_enums::PayoutStatus::RequiresReview, "rejected")),
+    };
+    let mut payout_data = Box::pin(make_payout_data_with_status_validation(
         &state,
         &platform,
         profile_id,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         &state.locale,
         true,
+        review_validation,
     ))
     .await?;
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
 
+    action_type.validate_cancellation_status(&payout_attempt.payout_id, status)?;
+
     let connector_name = payout_attempt
         .connector
         .as_deref()
         .and_then(|connector| common_enums::connector_enums::Connector::from_str(connector).ok());
 
-    // Verify if cancellation can be triggered
-    if helpers::is_payout_terminal_state(status) {
-        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!(
-                "Payout {:?} cannot be cancelled for status {}",
-                payout_attempt.payout_id, status
-            ),
-        }));
-
     // Make local cancellation
-    } else if helpers::is_eligible_for_local_payout_cancellation(status)
+    if helpers::is_eligible_for_local_payout_cancellation(status)
         && connector_name
             .as_ref()
             .map(|name| name.supports_instant_payout(payout_data.payouts.payout_type))
@@ -1090,14 +1097,20 @@ pub async fn payouts_fulfill_core(
     profile_id: Option<id_type::ProfileId>,
     header_payload: HeaderPayload,
     req: payouts::PayoutActionRequest,
+    action_type: PayoutActionType,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    let mut payout_data = Box::pin(make_payout_data(
+    let review_validation = match action_type {
+        PayoutActionType::Standard => None,
+        PayoutActionType::Review => Some((api_enums::PayoutStatus::RequiresReview, "accepted")),
+    };
+    let mut payout_data = Box::pin(make_payout_data_with_status_validation(
         &state,
         &platform,
         profile_id,
         &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
         &state.locale,
         true,
+        review_validation,
     ))
     .await?;
 
@@ -1107,17 +1120,7 @@ pub async fn payouts_fulfill_core(
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
-    // Verify if fulfillment can be triggered
-    if helpers::is_payout_terminal_state(status)
-        || status != api_enums::PayoutStatus::RequiresFulfillment
-    {
-        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!(
-                "Payout {:?} cannot be fulfilled for status {}",
-                payout_attempt.payout_id, status
-            ),
-        }));
-    }
+    action_type.validate_fulfillment_status(&payout_attempt.payout_id, status)?;
 
     // Form connector data
     let connector_data = match &payout_attempt.connector {
@@ -3849,21 +3852,6 @@ pub async fn payout_create_db_entries(
     })
 }
 
-#[cfg(feature = "v2")]
-pub async fn make_payout_data(
-    _state: &SessionState,
-    _platform: &domain::Platform,
-    _auth_profile_id: Option<id_type::ProfileId>,
-    _req: &payouts::PayoutRequest,
-    _locale: &str,
-    _enforce_kill_switch: bool,
-) -> RouterResult<PayoutData> {
-    todo!()
-}
-
-#[cfg(feature = "v1")]
-/// Load payout data, checking the kill switch for mutation and standalone execution callers.
-/// Retrieval, webhook delivery, and background status sync pass `false` to continue processing existing payouts.
 pub async fn make_payout_data(
     state: &SessionState,
     platform: &domain::Platform,
@@ -3871,6 +3859,43 @@ pub async fn make_payout_data(
     req: &payouts::PayoutRequest,
     locale: &str,
     enforce_kill_switch: bool,
+) -> RouterResult<PayoutData> {
+    Box::pin(make_payout_data_with_status_validation(
+        state,
+        platform,
+        auth_profile_id,
+        req,
+        locale,
+        enforce_kill_switch,
+        None,
+    ))
+    .await
+}
+
+#[cfg(feature = "v2")]
+async fn make_payout_data_with_status_validation(
+    _state: &SessionState,
+    _platform: &domain::Platform,
+    _auth_profile_id: Option<id_type::ProfileId>,
+    _req: &payouts::PayoutRequest,
+    _locale: &str,
+    _enforce_kill_switch: bool,
+    _status_validation: Option<(api_enums::PayoutStatus, &'static str)>,
+) -> RouterResult<PayoutData> {
+    todo!()
+}
+
+#[cfg(feature = "v1")]
+/// Load payout data, checking the kill switch for mutation and standalone execution callers.
+/// Retrieval, webhook delivery, and background status sync pass `false` to continue processing existing payouts.
+async fn make_payout_data_with_status_validation(
+    state: &SessionState,
+    platform: &domain::Platform,
+    auth_profile_id: Option<id_type::ProfileId>,
+    req: &payouts::PayoutRequest,
+    locale: &str,
+    enforce_kill_switch: bool,
+    status_validation: Option<(api_enums::PayoutStatus, &'static str)>,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
@@ -3972,6 +3997,15 @@ pub async fn make_payout_data(
     payout_attempt
         .execution_kind
         .validate_persisted_execution_kind(req)?;
+
+    if let Some((required_status, action)) = status_validation {
+        validator::validate_payout_action_status(
+            &payout_attempt.payout_id,
+            payout_attempt.status,
+            Some(required_status),
+            action,
+        )?;
+    }
 
     let customer_id = payouts.customer_id.as_ref();
 

@@ -18,7 +18,7 @@ use hyperswitch_domain_models::{
 use router_env::{instrument, logger, which as router_env_which, Env};
 use url::Url;
 
-use super::helpers;
+use super::{helpers, PayoutActionType};
 #[cfg(feature = "v1")]
 use crate::core::{
     payment_methods::cards::get_pm_list_context, payouts::kill_switch::PayoutKillSwitch,
@@ -41,6 +41,50 @@ use crate::{
 pub(crate) trait PayoutExecutionKindValidation {
     fn validate_persisted_execution_kind(self, req: &payouts::PayoutRequest) -> RouterResult<()>;
     fn validate_normal_execution_kind(self) -> RouterResult<()>;
+}
+
+impl PayoutActionType {
+    pub(super) fn validate_fulfillment_status(
+        self,
+        payout_id: &id_type::PayoutId,
+        status: common_enums::PayoutStatus,
+    ) -> RouterResult<()> {
+        let (required_status, action) = match self {
+            Self::Standard => (common_enums::PayoutStatus::RequiresFulfillment, "fulfilled"),
+            Self::Review => (common_enums::PayoutStatus::RequiresReview, "accepted"),
+        };
+        validate_payout_action_status(payout_id, status, Some(required_status), action)
+    }
+
+    pub(super) fn validate_cancellation_status(
+        self,
+        payout_id: &id_type::PayoutId,
+        status: common_enums::PayoutStatus,
+    ) -> RouterResult<()> {
+        let (required_status, action) = match self {
+            Self::Standard => (None, "cancelled"),
+            Self::Review => (Some(common_enums::PayoutStatus::RequiresReview), "rejected"),
+        };
+        validate_payout_action_status(payout_id, status, required_status, action)
+    }
+}
+
+pub(super) fn validate_payout_action_status(
+    payout_id: &id_type::PayoutId,
+    status: common_enums::PayoutStatus,
+    required_status: Option<common_enums::PayoutStatus>,
+    action: &str,
+) -> RouterResult<()> {
+    let allowed = match required_status {
+        Some(required_status) => status == required_status,
+        None => !helpers::is_payout_terminal_state(status),
+    };
+    if !allowed {
+        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("Payout {payout_id:?} cannot be {action} for status {status}"),
+        }));
+    }
+    Ok(())
 }
 
 impl PayoutExecutionKindValidation for common_enums::PayoutExecutionKind {
