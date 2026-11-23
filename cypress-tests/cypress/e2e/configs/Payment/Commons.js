@@ -1128,6 +1128,39 @@ export const refundStatusFilterMap = {
   review: "manual_review",
 };
 
+const wrongClientSecret = "pay_wrong_client_secret_value";
+
+const clientSecretInvalidResponse = {
+  status: 400,
+  body: {
+    error: {
+      type: "invalid_request",
+      code: "IR_09",
+      message:
+        "The client_secret provided does not match the client_secret associated with the Payment",
+    },
+  },
+};
+
+const clientSecretExpiredResponse = {
+  status: 400,
+  body: {
+    error: {
+      type: "invalid_request",
+      message: "The provided client_secret has expired",
+      code: "IR_08",
+    },
+  },
+};
+
+const eligibilityCardRequest = {
+  payment_method_type: "card",
+  payment_method_data: {
+    card: successfulNo3DSCardDetails,
+    billing: standardBillingAddress,
+  },
+};
+
 export const connectorDetails = {
   customer: {
     CreateInvalidPhoneCountryCode: {
@@ -2616,16 +2649,7 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "The provided client_secret has expired",
-            code: "IR_08",
-          },
-        },
-      },
+      Response: clientSecretExpiredResponse,
     }),
     Capture: getCustomExchange({
       Request: {
@@ -4715,13 +4739,7 @@ export const connectorDetails = {
       },
     }),
     NonBlocklistedCardAllowed: getCustomExchange({
-      Request: {
-        payment_method_type: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-          billing: standardBillingAddress,
-        },
-      },
+      Request: eligibilityCardRequest,
       Response: {
         status: 200,
         body: {
@@ -4729,23 +4747,22 @@ export const connectorDetails = {
         },
       },
     }),
-    // A client_secret that does not belong to the payment, rejected by the
-    // eligibility and 3DS authentication calls.
-    WrongClientSecret: getCustomExchange({
-      Request: {
-        client_secret: "pay_wrong_client_secret_value",
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            code: "IR_09",
-            message:
-              "The client_secret provided does not match the client_secret associated with the Payment",
-          },
-        },
-      },
+    // client_secret validation on the eligibility and 3DS authentication calls.
+    EligibilityWrongClientSecret: getCustomExchange({
+      Request: { ...eligibilityCardRequest, client_secret: wrongClientSecret },
+      Response: clientSecretInvalidResponse,
+    }),
+    EligibilityExpiredClientSecret: getCustomExchange({
+      Request: eligibilityCardRequest,
+      Response: clientSecretExpiredResponse,
+    }),
+    ThreeDSWrongClientSecret: getCustomExchange({
+      Request: { client_secret: wrongClientSecret },
+      Response: clientSecretInvalidResponse,
+    }),
+    ThreeDSExpiredClientSecret: getCustomExchange({
+      Request: {},
+      Response: clientSecretExpiredResponse,
     }),
   },
   offer_engine: {

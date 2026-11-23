@@ -7,54 +7,6 @@ let globalState;
 // The expiring payment intent lives 60 seconds.
 const SESSION_EXPIRY_WAIT = 65000;
 
-// Configs from Commons.js: a 200 eligibility check for a card, the payment
-// intent configs, the IR_08 response of an expired session, the 3DS
-// authentication that fails later with IR_16, and a wrong client_secret (IR_09).
-const eligibility = connectorDetails.eligibility_api.NonBlocklistedCardAllowed;
-const paymentIntent = connectorDetails.card_pm.PaymentIntent;
-const expiringPaymentIntent =
-  connectorDetails.card_pm.PaymentIntentWithSessionExpiry;
-const clientSecretExpired =
-  connectorDetails.card_pm.SessionExpiredConfirmPayment.Response;
-const threeDsAuthentication =
-  connectorDetails.step_up_auth.ThreeDSAuthenticationUnconfirmed;
-const wrongClientSecret = connectorDetails.eligibility_api.WrongClientSecret;
-
-// 15 minutes, longer than the 60s profile expiry left by earlier specs.
-const longLivedPaymentIntent = {
-  ...paymentIntent,
-  Request: { ...paymentIntent.Request, session_expiry: 900 },
-};
-
-const createPaymentIntent = (data) => {
-  cy.createPaymentIntentTest(
-    fixtures.createPaymentBody,
-    data,
-    "no_three_ds",
-    "automatic",
-    globalState
-  );
-};
-
-const callEligibility = (data, options) => {
-  cy.clientSecretValidationCallTest(
-    "eligibility",
-    fixtures.eligibilityCheckBody,
-    data,
-    globalState,
-    options
-  );
-};
-
-const callThreeDsAuthentication = (data) => {
-  cy.clientSecretValidationCallTest(
-    "3ds/authentication",
-    fixtures.threeDSAuthenticationBody,
-    data,
-    globalState
-  );
-};
-
 describe("client_secret validation on eligibility and 3DS authentication", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -68,54 +20,94 @@ describe("client_secret validation on eligibility and 3DS authentication", () =>
 
   context("Payment with a valid client_secret", () => {
     it("Create Payment Intent", () => {
-      createPaymentIntent(longLivedPaymentIntent);
+      // 15 minutes, longer than the 60s profile expiry left by earlier specs.
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        connectorDetails.eligibility_api.PaymentIntentForBlocklist,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
     });
 
     it("Eligibility with a wrong client_secret is rejected (IR_09)", () => {
-      callEligibility({
-        Request: { ...eligibility.Request, ...wrongClientSecret.Request },
-        Response: wrongClientSecret.Response,
-      });
+      cy.clientSecretValidationCallTest(
+        "eligibility",
+        fixtures.eligibilityCheckBody,
+        connectorDetails.eligibility_api.EligibilityWrongClientSecret,
+        globalState
+      );
     });
 
     it("Eligibility with the right client_secret is accepted", () => {
-      callEligibility(eligibility);
+      cy.clientSecretValidationCallTest(
+        "eligibility",
+        fixtures.eligibilityCheckBody,
+        connectorDetails.eligibility_api.NonBlocklistedCardAllowed,
+        globalState
+      );
     });
 
     // An API key call sends no client_secret, so there is nothing to validate.
     it("Eligibility with the API key and no client_secret is accepted", () => {
-      callEligibility(eligibility, { useApiKey: true });
+      cy.clientSecretValidationCallTest(
+        "eligibility",
+        fixtures.eligibilityCheckBody,
+        connectorDetails.eligibility_api.NonBlocklistedCardAllowed,
+        globalState,
+        { useApiKey: true }
+      );
     });
 
     it("3DS authentication with a wrong client_secret is rejected (IR_09)", () => {
-      callThreeDsAuthentication(wrongClientSecret);
+      cy.clientSecretValidationCallTest(
+        "3ds/authentication",
+        fixtures.threeDSAuthenticationBody,
+        connectorDetails.eligibility_api.ThreeDSWrongClientSecret,
+        globalState
+      );
     });
 
     it("3DS authentication with the right client_secret passes the check (IR_16 later)", () => {
       // The secret is accepted and the call fails later with IR_16, since the
       // payment has no external 3DS authentication attempt.
-      callThreeDsAuthentication(threeDsAuthentication);
+      cy.clientSecretValidationCallTest(
+        "3ds/authentication",
+        fixtures.threeDSAuthenticationBody,
+        connectorDetails.step_up_auth.ThreeDSAuthenticationUnconfirmed,
+        globalState
+      );
     });
   });
 
   context("Payment whose client_secret has expired", () => {
     it("Create Payment Intent that expires in 60 seconds", () => {
-      createPaymentIntent(expiringPaymentIntent);
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        connectorDetails.card_pm.PaymentIntentWithSessionExpiry,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
     });
 
     it("Eligibility with the expired client_secret is rejected (IR_08)", () => {
       cy.wait(SESSION_EXPIRY_WAIT);
-      callEligibility({
-        Request: eligibility.Request,
-        Response: clientSecretExpired,
-      });
+      cy.clientSecretValidationCallTest(
+        "eligibility",
+        fixtures.eligibilityCheckBody,
+        connectorDetails.eligibility_api.EligibilityExpiredClientSecret,
+        globalState
+      );
     });
 
     it("3DS authentication with the expired client_secret is rejected (IR_08)", () => {
-      callThreeDsAuthentication({
-        Request: {},
-        Response: clientSecretExpired,
-      });
+      cy.clientSecretValidationCallTest(
+        "3ds/authentication",
+        fixtures.threeDSAuthenticationBody,
+        connectorDetails.eligibility_api.ThreeDSExpiredClientSecret,
+        globalState
+      );
     });
   });
 });
