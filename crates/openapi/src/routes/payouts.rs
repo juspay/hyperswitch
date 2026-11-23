@@ -34,6 +34,7 @@
     responses(
         (status = 200, description = "Payout created", body = PayoutCreateResponse),
         (status = 400, description = "Missing mandatory fields or invalid request"),
+        (status = 404, description = "Customer does not exist in the merchant's records"),
         (status = 501, description = "External-vault proxy payout execution is not implemented yet")
     ),
     tag = "Payouts",
@@ -70,7 +71,8 @@ pub async fn payouts_retrieve() {}
     request_body=PayoutUpdateRequest,
     responses(
         (status = 200, description = "Payout updated", body = PayoutCreateResponse),
-        (status = 400, description = "Missing Mandatory fields")
+        (status = 400, description = "Missing mandatory fields or invalid request"),
+        (status = 404, description = "Payout does not exist in the merchant's records")
     ),
     tag = "Payouts",
     operation_id = "Update a Payout",
@@ -212,7 +214,8 @@ pub async fn payouts_list_by_filter_profile() {}
     request_body=PayoutConfirmRequest,
     responses(
         (status = 200, description = "Payout updated", body = PayoutCreateResponse),
-        (status = 400, description = "Missing Mandatory fields")
+        (status = 400, description = "Missing mandatory fields or invalid request"),
+        (status = 404, description = "Payout does not exist in the merchant's records")
     ),
     tag = "Payouts",
     operation_id = "Confirm a Payout",
