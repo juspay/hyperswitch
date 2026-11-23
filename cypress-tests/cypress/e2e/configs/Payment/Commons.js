@@ -4729,6 +4729,24 @@ export const connectorDetails = {
         },
       },
     }),
+    // A client_secret that does not belong to the payment, rejected by the
+    // eligibility and 3DS authentication calls.
+    WrongClientSecret: getCustomExchange({
+      Request: {
+        client_secret: "pay_wrong_client_secret_value",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_09",
+            message:
+              "The client_secret provided does not match the client_secret associated with the Payment",
+          },
+        },
+      },
+    }),
   },
   offer_engine: {
     PaymentIntentForOffer: getCustomExchange({

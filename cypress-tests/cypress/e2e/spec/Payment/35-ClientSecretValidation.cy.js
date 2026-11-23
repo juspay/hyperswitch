@@ -7,9 +7,9 @@ let globalState;
 // The expiring payment intent lives 60 seconds.
 const SESSION_EXPIRY_WAIT = 65000;
 
-// Existing configs, reused: a 200 eligibility check for a card, the payment
-// intent configs, the IR_08 response of an expired session, and the 3DS
-// authentication that fails later with IR_16.
+// Configs from Commons.js: a 200 eligibility check for a card, the payment
+// intent configs, the IR_08 response of an expired session, the 3DS
+// authentication that fails later with IR_16, and a wrong client_secret (IR_09).
 const eligibility = connectorDetails.eligibility_api.NonBlocklistedCardAllowed;
 const paymentIntent = connectorDetails.card_pm.PaymentIntent;
 const expiringPaymentIntent =
@@ -18,25 +18,12 @@ const clientSecretExpired =
   connectorDetails.card_pm.SessionExpiredConfirmPayment.Response;
 const threeDsAuthentication =
   connectorDetails.step_up_auth.ThreeDSAuthenticationUnconfirmed;
+const wrongClientSecret = connectorDetails.eligibility_api.WrongClientSecret;
 
 // 15 minutes, longer than the 60s profile expiry left by earlier specs.
 const longLivedPaymentIntent = {
   ...paymentIntent,
   Request: { ...paymentIntent.Request, session_expiry: 900 },
-};
-
-const wrongClientSecret = { client_secret: "pay_wrong_client_secret_value" };
-
-const clientSecretInvalid = {
-  status: 400,
-  body: {
-    error: {
-      type: "invalid_request",
-      code: "IR_09",
-      message:
-        "The client_secret provided does not match the client_secret associated with the Payment",
-    },
-  },
 };
 
 const createPaymentIntent = (data) => {
@@ -86,8 +73,8 @@ describe("client_secret validation on eligibility and 3DS authentication", () =>
 
     it("Eligibility with a wrong client_secret is rejected (IR_09)", () => {
       callEligibility({
-        Request: { ...eligibility.Request, ...wrongClientSecret },
-        Response: clientSecretInvalid,
+        Request: { ...eligibility.Request, ...wrongClientSecret.Request },
+        Response: wrongClientSecret.Response,
       });
     });
 
@@ -101,10 +88,7 @@ describe("client_secret validation on eligibility and 3DS authentication", () =>
     });
 
     it("3DS authentication with a wrong client_secret is rejected (IR_09)", () => {
-      callThreeDsAuthentication({
-        Request: wrongClientSecret,
-        Response: clientSecretInvalid,
-      });
+      callThreeDsAuthentication(wrongClientSecret);
     });
 
     it("3DS authentication with the right client_secret passes the check (IR_16 later)", () => {
