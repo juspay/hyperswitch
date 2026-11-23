@@ -19,6 +19,7 @@ pub struct ConnectorAuthentication {
     pub adyen_uk: Option<SignatureKey>,
     pub airwallex: Option<BodyKey>,
     pub amazonpay: Option<BodyKey>,
+    pub amex: Option<BodyKey>,
     pub archipel: Option<NoKey>,
     pub authipay: Option<BodyKey>,
     pub authorizedotnet: Option<BodyKey>,

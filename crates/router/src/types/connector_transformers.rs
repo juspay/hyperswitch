@@ -14,6 +14,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Adyenplatform => Self::Adyenplatform,
             api_enums::Connector::Airwallex => Self::Airwallex,
             api_enums::Connector::Amazonpay => Self::Amazonpay,
+            api_enums::Connector::Amex => Self::Amex,
             api_enums::Connector::Archipel => Self::Archipel,
             api_enums::Connector::Authipay => Self::Authipay,
             api_enums::Connector::Authorizedotnet => Self::Authorizedotnet,

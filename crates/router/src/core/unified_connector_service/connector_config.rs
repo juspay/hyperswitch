@@ -289,6 +289,11 @@ pub struct JuspayMetadata {
 /// Connector-specific configuration enum for all supported connectors
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum ConnectorSpecificConfig {
+    /// Amex gateway credentials used by UCS for HTTP Basic authentication.
+    Amex {
+        merchant_id: Secret<String>,
+        shared_secret: Secret<String>,
+    },
     /// Affirm connector configuration (public/private API key pair, HTTP Basic auth)
     Affirm {
         public_key: Secret<String>,
@@ -976,6 +981,13 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
         };
 
         match connector {
+            Connector::Amex => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Amex {
+                    merchant_id: api_key.clone(),
+                    shared_secret: key1.clone(),
+                }),
+                _ => Err(err("Amex requires BodyKey auth type")),
+            },
             Connector::Adyen => match auth {
                 ConnectorAuthType::SignatureKey {
                     api_key,

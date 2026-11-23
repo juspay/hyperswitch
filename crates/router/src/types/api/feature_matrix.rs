@@ -37,6 +37,7 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Amazonpay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Amazonpay::new())))
                 }
+                enums::Connector::Amex => Ok(ConnectorEnum::Old(Box::new(connector::Amex::new()))),
                 enums::Connector::Archipel => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Archipel::new())))
                 }
