@@ -1164,6 +1164,18 @@ const externalSurchargeConfirm = {
   Response: succeededResponse,
 };
 
+const invalidRefundAmountResponse = {
+  status: 422,
+  body: {
+    error: {
+      type: "invalid_request",
+      message:
+        "amount contains invalid data. Expected format is positive integer",
+      code: "IR_05",
+    },
+  },
+};
+
 export const connectorDetails = {
   customer: {
     CreateInvalidPhoneCountryCode: {
@@ -2458,6 +2470,67 @@ export const connectorDetails = {
     },
     ExternalSurchargeRetrieve: {
       Response: externalSurchargeResponse,
+    },
+    ExternalSurchargeRefund: {
+      Response: succeededResponse,
+    },
+    // No amount is sent, so the whole charged total is refunded in one call.
+    ExternalSurchargeRefundWholeOrder: {
+      Request: {
+        amount: undefined,
+      },
+      Response: succeededResponse,
+      WholeOrder: true,
+    },
+    ExternalSurchargeRefundBeforeCapture: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "This Payment could not be refund because it has a status of requires_capture. The expected state is succeeded, partially_captured",
+            code: "IR_14",
+          },
+        },
+      },
+    },
+    ExternalSurchargeRefundOverOrderAmount: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Requested refund amount is greater than the original order amount.",
+            code: "IR_16",
+          },
+        },
+      },
+    },
+    ExternalSurchargeRefundExceedsCaptured: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "The refund amount exceeds the amount captured",
+            code: "IR_13",
+          },
+        },
+      },
+    },
+    ExternalSurchargeRefundZeroAmount: {
+      Request: {
+        amount: 0,
+      },
+      Response: invalidRefundAmountResponse,
+    },
+    ExternalSurchargeRefundNegativeAmount: {
+      Request: {
+        amount: -100,
+      },
+      Response: invalidRefundAmountResponse,
     },
     PaymentIntent: getCustomExchange({
       Request: {
