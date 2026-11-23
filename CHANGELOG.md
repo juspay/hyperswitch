@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.11.1-hotfix11
+
+### Miscellaneous Tasks
+
+- **superposition:** Bumped superposition version to 0.120.0 ([#15318](https://github.com/juspay/hyperswitch/pull/15318)) ([#15372](https://github.com/juspay/hyperswitch/pull/15372)) ([`6b65964`](https://github.com/juspay/hyperswitch/commit/6b65964d31e741d12f78368306cac755e0ef1ab1))
+
+**Full Changelog:** [`2026.11.11.1-hotfix10...2026.11.11.1-hotfix11`](https://github.com/juspay/hyperswitch/compare/2026.11.11.1-hotfix10...2026.11.11.1-hotfix11)
+
+- - -
+
 ## 2026.11.11.1-hotfix10
 
 ### Features
