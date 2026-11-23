@@ -150,6 +150,13 @@ pub enum MerchantIdConfig {
     ByCurrency(HashMap<api_models::enums::Currency, InputData>),
 }
 
+/// Rapid Connect: Merchant ID and Datawire ID inputs for a payment channel
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct PaymentChannelMerchantDetailsConfig {
+    pub merchant_id: InputData,
+    pub datawire_id: InputData,
+}
+
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConfigMetadata {
@@ -176,6 +183,10 @@ pub struct ConfigMetadata {
     pub connector_currency_account_id: Option<InputData>,
     pub workspace_id: Option<InputData>,
     pub merchant_id: Option<MerchantIdConfig>,
+    /// Rapid Connect: Merchant ID and Datawire ID keyed by payment channel
+    pub merchant_details: Option<
+        HashMap<api_models::enums::PaymentChannel, PaymentChannelMerchantDetailsConfig>,
+    >,
     pub endpoint_prefix: Option<InputData>,
     pub mcc: Option<InputData>,
     pub merchant_country_code: Option<InputData>,
@@ -458,6 +469,7 @@ pub struct ConnectorConfig {
     pub plaid: Option<ConnectorTomlConfig>,
     pub powertranz: Option<ConnectorTomlConfig>,
     pub prophetpay: Option<ConnectorTomlConfig>,
+    pub rapidconnect: Option<ConnectorTomlConfig>,
     pub razorpay: Option<ConnectorTomlConfig>,
     pub recurly: Option<ConnectorTomlConfig>,
     pub riskified: Option<ConnectorTomlConfig>,
