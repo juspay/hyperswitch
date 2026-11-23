@@ -1290,6 +1290,8 @@ impl PaymentAttempt {
                             .as_ref()
                             .and_then(|data| data.recovery_request_id.clone())
                     }),
+                    // Set later, by the retry decision that answers this attempt's failure.
+                    retry_algorithm: None,
                 }
             }),
         };
@@ -3073,8 +3075,9 @@ pub enum PaymentAttemptUpdate {
         amount_to_capture: Option<MinorUnit>,
         updated_by: String,
     },
-    /// Update the attempt's feature metadata after recording the payment back to the
-    /// billing connector. Touches nothing else.
+    /// Update only the attempt's feature metadata: after recording the payment back to the
+    /// billing connector, or to record the retry decision that answered the attempt's failure.
+    /// Touches nothing else.
     RecordBackUpdate {
         feature_metadata: Option<PaymentAttemptFeatureMetadata>,
         updated_by: String,
@@ -3136,6 +3139,9 @@ pub struct PaymentAttemptRevenueRecoveryData {
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     /// Id of the recovery request that recorded this transaction.
     pub recovery_request_id: Option<String>,
+    /// The A/B arm that decided when to retry after this attempt failed. Absent when no arm
+    /// applied: the profile is not on A/B routing, or the decision ran the cascading schedule.
+    pub retry_algorithm: Option<common_enums::RevenueRecoveryABAlgorithm>,
 }
 
 #[cfg(feature = "v2")]
@@ -3153,6 +3159,7 @@ impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadat
                     customer_present: recovery_data.customer_present,
                     setup_future_usage: recovery_data.setup_future_usage,
                     recovery_request_id: recovery_data.recovery_request_id.clone(),
+                    retry_algorithm: recovery_data.retry_algorithm,
                 });
         Self { revenue_recovery }
     }
@@ -3171,6 +3178,7 @@ impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata
                     customer_present: recovery_data.customer_present,
                     setup_future_usage: recovery_data.setup_future_usage,
                     recovery_request_id: recovery_data.recovery_request_id,
+                    retry_algorithm: recovery_data.retry_algorithm,
                 });
         Self { revenue_recovery }
     }

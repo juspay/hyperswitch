@@ -954,10 +954,6 @@ impl DimensionsWithRecoveryErrorCode {
             error_code,
         }
     }
-
-    pub fn get_error_code(&self) -> Option<StandardisedCode> {
-        self.error_code
-    }
 }
 
 impl DimensionsBase for DimensionsWithRecoveryErrorCode {

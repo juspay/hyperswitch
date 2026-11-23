@@ -73,70 +73,80 @@ use common_enums::enums::ProcessTrackerStatus;
 #[cfg(feature = "v1")]
 use crate::types::common_enums;
 
-/// Resolves the retry implementation this invoice should use from the A/B configuration and
-/// records it on the intent, so every later retry replays the same one.
-pub async fn assign_and_record_ab_routing(
+/// Records on the failed attempt the A/B arm that decided when to retry after it. The arm is
+/// resolved per retry decision, keyed on that attempt; nothing reads it back to pick the next one.
+/// Merges into the attempt's revenue recovery metadata, and skips the write when the attempt
+/// already carries this arm (a re-run of the same decision resolves the same arm).
+pub async fn record_ab_routing(
     state: &SessionState,
-    payment_id: &GlobalPaymentId,
-    feature_metadata: Option<api_payments::FeatureMetadata>,
+    failed_attempt_id: &id_type::GlobalAttemptId,
     merchant_context: pcr::RecoveryMerchantContext<'_>,
-    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
-) -> common_enums::RevenueRecoveryABAlgorithm {
-    let assigned_algorithm = dimensions
-        .get_revenue_recovery_ab_algorithm(
-            state.store.as_ref(),
-            state.superposition_service.as_ref(),
-            Some(payment_id),
-        )
-        .await;
+    assigned_algorithm: common_enums::RevenueRecoveryABAlgorithm,
+) {
+    let processor_account =
+        domain::ProcessorMerchantAccount::from_untagged(merchant_context.merchant_account.clone());
+    let processor_key_store =
+        domain::ProcessorKeyStore::from_untagged(merchant_context.key_store.clone());
+    let storage_scheme = processor_account.get_storage_scheme();
 
-    let updated_feature_metadata = feature_metadata.and_then(|mut feature_metadata| {
-        feature_metadata
-            .revenue_recovery
-            .as_mut()
-            .map(|revenue_recovery_metadata| {
-                revenue_recovery_metadata.revenue_recovery_ab_routing = Some(assigned_algorithm);
-            })
-            .map(|_| feature_metadata)
-    });
-
-    match updated_feature_metadata {
-        Some(feature_metadata) => {
-            let payment_update_req =
-                api_payments::PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
-                    feature_metadata,
-                    enums::UpdateActiveAttempt::NoAction,
-                );
-
-            match Box::pin(api::update_payment_intent_api(
-                state,
-                payment_id.clone(),
-                merchant_context,
-                payment_update_req,
-            ))
-            .await
-            {
-                Ok(_) => router_env::logger::info!(
-                    payment_id = %payment_id.get_string_repr(),
-                    algorithm = %assigned_algorithm,
-                    "A/B routing assigned a retry implementation to this invoice"
-                ),
-                Err(error) => router_env::logger::error!(
-                    ?error,
-                    payment_id = %payment_id.get_string_repr(),
-                    algorithm = %assigned_algorithm,
-                    "Failed to record the A/B routing assignment on the invoice"
-                ),
-            }
+    let failed_attempt = match state
+        .store
+        .find_payment_attempt_by_id(&processor_key_store, failed_attempt_id, storage_scheme)
+        .await
+    {
+        Ok(failed_attempt) => failed_attempt,
+        Err(error) => {
+            router_env::logger::error!(
+                ?error,
+                failed_attempt_id = %failed_attempt_id.get_string_repr(),
+                "Failed to fetch the attempt to record this decision's A/B arm on"
+            );
+            return;
         }
-        None => router_env::logger::warn!(
-            payment_id = %payment_id.get_string_repr(),
-            "Cannot record an A/B routing assignment: the invoice has no revenue \
-             recovery metadata"
+    };
+
+    let Some(mut feature_metadata) = failed_attempt.feature_metadata.clone() else {
+        router_env::logger::warn!(
+            failed_attempt_id = %failed_attempt_id.get_string_repr(),
+            "Cannot record an A/B arm: the attempt has no feature metadata"
+        );
+        return;
+    };
+    let Some(revenue_recovery) = feature_metadata.revenue_recovery.as_mut() else {
+        router_env::logger::warn!(
+            failed_attempt_id = %failed_attempt_id.get_string_repr(),
+            "Cannot record an A/B arm: the attempt has no revenue recovery metadata"
+        );
+        return;
+    };
+    if revenue_recovery.retry_algorithm == Some(assigned_algorithm) {
+        return;
+    }
+    revenue_recovery.retry_algorithm = Some(assigned_algorithm);
+
+    let update =
+        hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::RecordBackUpdate {
+            feature_metadata: Some(feature_metadata),
+            updated_by: storage_scheme.inner().to_string(),
+        };
+
+    match state
+        .store
+        .update_payment_attempt(&processor_key_store, failed_attempt, update, storage_scheme)
+        .await
+    {
+        Ok(_) => router_env::logger::info!(
+            failed_attempt_id = %failed_attempt_id.get_string_repr(),
+            algorithm = %assigned_algorithm,
+            "A/B routing recorded this decision's arm on the failed attempt"
+        ),
+        Err(error) => router_env::logger::error!(
+            ?error,
+            failed_attempt_id = %failed_attempt_id.get_string_repr(),
+            algorithm = %assigned_algorithm,
+            "Failed to record this decision's A/B arm on the failed attempt"
         ),
     }
-
-    assigned_algorithm
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -276,43 +286,6 @@ pub async fn upsert_calculate_pcr_task(
                 1,
                 router_env::metric_attributes!(("flow", "CalculateWorkflow")),
             );
-
-            // A/B routing normally assigns the invoice its retry implementation here, once. The
-            // CALCULATE workflow repeats the assignment only for an invoice that reaches it
-            // without one, which means this write did not land.
-            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
-                .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-                .with_organization_id(
-                    platform
-                        .get_processor()
-                        .get_account()
-                        .organization_id
-                        .clone(),
-                )
-                .with_profile_id(business_profile.get_id().clone());
-
-            if dimensions
-                .get_revenue_recovery_ab_enabled(
-                    state.store.as_ref(),
-                    state.superposition_service.as_ref(),
-                    None,
-                )
-                .await
-            {
-                Box::pin(assign_and_record_ab_routing(
-                    state,
-                    payment_id,
-                    recovery_intent_from_payment_intent.feature_metadata.clone(),
-                    pcr::RecoveryMerchantContext {
-                        merchant_account: platform.get_processor().get_account(),
-                        key_store: platform.get_processor().get_key_store().inner(),
-                        profile: business_profile,
-                    },
-                    &dimensions,
-                ))
-                .await;
-            }
         }
     }
 

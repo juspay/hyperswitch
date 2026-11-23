@@ -88,3 +88,40 @@ fn test_backwards_compatibility() {
 
     assert!(deserialized.is_ok());
 }
+
+/// Attempts recorded before `retry_algorithm` existed still read, with no arm; the arm round-trips
+/// once set, and an absent arm is not written out.
+#[cfg(feature = "v2")]
+#[test]
+fn recovery_data_reads_attempts_written_before_retry_algorithm() {
+    let written_before = r#"{
+    "attempt_triggered_by": "internal",
+    "charge_id": null,
+    "billing_connector_transaction_id": null,
+    "customer_present": null,
+    "setup_future_usage": null
+}"#;
+    let without_arm = serde_json::from_str::<super::PaymentAttemptRecoveryData>(written_before);
+    assert!(matches!(
+        &without_arm,
+        Ok(data) if data.retry_algorithm.is_none()
+    ));
+
+    let with_arm = without_arm.map(|data| super::PaymentAttemptRecoveryData {
+        retry_algorithm: Some(common_enums::RevenueRecoveryABAlgorithm::AdaptiveRetry),
+        ..data
+    });
+    let round_trip = with_arm
+        .as_ref()
+        .ok()
+        .and_then(|data| serde_json::to_string(data).ok())
+        .and_then(|json| serde_json::from_str::<super::PaymentAttemptRecoveryData>(&json).ok());
+    assert_eq!(round_trip.as_ref(), with_arm.as_ref().ok());
+    assert!(serde_json::to_string(&with_arm.as_ref().ok())
+        .is_ok_and(|json| json.contains(r#""retry_algorithm":"adaptive_retry""#)));
+
+    let empty = serde_json::from_str::<super::PaymentAttemptRecoveryData>(written_before)
+        .ok()
+        .and_then(|data| serde_json::to_string(&data).ok());
+    assert!(empty.is_some_and(|json| !json.contains("retry_algorithm")));
+}
