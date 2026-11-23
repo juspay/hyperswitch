@@ -710,6 +710,8 @@ impl From<GooglePayCreateData> for PaymentMethodDataWalletInfo {
     fn from(data: GooglePayCreateData) -> Self {
         Self {
             last4: data.last4,
+            device_pan_bin: None,
+            device_pan_extended_bin: None,
             card_network: data.card_network,
             card_type: data.card_type,
             card_exp_month: data.card_exp_month,
@@ -1880,28 +1882,28 @@ impl PaymentMethodsData {
 #[cfg(feature = "v2")]
 impl From<WalletPaymentMethodData> for PaymentMethodsData {
     fn from(wallet_data: WalletPaymentMethodData) -> Self {
-        match wallet_data {
-            WalletPaymentMethodData::ApplePay(data) => Self::WalletDetails(data.wallet_info),
-            WalletPaymentMethodData::GooglePay(data) => Self::WalletDetails((*data).into()),
-            WalletPaymentMethodData::ApplePayDecrypted(data) => {
-                Self::WalletDetails(data.wallet_info)
-            }
-            WalletPaymentMethodData::GooglePayDecrypted(data) => {
-                Self::WalletDetails(data.wallet_info)
-            }
-            WalletPaymentMethodData::PayPal(data) => {
-                Self::WalletDetails(PaymentMethodDataWalletInfo {
-                    last4: None,
-                    card_network: None,
-                    card_type: None,
-                    card_exp_month: None,
-                    card_exp_year: None,
-                    auth_code: None,
-                    provider_details: None,
-                    email: data.email,
-                })
-            }
-        }
+        let mut wallet_info = match wallet_data {
+            WalletPaymentMethodData::ApplePay(data) => data.wallet_info,
+            WalletPaymentMethodData::GooglePay(data) => (*data).into(),
+            WalletPaymentMethodData::ApplePayDecrypted(data) => data.wallet_info,
+            WalletPaymentMethodData::GooglePayDecrypted(data) => data.wallet_info,
+            WalletPaymentMethodData::PayPal(data) => PaymentMethodDataWalletInfo {
+                last4: None,
+                device_pan_bin: None,
+                device_pan_extended_bin: None,
+                card_network: None,
+                card_type: None,
+                card_exp_month: None,
+                card_exp_year: None,
+                auth_code: None,
+                provider_details: None,
+                email: data.email,
+            },
+        };
+        // Device PAN BINs are derived from vaulted credentials, never caller-supplied metadata.
+        wallet_info.device_pan_bin = None;
+        wallet_info.device_pan_extended_bin = None;
+        Self::WalletDetails(wallet_info)
     }
 }
 
@@ -2058,6 +2060,12 @@ pub struct PaymentMethodDataBankCreds {
 pub struct PaymentMethodDataWalletInfo {
     /// Last 4 digits of the card number
     pub last4: Option<String>,
+    /// First six digits of the decrypted device PAN, when available.
+    #[schema(value_type = Option<String>, example = "424242")]
+    pub device_pan_bin: Option<String>,
+    /// First eight device PAN digits, populated when the modular wallet extended BIN setting is enabled.
+    #[schema(value_type = Option<String>, example = "42424242")]
+    pub device_pan_extended_bin: Option<String>,
     /// The information of the payment method
     pub card_network: Option<String>,
     /// The type of payment method
@@ -2127,6 +2135,8 @@ impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMet
     fn from(item: payments::additional_info::WalletAdditionalDataForCard) -> Self {
         Self {
             last4: item.last4,
+            device_pan_bin: item.device_pan_bin,
+            device_pan_extended_bin: None,
             card_network: item.card_network,
             card_type: item.payment_method_data_type,
             card_exp_month: item.card_exp_month,
@@ -2148,7 +2158,7 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
             email: item.email,
-            device_pan_bin: None,
+            device_pan_bin: item.device_pan_bin,
             card_bin: None,
             card_subtype: None,
             card_segment_type: None,
@@ -2174,6 +2184,8 @@ impl From<payments::ApplepayPaymentMethod> for PaymentMethodDataWalletInfo {
                     .rev()
                     .collect(),
             ),
+            device_pan_bin: item.device_pan_bin,
+            device_pan_extended_bin: None,
             card_network: Some(item.network),
             card_type: Some(item.pm_type),
             card_exp_month: item.card_exp_month,
@@ -2209,7 +2221,7 @@ impl TryFrom<PaymentMethodDataWalletInfo> for Box<payments::ApplepayPaymentMetho
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
-            device_pan_bin: None,
+            device_pan_bin: item.device_pan_bin,
             card_bin: None,
             card_subtype: None,
             card_segment_type: None,

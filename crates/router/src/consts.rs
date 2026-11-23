@@ -524,6 +524,9 @@ pub mod superposition {
         "payments.should_store_eligibility_check_data_for_authentication";
     /// Extended card BIN configuration key
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "payments.enable_extended_card_bin";
+    /// Extended device PAN BIN configuration for modular wallet metadata.
+    pub const ENABLE_EXTENDED_DEVICE_PAN_BIN: &str =
+        "payment_methods.enable_extended_device_pan_bin";
     /// Max auto payout retries configuration key
     pub const MAX_AUTO_PAYOUT_RETRIES: &str = "payouts.max_auto_payout_retries";
     /// Stops payout creation, confirmation, update, cancellation, and fulfillment at OMP scope.

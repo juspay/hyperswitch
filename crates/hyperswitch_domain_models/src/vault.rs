@@ -255,6 +255,24 @@ impl PaymentMethodVaultingData {
                 payment_method_data::BankDebitDetailsPaymentMethod::from(bank_debit.clone()),
             ),
             Self::Wallet(wallet) => {
+                let device_pan_bin = match wallet {
+                    payment_method_data::WalletDetail::ApplePayDecryptedData {
+                        application_primary_account_number,
+                        expiry_month: _,
+                        expiry_year: _,
+                    } => Some(application_primary_account_number.get_card_isin()),
+                    payment_method_data::WalletDetail::GooglePayDecryptedData {
+                        application_primary_account_number,
+                        expiry_month: _,
+                        expiry_year: _,
+                        auth_method,
+                    } => match auth_method {
+                        Some(common_enums::GooglePayAuthMethod::Cryptogram) => {
+                            Some(application_primary_account_number.get_card_isin())
+                        }
+                        Some(common_enums::GooglePayAuthMethod::PanOnly) | None => None,
+                    },
+                };
                 let wallet_info = match wallet {
                     payment_method_data::WalletDetail::ApplePayDecryptedData {
                         application_primary_account_number,
@@ -268,6 +286,8 @@ impl PaymentMethodVaultingData {
                         auth_method: _,
                     } => payment_methods::PaymentMethodDataWalletInfo {
                         last4: Some(application_primary_account_number.get_last4()),
+                        device_pan_bin,
+                        device_pan_extended_bin: None,
                         card_network: None,
                         card_type: None,
                         card_exp_month: Some(expiry_month.clone()),

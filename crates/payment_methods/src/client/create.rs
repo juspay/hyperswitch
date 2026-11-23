@@ -239,6 +239,8 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                                 .rev()
                                 .collect(),
                         ),
+                        device_pan_bin: None,
+                        device_pan_extended_bin: None,
                         card_network: Some(apple_pay.payment_method.network.clone()),
                         card_type: Some(apple_pay.payment_method.pm_type.clone()),
                         card_exp_month: None,
@@ -267,6 +269,8 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                 ) => {
                     let wallet_info = api_models::payment_methods::PaymentMethodDataWalletInfo {
                         last4: Some(google_pay.info.card_details.clone()),
+                        device_pan_bin: None,
+                        device_pan_extended_bin: None,
                         card_network: Some(google_pay.info.card_network.clone()),
                         card_type: Some(google_pay.pm_type.clone()),
                         card_exp_month: None,
