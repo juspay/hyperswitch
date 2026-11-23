@@ -51675,6 +51675,14 @@
                   "expiry_year": {
                     "type": "string",
                     "description": "The card's expiry year"
+                  },
+                  "auth_method": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/GooglePayAuthMethod"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
