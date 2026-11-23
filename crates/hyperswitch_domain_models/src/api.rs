@@ -49,18 +49,6 @@ impl<R> Default for WebhookResponse<R> {
     }
 }
 
-impl<R> WebhookResponse<R> {
-    /// An empty `200` acknowledgement goes back with the connector's ack status instead, so a
-    /// connector that only counts e.g. 201 as delivered does not retry, or disable, every
-    /// webhook it sent. Any other response is returned unchanged.
-    pub fn with_ack_status(self, ack_status_code: u16) -> Self {
-        match self {
-            Self::StatusCode(200) => Self::StatusCode(ack_status_code),
-            response => response,
-        }
-    }
-}
-
 impl<R> From<WebhookResponse<R>> for ApplicationResponse<R> {
     fn from(resp: WebhookResponse<R>) -> Self {
         match resp {

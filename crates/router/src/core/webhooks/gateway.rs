@@ -460,11 +460,22 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
             .unwrap_or(IncomingWebhookEvent::EventNotSupported);
 
         let outcome = match FilterDecision::evaluate(event_type, ctx).await {
+            // No HandleEvent call for a filtered event, so the connector builds the ack here.
             FilterDecision::Skip => WebhookOutcome::Skipped {
                 reference,
                 event_type,
                 masked_log_payload: Secret::new(serde_json::Value::Null),
-                ack_response: WebhookResponse::default(),
+                ack_response: ctx
+                    .connector
+                    .get_webhook_api_response(
+                        request,
+                        None,
+                        ctx.merchant_connector_account
+                            .as_ref()
+                            .map(|mca| mca.connector_account_details.clone()),
+                    )
+                    .switch()
+                    .attach_printable("Failed to build webhook ack via connector")?,
             },
             FilterDecision::Proceed => {
                 let reference = reference.ok_or_else(|| {
@@ -1053,13 +1064,16 @@ fn ucs_ack_to_webhook_response(
     ack: payments_grpc::EventAckResponse,
 ) -> WebhookResponse<serde_json::Value> {
     let payments_grpc::EventAckResponse {
-        status_code: _,
+        status_code,
         headers,
         body,
     } = ack;
 
     if body.is_empty() {
-        return WebhookResponse::default();
+        return u16::try_from(status_code)
+            .ok()
+            .filter(|status_code| *status_code != 0)
+            .map_or_else(WebhookResponse::default, WebhookResponse::StatusCode);
     }
 
     let masked_headers: Vec<(String, hyperswitch_masking::Maskable<String>)> = headers
