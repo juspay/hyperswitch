@@ -1128,44 +1128,6 @@ export const refundStatusFilterMap = {
   review: "manual_review",
 };
 
-const wrongClientSecret = "pay_wrong_client_secret_value";
-
-const eligibilityCardRequest = {
-  payment_method_type: "card",
-  payment_method_data: {
-    card: successfulNo3DSCardDetails,
-    billing: standardBillingAddress,
-  },
-};
-
-const threeDsAuthenticationRequest = {
-  device_channel: "BRW",
-  threeds_method_comp_ind: "Y",
-};
-
-const clientSecretInvalidResponse = {
-  status: 400,
-  body: {
-    error: {
-      type: "invalid_request",
-      code: "IR_09",
-      message:
-        "The client_secret provided does not match the client_secret associated with the Payment",
-    },
-  },
-};
-
-const clientSecretExpiredResponse = {
-  status: 400,
-  body: {
-    error: {
-      type: "invalid_request",
-      code: "IR_08",
-      message: "The provided client_secret has expired",
-    },
-  },
-};
-
 export const connectorDetails = {
   customer: {
     CreateInvalidPhoneCountryCode: {
@@ -4766,76 +4728,6 @@ export const connectorDetails = {
           // Should not have deny action for non-blocklisted cards
         },
       },
-    }),
-    // client_secret validation on the eligibility and 3DS authentication calls.
-    // 15 min, longer than the 60s profile expiry left by earlier specs.
-    ClientSecretPaymentIntent: getCustomExchange({
-      Request: {
-        currency: "USD",
-        session_expiry: 900,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-    ClientSecretExpiringPaymentIntent: getCustomExchange({
-      Request: {
-        currency: "USD",
-        session_expiry: 60,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-    EligibilityWrongClientSecret: getCustomExchange({
-      Request: { ...eligibilityCardRequest, client_secret: wrongClientSecret },
-      Response: clientSecretInvalidResponse,
-    }),
-    EligibilityValidClientSecret: getCustomExchange({
-      Request: eligibilityCardRequest,
-      Response: { status: 200, body: {} },
-    }),
-    // An API key call sends no client_secret, so there is nothing to validate.
-    EligibilityWithoutClientSecret: getCustomExchange({
-      Request: eligibilityCardRequest,
-      Response: { status: 200, body: {} },
-    }),
-    EligibilityExpiredClientSecret: getCustomExchange({
-      Request: eligibilityCardRequest,
-      Response: clientSecretExpiredResponse,
-    }),
-    ThreeDSWrongClientSecret: getCustomExchange({
-      Request: {
-        ...threeDsAuthenticationRequest,
-        client_secret: wrongClientSecret,
-      },
-      Response: clientSecretInvalidResponse,
-    }),
-    // The client_secret is accepted, so the call fails later: the payment has no
-    // external 3DS authentication attempt. IR_16 shows it got past the check.
-    ThreeDSValidClientSecret: getCustomExchange({
-      Request: threeDsAuthenticationRequest,
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            code: "IR_16",
-            message:
-              "You cannot authenticate this payment because payment_attempt.external_three_ds_authentication_attempted is false",
-          },
-        },
-      },
-    }),
-    ThreeDSExpiredClientSecret: getCustomExchange({
-      Request: threeDsAuthenticationRequest,
-      Response: clientSecretExpiredResponse,
     }),
   },
   offer_engine: {
