@@ -79,6 +79,10 @@ use super::{
     CustomerDetails, PaymentData,
 };
 #[cfg(feature = "v1")]
+use crate::configs::settings::{
+    ConnectorFilters, CrossCurrencyMitSupportedConnectors, PaymentMethodFilterKey,
+};
+#[cfg(feature = "v1")]
 use crate::core::mandate::helpers::MandateGenericData;
 #[cfg(feature = "v1")]
 use crate::core::{
@@ -1459,8 +1463,8 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
 /// Validate connector mandate currency on initial attempts and retries.
 #[cfg(feature = "v1")]
 pub(super) fn validate_connector_mandate_currency(
-    config: &crate::configs::settings::CrossCurrencyMitSupportedConnectors,
-    pm_filters: &crate::configs::settings::ConnectorFilters,
+    config: &CrossCurrencyMitSupportedConnectors,
+    pm_filters: &ConnectorFilters,
     connector: api_enums::Connector,
     payment_method_type: Option<api_enums::PaymentMethodType>,
     original_currency: Option<api_enums::Currency>,
@@ -1485,10 +1489,7 @@ pub(super) fn validate_connector_mandate_currency(
                     }
                     None => {
                         let filter = payment_method_type.and_then(|method| {
-                            let key =
-                                crate::configs::settings::PaymentMethodFilterKey::PaymentMethodType(
-                                    method,
-                                );
+                            let key = PaymentMethodFilterKey::PaymentMethodType(method);
                             pm_filters
                                 .0
                                 .get(&connector.to_string())

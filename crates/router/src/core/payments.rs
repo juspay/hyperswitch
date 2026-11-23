@@ -119,6 +119,8 @@ use super::{
     },
 };
 #[cfg(feature = "v1")]
+use crate::configs::settings::{ConnectorFilters, CrossCurrencyMitSupportedConnectors};
+#[cfg(feature = "v1")]
 use crate::core::blocklist::utils as blocklist_utils;
 #[cfg(feature = "v1")]
 use crate::core::card_testing_guard::utils as card_testing_guard_utils;
@@ -12994,8 +12996,8 @@ pub fn get_mandate_reference_id<F: Clone, D>(
     connector_routing_data: api::ConnectorRoutingData,
     payment_data: &mut D,
     payment_method_info: &domain::PaymentMethod,
-    cross_currency_mit_supported_connectors: &crate::configs::settings::CrossCurrencyMitSupportedConnectors,
-    pm_filters: &crate::configs::settings::ConnectorFilters,
+    cross_currency_mit_supported_connectors: &CrossCurrencyMitSupportedConnectors,
+    pm_filters: &ConnectorFilters,
 ) -> RouterResult<Option<mandates::MandateReferenceId>>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
