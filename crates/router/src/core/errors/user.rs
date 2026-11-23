@@ -130,8 +130,12 @@ pub enum UserErrors {
     SavedViewNotFound,
     #[error("InvalidSavedViewName")]
     InvalidSavedViewName,
+    #[error("Maximum attempts reached for Password")]
+    MaxPasswordAttemptsReached,
     #[error("SignupDisabled")]
     SignupDisabled,
+    #[error("Maximum attempts reached for Forgot Password")]
+    MaxForgotPasswordAttemptsReached,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -337,8 +341,14 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidThemeAssetName => {
                 AER::BadRequest(ApiError::new(sub_code, 66, self.get_error_message(), None))
             }
+            Self::MaxPasswordAttemptsReached => {
+                AER::TooManyRequests(ApiError::new(sub_code, 67, self.get_error_message(), None))
+            }
             Self::SignupDisabled => {
-                AER::BadRequest(ApiError::new(sub_code, 67, self.get_error_message(), None))
+                AER::BadRequest(ApiError::new(sub_code, 68, self.get_error_message(), None))
+            }
+            Self::MaxForgotPasswordAttemptsReached => {
+                AER::TooManyRequests(ApiError::new(sub_code, 69, self.get_error_message(), None))
             }
         }
     }
@@ -431,7 +441,14 @@ impl UserErrors {
             Self::InvalidSavedViewName => {
                 "The saved view name cannot be empty or contain only whitespace".to_string()
             }
+            Self::MaxPasswordAttemptsReached => {
+                "Account locked after too many failed sign in attempts. Please try again later"
+                    .to_string()
+            }
             Self::SignupDisabled => "Sign up is disabled".to_string(),
+            Self::MaxForgotPasswordAttemptsReached => {
+                "Too many password reset requests. Please try again later".to_string()
+            }
         }
     }
 }

@@ -1460,8 +1460,9 @@ impl
             capture_options: None,
             commerce_indicator: Some(
                 three_ds_data
-                    .indicator
-                    .to_owned()
+                    .ecommerce_indicator
+                    .clone()
+                    .or(three_ds_data.indicator.clone())
                     .unwrap_or(String::from("internet")),
             ),
         })
@@ -2250,6 +2251,18 @@ impl
                 .directory_server_transaction_id,
             specification_version: three_ds_info.three_ds_data.specification_version.clone(),
             pa_specification_version: three_ds_info.three_ds_data.specification_version.clone(),
+            eci_raw: three_ds_info
+                .three_ds_data
+                .eci_raw
+                .clone()
+                .filter(|s| !s.is_empty())
+                .or_else(|| {
+                    three_ds_info
+                        .three_ds_data
+                        .eci
+                        .clone()
+                        .filter(|s| !s.is_empty())
+                }),
             ..Default::default()
         });
 
@@ -4178,6 +4191,18 @@ impl
                 .clone(),
             specification_version: three_ds_info.three_ds_data.specification_version.clone(),
             pa_specification_version: three_ds_info.three_ds_data.specification_version.clone(),
+            eci_raw: three_ds_info
+                .three_ds_data
+                .eci_raw
+                .clone()
+                .filter(|s| !s.is_empty())
+                .or_else(|| {
+                    three_ds_info
+                        .three_ds_data
+                        .eci
+                        .clone()
+                        .filter(|s| !s.is_empty())
+                }),
             ..Default::default()
         });
 
@@ -4216,6 +4241,9 @@ pub struct CybersourceConsumerAuthValidateResponse {
     specification_version: Option<SemanticVersion>,
     directory_server_transaction_id: Option<Secret<String>>,
     indicator: Option<String>,
+    eci: Option<String>,
+    eci_raw: Option<String>,
+    ecommerce_indicator: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -4230,7 +4258,11 @@ impl ForeignTryFrom<&CybersourceConsumerAuthValidateResponse> for UcsAuthenticat
         value: &CybersourceConsumerAuthValidateResponse,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            eci: value.indicator.clone(),
+            eci: value
+                .eci
+                .clone()
+                .or(value.eci_raw.clone())
+                .or(value.indicator.clone()),
             cavv: value.cavv.clone(),
             threeds_server_transaction_id: None,
             message_version: value.specification_version.clone(),

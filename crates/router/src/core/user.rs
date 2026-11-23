@@ -82,7 +82,10 @@ pub async fn signup_with_merchant_id(
         },
     )?;
 
-    let new_user = domain::NewUser::try_from(request.clone())?;
+    let new_user = domain::NewUser::try_from((
+        request,
+        state.conf.user.accept_password_on_signup_with_merchant_id,
+    ))?;
     new_user
         .get_new_merchant()
         .get_new_organization()
@@ -289,14 +292,44 @@ pub async fn signin_token_only_flow(
     )
     .await?;
 
-    let user_from_db: domain::UserFromStorage = state
+    let max_attempts = i64::from(state.conf.user.password_max_attempts);
+
+    let attempts =
+        utils::user::password::get_signin_attempts_from_redis(&state, &user_email).await?;
+    if attempts >= max_attempts {
+        return Err(UserErrors::MaxPasswordAttemptsReached.into());
+    }
+
+    let user_from_db = state
         .global_store
         .find_active_user_by_user_email(&user_email)
         .await
-        .to_not_found_response(UserErrors::InvalidCredentials)?
-        .into();
+        .map(|user| Some(domain::UserFromStorage::from(user)))
+        .or_else(|error| {
+            if error.current_context().is_db_not_found() {
+                Ok(None)
+            } else {
+                Err(error.change_context(UserErrors::InternalServerError))
+            }
+        })?;
 
-    user_from_db.compare_password(&request.password)?;
+    let are_creds_correct = match &user_from_db {
+        Some(user) => user.compare_password(&request.password)?,
+        None => false,
+    };
+
+    let Some(user_from_db) = user_from_db.filter(|_| are_creds_correct) else {
+        let attempts =
+            utils::user::password::increment_signin_attempts_in_redis(&state, &user_email).await?;
+        if attempts >= max_attempts {
+            return Err(UserErrors::MaxPasswordAttemptsReached.into());
+        }
+        return Err(UserErrors::InvalidCredentials.into());
+    };
+
+    let _ = utils::user::password::delete_signin_attempts_from_redis(&state, &user_email)
+        .await
+        .inspect_err(|error| logger::error!(?error));
 
     let next_flow =
         domain::NextFlow::from_origin(domain::Origin::SignIn, user_from_db.clone(), &state).await?;
@@ -370,7 +403,32 @@ pub async fn connect_account(
         .unwrap_or(false)
     {
         if state.conf.user.signup_disabled {
-            return Err(report!(UserErrors::InvalidCredentials));
+            let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
+
+            let email_contents = email_types::SignupContact {
+                recipient_email: user_email,
+                contact_email: state.conf.user.signup_contact_email.clone(),
+                theme_config: theme
+                    .map(|theme| theme.email_config())
+                    .unwrap_or(state.conf.theme.email_config.clone()),
+            };
+
+            let send_email_result = state
+                .email_client
+                .compose_and_send_email(
+                    user_utils::get_base_url(&state),
+                    Box::new(email_contents),
+                    state.conf.proxy.https_url.as_ref(),
+                )
+                .await;
+            logger::info!(?send_email_result);
+
+            return Ok(ApplicationResponse::Json(
+                user_api::ConnectAccountResponse {
+                    is_email_sent: send_email_result.is_ok(),
+                    user_id: String::new(),
+                },
+            ));
         }
 
         let new_user = domain::NewUser::try_from(request)?;
@@ -490,8 +548,9 @@ pub async fn change_password(
         .change_context(UserErrors::InternalServerError)?
         .into();
 
-    user.compare_password(&request.old_password)
-        .change_context(UserErrors::InvalidOldPassword)?;
+    if !user.compare_password(&request.old_password)? {
+        return Err(UserErrors::InvalidOldPassword.into());
+    }
 
     if request.old_password == request.new_password {
         return Err(UserErrors::ChangePasswordError.into());
@@ -500,6 +559,7 @@ pub async fn change_password(
 
     let new_password_hash =
         utils::user::password::generate_password_hash(new_password.get_secret())?;
+    let user_email = domain::UserEmail::from_pii_email(user.get_email())?;
 
     let _ = state
         .global_store
@@ -514,6 +574,9 @@ pub async fn change_password(
         .attach_printable("Failed to update user password in the database")?;
 
     let _ = auth::blacklist::insert_user_in_blacklist(&state, user.get_user_id())
+        .await
+        .map_err(|error| logger::error!(?error));
+    let _ = utils::user::password::delete_signin_attempts_from_redis(&state, &user_email)
         .await
         .map_err(|error| logger::error!(?error));
 
@@ -550,18 +613,25 @@ pub async fn forgot_password(
     )
     .await?;
 
-    let user_from_db = state
+    let attempts =
+        utils::user::password::increment_forgot_password_attempts_in_redis(&state, &user_email)
+            .await?;
+    fp_utils::when(
+        attempts > i64::from(state.conf.user.forgot_password_max_attempts),
+        || Err(UserErrors::MaxForgotPasswordAttemptsReached),
+    )?;
+
+    let user_from_db = match state
         .global_store
         .find_active_user_by_user_email(&user_email)
         .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::UserNotFound)
-            } else {
-                e.change_context(UserErrors::InternalServerError)
-            }
-        })
-        .map(domain::UserFromStorage::from)?;
+    {
+        Ok(user) => domain::UserFromStorage::from(user),
+        Err(error) if error.current_context().is_db_not_found() => {
+            return Ok(ApplicationResponse::StatusOk);
+        }
+        Err(error) => return Err(error.change_context(UserErrors::InternalServerError)),
+    };
 
     let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
 
@@ -605,9 +675,10 @@ pub async fn rotate_password(
     let password = domain::UserPassword::new(request.password.to_owned())?;
     let hash_password = utils::user::password::generate_password_hash(password.get_secret())?;
 
-    if user.compare_password(&request.password).is_ok() {
+    if user.compare_password(&request.password)? {
         return Err(UserErrors::ChangePasswordError.into());
     }
+    let user_email = domain::UserEmail::from_pii_email(user.get_email())?;
 
     let user = state
         .global_store
@@ -621,6 +692,9 @@ pub async fn rotate_password(
         .change_context(UserErrors::InternalServerError)?;
 
     let _ = auth::blacklist::insert_user_in_blacklist(&state, &user.user_id)
+        .await
+        .map_err(|error| logger::error!(?error));
+    let _ = utils::user::password::delete_signin_attempts_from_redis(&state, &user_email)
         .await
         .map_err(|error| logger::error!(?error));
 
@@ -682,6 +756,10 @@ pub async fn reset_password_token_only_flow(
     let _ = auth::blacklist::insert_user_in_blacklist(&state, &user.user_id)
         .await
         .map_err(|error| logger::error!(?error));
+    let _ =
+        utils::user::password::delete_signin_attempts_from_redis(&state, &email_token.get_email()?)
+            .await
+            .map_err(|error| logger::error!(?error));
 
     auth::cookies::remove_cookie_response()
 }
@@ -1652,9 +1730,7 @@ pub async fn create_internal_user(
         || Err(UserErrors::InvalidRoleId),
     )?;
 
-    let internal_merchant_id = common_utils::id_type::MerchantId::get_internal_user_merchant_id(
-        consts::user_role::INTERNAL_USER_MERCHANT_ID,
-    );
+    let internal_merchant_id = state.conf.user.internal_merchant_id.clone();
     let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
         .accounts_store
@@ -1691,7 +1767,11 @@ pub async fn create_internal_user(
             }
         })?;
 
-    let new_user = domain::NewUser::try_from((request, internal_merchant.organization_id.clone()))?;
+    let new_user = domain::NewUser::try_from((
+        request,
+        internal_merchant.organization_id.clone(),
+        internal_merchant_id.clone(),
+    ))?;
 
     let mut store_user: storage_user::UserNew = new_user.clone().try_into()?;
     store_user.set_is_verified(true);
@@ -1723,6 +1803,30 @@ pub async fn create_internal_user(
         .insert_in_v2(&state)
         .await
         .change_context(UserErrors::InternalServerError)?;
+
+    // Internal users are created without a password, so send them a link to set one
+    #[cfg(feature = "email")]
+    {
+        let email_contents = email_types::ResetPassword {
+            recipient_email: user_from_storage.get_email().try_into()?,
+            user_name: domain::UserName::new(user_from_storage.get_name())?,
+            settings: state.conf.clone(),
+            auth_id: None,
+            theme_id: None,
+            theme_config: state.conf.theme.email_config.clone(),
+        };
+
+        let send_email_result = state
+            .email_client
+            .compose_and_send_email(
+                user_utils::get_base_url(&state),
+                Box::new(email_contents),
+                state.conf.proxy.https_url.as_ref(),
+            )
+            .await;
+
+        logger::info!(?send_email_result);
+    }
 
     Ok(ApplicationResponse::StatusOk)
 }
@@ -2222,21 +2326,18 @@ pub async fn send_verification_mail(
     )
     .await?;
 
-    let user = state
+    let user = match state
         .global_store
         .find_active_user_by_user_email(&user_email)
         .await
-        .map_err(|e| {
-            if e.current_context().is_db_not_found() {
-                e.change_context(UserErrors::UserNotFound)
-            } else {
-                e.change_context(UserErrors::InternalServerError)
-            }
-        })?;
-
-    if user.is_verified {
-        return Err(UserErrors::UserAlreadyVerified.into());
-    }
+    {
+        Ok(user) if user.is_verified => return Ok(ApplicationResponse::StatusOk),
+        Ok(user) => user,
+        Err(error) if error.current_context().is_db_not_found() => {
+            return Ok(ApplicationResponse::StatusOk);
+        }
+        Err(error) => return Err(error.change_context(UserErrors::InternalServerError)),
+    };
 
     let theme = theme_utils::get_theme_using_optional_theme_id(&state, theme_id).await?;
 

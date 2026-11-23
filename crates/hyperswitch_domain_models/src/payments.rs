@@ -166,6 +166,8 @@ pub struct PaymentIntent {
     pub enable_avs_check: Option<bool>,
     pub enable_account_name_verification: Option<bool>,
     pub settlement_conclusion_applied: Option<bool>,
+    #[encrypt(ty = Value)]
+    pub sender_details: Option<Encryptable<api_models::sender::SenderDetails>>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -443,6 +445,12 @@ impl PaymentIntent {
                 )
             })
             .transpose()
+    }
+
+    pub fn get_sender_details(&self) -> Option<api_models::sender::SenderDetails> {
+        self.sender_details
+            .as_ref()
+            .map(|details| details.get_inner().clone())
     }
 
     #[cfg(feature = "v1")]
@@ -1078,6 +1086,9 @@ pub struct PaymentIntent {
     /// Denotes the category of the merchant initiated transactions made on this intent.
     pub mit_category: Option<common_enums::MitCategory>,
     pub settlement_conclusion_applied: Option<bool>,
+    /// The details of the party providing the funds in an account funded transaction.
+    #[encrypt(ty = Value)]
+    pub sender_details: Option<Encryptable<api_models::sender::SenderDetails>>,
 }
 
 #[cfg(feature = "v2")]
@@ -1290,6 +1301,14 @@ impl PaymentIntent {
             external_surcharge_applicable: None,
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: decrypted_payment_intent.recipient_details,
+            sender_details: decrypted_payment_intent
+                .sender_details
+                .map(|data| {
+                    data.deserialize_inner_value(|value| value.parse_value("SenderDetails"))
+                })
+                .transpose()
+                .change_context(errors::api_error_response::ApiErrorResponse::InternalServerError)
+                .attach_printable("Unable to decode sender details")?,
             enable_avs_check: request.enable_avs_check,
             enable_account_name_verification: request.enable_account_name_verification,
             mit_category: request.mit_category,
