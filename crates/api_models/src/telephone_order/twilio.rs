@@ -20,7 +20,7 @@ pub struct TwilioGenericPayRequest {
     pub method: TwilioPayMethod,
 
     /// Twilio's id for this attempt. Stable across its retries, and used to derive the `payment_id` so a retry replays the original charge.
-    #[schema(example = "IPe16430-39ba-4820-bedc-7aad0762a487")]
+    #[schema(example = "IP1234")]
     pub transaction_id: String,
 
     /// Card number collected over DTMF. Required for a charge.
@@ -72,7 +72,7 @@ pub struct TwilioGenericPayRequest {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct TwilioGenericPayResponse {
     /// The Hyperswitch `payment_id`, on a successful charge.
-    #[schema(value_type = Option<String>, example = "pay_8320b449b06630271e378214dab80ce5")]
+    #[schema(value_type = Option<String>, example = "pay_1234")]
     pub charge_id: Option<common_utils::id_type::PaymentId>,
 
     /// Set when the payment did not succeed: the connector's decline code, or one of `INVALID_REQUEST`, `PROFILE_NOT_FOUND`, `PAYMENT_NOT_COMPLETED`, `PAYMENT_PENDING`, `DUPLICATE_TRANSACTION`, `PROCESSING_ERROR`, `TOKENIZE_UNSUPPORTED`, `BANK_ACCOUNT_UNSUPPORTED`. On `PAYMENT_PENDING` the funds may be held, so do not re-prompt for a card.
@@ -85,13 +85,13 @@ pub struct TwilioGenericPayResponse {
 
     /// Returned either way, and the only channel carrying a `payment_id` when `charge_id` is `null`. Flat and all-string; the request's own `parameters` are never echoed back.
     #[schema(value_type = Object, example = json!({
-        "payment_id": "pay_8320b449b06630271e378214dab80ce5",
+        "payment_id": "pay_1234",
         "status": "succeeded",
         "amount_capturable": "0",
         "amount_received": "100",
         "connector": "stripe",
-        "connector_transaction_id": "pi_3URyI8D5R7gDAGff17RhZpfW",
-        "merchant_order_reference_id": "IPe16430-39ba-4820-bedc-7aad0762a487"
+        "connector_transaction_id": "pi_1234",
+        "merchant_order_reference_id": "IP1234"
     }))]
     pub parameters: HashMap<String, String>,
 }

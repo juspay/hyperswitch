@@ -14,17 +14,17 @@ use utoipa::ToSchema;
 pub struct TelephoneOrderParameters {
     /// Charges this payment id rather than one derived from the provider's attempt id.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schema(example = "pay_8320b449b06630271e378214dab80ce5")]
+    #[schema(example = "pay_1234")]
     pub payment_id: Option<String>,
 
     /// The profile to charge against. Absent, the merchant's default profile is used.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schema(example = "pro_GUMsmmzTU7oadT00pJeo")]
+    #[schema(example = "pro_1234")]
     pub profile_id: Option<String>,
 
     /// An unusable value is dropped, not rejected.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schema(example = "cus_1a2b3c4d5e6f7g8h9i0j")]
+    #[schema(example = "cus_1234")]
     pub customer_id: Option<String>,
 
     /// `automatic` (the default) or `manual`.
