@@ -127,6 +127,7 @@ const PAYMENT_SPEC_METHODS = Object.freeze({
   "31-RealTimePayment.cy.js": ["real_time_payment"],
   "32-DDCRaceCondition.cy.js": ["card"],
   "33-ManualRetry.cy.js": ["card"],
+  "35-ClientSecretValidation.cy.js": ["card"],
   "35-PaymentsEligibilityAPI.cy.js": ["card"],
   "37-RewardPayment.cy.js": ["reward"],
   "38-CardInstallments.cy.js": ["card"],
