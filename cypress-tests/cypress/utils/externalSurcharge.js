@@ -38,7 +38,7 @@ export const createSurchargeConnectorIfConfigured = (globalState) => {
       }
       cy.createNamedConnectorCallTest(
         "surcharge_processor",
-        fixtures.createConnectorBody,
+        structuredClone(fixtures.createConnectorBody),
         [],
         globalState,
         "interpayments",
