@@ -510,6 +510,9 @@ pub mod superposition {
     pub const SHOULD_CALL_GSM: &str = "payments.should_call_gsm";
     /// Eligibility check configuration key
     pub const SHOULD_PERFORM_ELIGIBILITY: &str = "payments.should_perform_eligibility";
+    /// Connectors allowed to reuse connector mandates across currencies.
+    pub const CROSS_CURRENCY_MIT_SUPPORTED_CONNECTORS: &str =
+        "payments.cross_currency_mit_supported_connectors";
     /// MIT with limited card data configuration key
     pub const SHOULD_ENABLE_MIT_WITH_LIMITED_CARD_DATA: &str =
         "payments.should_enable_mit_with_limited_card_data";

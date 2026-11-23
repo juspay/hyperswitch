@@ -201,12 +201,13 @@ where
                             .get_required_value("payment_method_info")?
                             .clone();
                         let mandate_reference_id = payments::get_mandate_reference_id(
+                            state,
                             connector_routing_data.action_type.clone(),
                             connector_routing_data.clone(),
                             payment_data,
                             &payment_method_info,
-                            &state.conf.cross_currency_mit_supported_connectors,
-                        )?;
+                        )
+                        .await?;
                         payment_data.set_mandate_id(mandates::MandateIds {
                             mandate_id: None,
                             mandate_reference_id, //mandate_ref_id

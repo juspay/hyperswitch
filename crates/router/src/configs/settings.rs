@@ -135,8 +135,6 @@ pub struct Settings<S: SecretState> {
     pub installment_config: InstallmentConfig,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
     pub card_only_mit_supported_connectors: CardOnlyMitSupportedConnectors,
-    #[serde(default)]
-    pub cross_currency_mit_supported_connectors: CrossCurrencyMitSupportedConnectors,
     pub notify_iframe_exit_and_redirect: NotifyIframeExitAndRedirectConnectors,
     pub list_dispute_supported_connectors: ListDiputeSupportedConnectors,
     pub required_fields: RequiredFields,
@@ -839,13 +837,6 @@ pub struct NetworkTransactionIdSupportedConnectors {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct CardOnlyMitSupportedConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<enums::Connector>,
-}
-
-/// Connectors for which connector mandates may be reused across currencies.
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default, deny_unknown_fields)]
-pub struct CrossCurrencyMitSupportedConnectors {
     pub connector_list: HashSet<enums::Connector>,
 }
 
@@ -1575,7 +1566,6 @@ impl Settings<SecuredSecret> {
             .with_list_parse_key("redis.cluster_urls")
             .with_list_parse_key("events.kafka.brokers")
             .with_list_parse_key("connectors.supported.wallets")
-            .with_list_parse_key("cross_currency_mit_supported_connectors.connector_list")
             .with_list_parse_key("report_download_config.process_tracker.email_bcc")
             .with_list_parse_key("report_download_config.process_tracker_reports")
             .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id");

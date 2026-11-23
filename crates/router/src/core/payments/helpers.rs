@@ -82,7 +82,9 @@ use super::{
 use crate::core::mandate::helpers::MandateGenericData;
 #[cfg(feature = "v1")]
 use crate::core::{
-    configs::dimension_config::ShouldOverrideSetupFutureUsageToOffSession,
+    configs::dimension_config::{
+        CrossCurrencyMitSupportedConnectors, ShouldOverrideSetupFutureUsageToOffSession,
+    },
     payments::{OperationSessionGetters, OperationSessionSetters},
     utils as core_utils,
 };
@@ -1458,8 +1460,9 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
 
 /// Validate connector mandate currency on initial attempts and retries.
 #[cfg(feature = "v1")]
-pub(super) fn validate_connector_mandate_currency(
-    config: &crate::configs::settings::CrossCurrencyMitSupportedConnectors,
+pub(super) async fn validate_connector_mandate_currency(
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
     connector: api_enums::Connector,
     original_currency: Option<api_enums::Currency>,
     payment_currency: api_enums::Currency,
@@ -1468,18 +1471,34 @@ pub(super) fn validate_connector_mandate_currency(
         Some(original_currency) => {
             if original_currency == payment_currency {
                 Ok(())
-            } else if config.connector_list.contains(&connector) {
-                logger::info!(
-                    %connector,
-                    %original_currency,
-                    %payment_currency,
-                    "allowing cross-currency connector mandate"
-                );
-                Ok(())
             } else {
-                Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                    reason: "Cross currency mandates not supported".into(),
-                }))
+                let context = external_services::superposition::ConfigContext::new()
+                    .with("processor_merchant_id", merchant_id.get_string_repr());
+                let value = CrossCurrencyMitSupportedConnectors::fetch(
+                    state.superposition_service.as_ref(),
+                    Some(&context),
+                    Some(merchant_id),
+                )
+                .await
+                .unwrap_or_else(|_| CrossCurrencyMitSupportedConnectors::default_value());
+                let config = serde_json::from_value::<CrossCurrencyMitSupportedConnectors>(value)
+                    .unwrap_or_else(|error| {
+                        logger::warn!(?error, "invalid cross-currency MIT connector configuration");
+                        CrossCurrencyMitSupportedConnectors::default()
+                    });
+                if config.connector_list.contains(&connector) {
+                    logger::info!(
+                        %connector,
+                        %original_currency,
+                        %payment_currency,
+                        "allowing cross-currency connector mandate"
+                    );
+                    Ok(())
+                } else {
+                    Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+                        reason: "Cross currency mandates not supported".into(),
+                    }))
+                }
             }
         }
         None => Ok(()),

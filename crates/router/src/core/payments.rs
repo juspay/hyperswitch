@@ -12960,12 +12960,13 @@ where
         .attach_printable("no eligible connector found for token-based MIT payment")?;
 
     let mandate_reference_id = get_mandate_reference_id(
+        state,
         chosen_connector_routing_data.action_type.clone(),
         chosen_connector_routing_data.clone(),
         payment_data,
         &payment_method_info,
-        &state.conf.cross_currency_mit_supported_connectors,
-    )?;
+    )
+    .await?;
 
     routing_data.routed_through = Some(
         chosen_connector_routing_data
@@ -12988,12 +12989,12 @@ where
 }
 
 #[cfg(feature = "v1")]
-pub fn get_mandate_reference_id<F: Clone, D>(
+pub async fn get_mandate_reference_id<F: Clone, D>(
+    state: &SessionState,
     action_type: Option<ActionType>,
     connector_routing_data: api::ConnectorRoutingData,
     payment_data: &mut D,
     payment_method_info: &domain::PaymentMethod,
-    cross_currency_mit_supported_connectors: &crate::configs::settings::CrossCurrencyMitSupportedConnectors,
 ) -> RouterResult<Option<mandates::MandateReferenceId>>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -13037,11 +13038,13 @@ where
             )?;
 
             helpers::validate_connector_mandate_currency(
-                cross_currency_mit_supported_connectors,
+                state,
+                &payment_data.get_payment_intent().processor_merchant_id,
                 connector_routing_data.connector_data.connector_name,
                 mandate_reference_record.original_payment_authorized_currency,
                 payment_data.get_currency(),
-            )?;
+            )
+            .await?;
 
             payment_data.set_recurring_mandate_payment_data(mandate_reference_record.into());
 
@@ -13113,11 +13116,12 @@ where
                             )?;
 
                             helpers::validate_connector_mandate_currency(
-                                &state.conf.cross_currency_mit_supported_connectors,
+                                state,
+                                &payment_data.get_payment_intent().processor_merchant_id,
                                 connector_data.connector_name,
                                 mandate_reference_record.original_payment_authorized_currency,
                                 payment_data.get_currency(),
-                            )?;
+                            ).await?;
                             let mandate_reference_id = Some(mandates::MandateReferenceId::ConnectorMandateId(
                                 mandates::ConnectorMandateReferenceId::new(
                                     Some(mandate_reference_record.connector_mandate_id.clone()),
