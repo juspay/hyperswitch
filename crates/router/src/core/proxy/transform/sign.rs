@@ -1,30 +1,63 @@
 //! Sign steps: sign a message built from request headers and the body bytes, and write the
 //! encoded signature to a header. The body bytes are not changed.
 
-use std::collections::HashMap;
-
-use api_models::proxy::{Encoding, MessagePart, SignScheme};
+use api_models::proxy::{Headers, ProxyEncoding, ProxyMessagePart, ProxySignScheme};
 use common_utils::{
     crypto::{self, SignMessage},
     fp_utils::when,
 };
 use hyperswitch_masking::{Mask, PeekInterface, Secret};
 
-use super::{encode, header_value, Body, Payload, Step, TransformError};
+use super::{Body, EncodedAlgorithm, Payload, Step, TransformError};
 
-/// A signing algorithm.
-pub trait Signing {
-    /// Sign the message with the key.
-    fn sign(&self, key: &[u8], message: &[u8]) -> Result<Vec<u8>, TransformError>;
+/// A signing algorithm with its key, checked when the algorithm is built.
+pub trait Signing: std::fmt::Debug + Send + Sync {
+    /// Sign the message.
+    fn sign(&self, message: &[u8]) -> Result<Vec<u8>, TransformError>;
 }
 
-impl Signing for SignScheme {
-    fn sign(&self, key: &[u8], message: &[u8]) -> Result<Vec<u8>, TransformError> {
-        match self {
-            Self::HmacSha256 => crypto::HmacSha256
-                .sign_message(key, message)
-                .map_err(|_| TransformError::Failed),
+/// HMAC with SHA-256.
+#[derive(Debug)]
+struct HmacSha256 {
+    key: Secret<Vec<u8>>,
+}
+
+impl HmacSha256 {
+    /// The key must not be empty.
+    fn new(key: &Secret<String>) -> Result<Self, TransformError> {
+        when(key.peek().is_empty(), || Err(TransformError::InvalidKey))?;
+        Ok(Self {
+            key: Secret::new(key.peek().as_bytes().to_vec()),
+        })
+    }
+}
+
+impl Signing for HmacSha256 {
+    fn sign(&self, message: &[u8]) -> Result<Vec<u8>, TransformError> {
+        crypto::HmacSha256
+            .sign_message(self.key.peek(), message)
+            .map_err(|_| TransformError::Failed)
+    }
+}
+
+/// The algorithm a scheme names, built with its key.
+fn algorithm(
+    scheme: ProxySignScheme,
+    key: &Secret<String>,
+) -> Result<Box<dyn Signing>, TransformError> {
+    match scheme {
+        ProxySignScheme::HmacSha256 => {
+            HmacSha256::new(key).map(|hmac| -> Box<dyn Signing> { Box::new(hmac) })
         }
+    }
+}
+
+impl EncodedAlgorithm<Box<dyn Signing>> {
+    /// Sign the message and encode the signature.
+    fn sign(&self, message: &[u8]) -> Result<String, TransformError> {
+        self.algorithm
+            .sign(message)
+            .map(|signature| self.encode(&signature))
     }
 }
 
@@ -44,46 +77,48 @@ enum Part {
 #[derive(Debug)]
 pub struct SignStep {
     message: Vec<Part>,
-    scheme: SignScheme,
-    key: Secret<String>,
-    encoding: Encoding,
+    scheme: EncodedAlgorithm<Box<dyn Signing>>,
     header: String,
 }
 
 impl SignStep {
     /// The message must not be empty, every header in it must be in the request and sent as it
-    /// is, and the key must not be empty.
+    /// is, and the key must be valid for the scheme.
     pub fn new(
-        message: &[MessagePart],
-        scheme: SignScheme,
+        message: &[ProxyMessagePart],
+        scheme: ProxySignScheme,
         key: &Secret<String>,
-        encoding: Encoding,
+        encoding: ProxyEncoding,
         header: &str,
-        headers: &HashMap<String, String>,
+        headers: &Headers,
     ) -> Result<Self, TransformError> {
         when(message.is_empty(), || Err(TransformError::InvalidMessage))?;
-        when(key.peek().is_empty(), || Err(TransformError::InvalidKey))?;
+        let scheme = EncodedAlgorithm {
+            algorithm: algorithm(scheme, key)?,
+            encoding,
+        };
         message
             .iter()
             .map(|part| match part {
-                MessagePart::Header(name) => {
+                ProxyMessagePart::Header(name) => {
                     when(
                         UNSIGNABLE_HEADERS
                             .iter()
                             .any(|unsignable| name.eq_ignore_ascii_case(unsignable)),
                         || Err(TransformError::InvalidMessage),
                     )?;
-                    header_value(headers, name)
+                    headers
+                        .get(name)
+                        .map_err(|_| TransformError::ConflictingHeader)?
                         .map(|value| Part::Text(Secret::new(value.to_owned())))
+                        .ok_or(TransformError::MissingHeader)
                 }
-                MessagePart::Body => Ok(Part::Body),
+                ProxyMessagePart::Body => Ok(Part::Body),
             })
             .collect::<Result<_, _>>()
             .map(|message| Self {
                 message,
                 scheme,
-                key: key.clone(),
-                encoding,
                 header: header.to_owned(),
             })
     }
@@ -104,14 +139,11 @@ impl Step for SignStep {
             })
             .copied()
             .collect();
-        let signature = self.scheme.sign(self.key.peek().as_bytes(), &message)?;
+        let signature = self.scheme.sign(&message)?;
         let headers = payload
             .headers
             .into_iter()
-            .chain([(
-                self.header.clone(),
-                encode(self.encoding, &signature).into_masked(),
-            )])
+            .chain([(self.header.clone(), signature.into_masked())])
             .collect();
         Ok(Payload {
             body: payload.body,

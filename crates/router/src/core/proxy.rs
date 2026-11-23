@@ -14,6 +14,16 @@ pub async fn proxy_core(
     platform: domain::Platform,
     req: proxy_api_models::ProxyRequest,
 ) -> RouterResponse<proxy_api_models::ProxyResponse> {
+    // A transformation needs a body; checked first, as it costs nothing.
+    when(
+        matches!(req.method, services::Method::Get | services::Method::Delete)
+            && req.transformation.is_some(),
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Transformation requires a request body".to_string(),
+            })
+        },
+    )?;
     outbound_destination::validate_destination(
         &req.destination_url,
         state.conf.proxy.bypass_proxy_hosts.as_deref(),
@@ -29,11 +39,6 @@ pub async fn proxy_core(
         // GET and DELETE send no body: the token is checked, but there is nothing to validate
         // or fill with vault data, so the request is forwarded as it is.
         method @ (services::Method::Get | services::Method::Delete) => {
-            when(req_wrapper.0.transformation.is_some(), || {
-                Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Transformation requires a request body".to_string(),
-                })
-            })?;
             req_wrapper
                 .get_proxy_record(&state, platform.get_provider())
                 .await?;
@@ -75,7 +80,7 @@ async fn body_request(
         .transformation
         .as_ref()
         .map(|transformation| {
-            transform::ValidatedPlan::new(transformation, &body, req_wrapper.0.headers.as_map())
+            transform::ValidatedPlan::new(transformation, &body, &req_wrapper.0.headers)
         })
         .transpose()
         .map_err(|error| invalid_body(error.into()))?;

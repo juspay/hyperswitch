@@ -1,34 +1,45 @@
 //! Serialize steps: turn the JSON body into the bytes that are signed and sent.
 
-use api_models::proxy::SerializeFormat;
+use api_models::proxy::ProxySerializeFormat;
 use serde_json::Value;
 
 use super::{Body, Payload, Step, TransformError};
 
 /// A serialization format.
-pub trait Serialization {
+pub trait Serialization: std::fmt::Debug + Send + Sync {
     /// Serialize the body to bytes.
     fn serialize(&self, body: &Value) -> Result<Vec<u8>, TransformError>;
 }
 
-impl Serialization for SerializeFormat {
+/// Compact JSON.
+#[derive(Debug)]
+struct Json;
+
+impl Serialization for Json {
     fn serialize(&self, body: &Value) -> Result<Vec<u8>, TransformError> {
-        match self {
-            Self::Json => serde_json::to_vec(body).map_err(|_| TransformError::Failed),
-        }
+        serde_json::to_vec(body).map_err(|_| TransformError::Failed)
+    }
+}
+
+/// The serializer a format names.
+fn serializer(format: ProxySerializeFormat) -> Box<dyn Serialization> {
+    match format {
+        ProxySerializeFormat::Json => Box::new(Json),
     }
 }
 
 /// Serializes the JSON body.
 #[derive(Debug)]
 pub struct SerializeStep {
-    format: SerializeFormat,
+    format: Box<dyn Serialization>,
 }
 
 impl SerializeStep {
     /// A step that serializes with `format`.
-    pub fn new(format: SerializeFormat) -> Self {
-        Self { format }
+    pub fn new(format: ProxySerializeFormat) -> Self {
+        Self {
+            format: serializer(format),
+        }
     }
 }
 

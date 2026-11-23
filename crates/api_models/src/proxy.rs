@@ -10,9 +10,28 @@ use utoipa::ToSchema;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Headers(pub HashMap<String, String>);
 
+/// A header name set more than once, with different values.
+#[derive(Debug)]
+pub struct ConflictingHeaders;
+
 impl Headers {
     pub fn as_map(&self) -> &HashMap<String, String> {
         &self.0
+    }
+
+    /// The value of a header. Names are case-insensitive, and duplicates with different values
+    /// are rejected instead of picking one of them from the HashMap.
+    pub fn get(&self, name: &str) -> Result<Option<&str>, ConflictingHeaders> {
+        let mut values = self
+            .0
+            .iter()
+            .filter(|(key, _)| key.eq_ignore_ascii_case(name))
+            .map(|(_, value)| value.as_str());
+        let first = values.next();
+        match first {
+            Some(first) if values.any(|value| value != first) => Err(ConflictingHeaders),
+            _ => Ok(first),
+        }
     }
 
     pub fn from_header_map(headers: Option<&HeaderMap>) -> Self {
@@ -57,41 +76,43 @@ pub struct ProxyRequest {
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 pub struct ProxyTransformation {
     /// The steps to run on the body
-    pub steps: Vec<TransformInstruction>,
+    pub steps: Vec<ProxyTransformInstruction>,
 }
 
 /// One transformation step
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(tag = "operation", rename_all = "snake_case")]
-pub enum TransformInstruction {
+pub enum ProxyTransformInstruction {
     /// Encrypt a string field of the JSON body and replace it with the encoded ciphertext
     Encrypt {
-        /// JSON Pointer to the field, such as `/source/encryptionData/encryptionBlock`
+        /// JSON Pointer to the string field to encrypt, such as
+        /// `/source/encryptionData/encryptionBlock`. Its value after vault substitution is the
+        /// plaintext; it is replaced in place by the encoded ciphertext.
         field: String,
         /// The encryption algorithm
-        scheme: EncryptScheme,
-        /// The base64-encoded DER public key
+        scheme: ProxyEncryptScheme,
+        /// Base64-encoded DER public key in SubjectPublicKeyInfo (SPKI) format
         key: String,
         /// The encoding of the ciphertext written to the field
-        encoding: Encoding,
+        encoding: ProxyEncoding,
     },
     /// Serialize the JSON body to the bytes that are signed and sent
     Serialize {
         /// The serialization format
-        format: SerializeFormat,
+        format: ProxySerializeFormat,
     },
     /// Sign a message built from request headers and the body bytes, and write the encoded
     /// signature to a header
     Sign {
         /// The parts of the signed message, concatenated in order
-        message: Vec<MessagePart>,
+        message: Vec<ProxyMessagePart>,
         /// The signing algorithm
-        scheme: SignScheme,
+        scheme: ProxySignScheme,
         /// The signing secret
         #[schema(value_type = String)]
         key: Secret<String>,
         /// The encoding of the signature
-        encoding: Encoding,
+        encoding: ProxyEncoding,
         /// The header the signature is written to; it must not already be in the request
         header: String,
     },
@@ -100,7 +121,7 @@ pub enum TransformInstruction {
 /// Encryption algorithms
 #[derive(Debug, ToSchema, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum EncryptScheme {
+pub enum ProxyEncryptScheme {
     /// RSA-OAEP with SHA-256
     RsaOaepSha256,
 }
@@ -108,7 +129,7 @@ pub enum EncryptScheme {
 /// Signing algorithms
 #[derive(Debug, ToSchema, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SignScheme {
+pub enum ProxySignScheme {
     /// HMAC with SHA-256
     HmacSha256,
 }
@@ -116,7 +137,7 @@ pub enum SignScheme {
 /// Serialization formats
 #[derive(Debug, ToSchema, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SerializeFormat {
+pub enum ProxySerializeFormat {
     /// JSON
     Json,
 }
@@ -124,7 +145,7 @@ pub enum SerializeFormat {
 /// Encodings for ciphertexts and signatures
 #[derive(Debug, ToSchema, Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum Encoding {
+pub enum ProxyEncoding {
     /// Standard base64 with padding
     Base64,
 }
@@ -132,8 +153,8 @@ pub enum Encoding {
 /// A part of a signed message: `{"header": "Api-Key"}` or `"body"`
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum MessagePart {
-    /// The value of a request header
+pub enum ProxyMessagePart {
+    /// Name of a request header whose value is signed
     Header(String),
     /// The serialized body bytes
     Body,

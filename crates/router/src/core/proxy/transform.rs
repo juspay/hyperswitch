@@ -2,12 +2,14 @@
 //! it is sent: encrypt fields, serialize once, then sign the bytes.
 //!
 //! Each step implements [`Step`] and runs one algorithm through its operation's trait
-//! ([`encrypt::Encryption`], [`serialize::Serialization`], [`sign::Signing`]). The algorithms are
-//! enums, so a new one is a new variant and its match arm.
+//! ([`encrypt::Encryption`], [`serialize::Serialization`], [`sign::Signing`]). Each algorithm is
+//! a struct implementing that trait and checking its key when built. The request names it with
+//! an enum variant, mapped to the struct in one match per operation, so a new algorithm is a new
+//! variant, its struct and its match arm.
 
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 
-use api_models::proxy::{Encoding, ProxyTransformation, TransformInstruction};
+use api_models::proxy::{Headers, ProxyEncoding, ProxyTransformInstruction, ProxyTransformation};
 use base64::Engine;
 use common_utils::{consts::BASE64_ENGINE, fp_utils::when};
 use hyperswitch_masking::Maskable;
@@ -34,7 +36,10 @@ pub enum TransformError {
     /// An encrypt field is missing or not a string.
     #[error("Encrypt field is missing or not a string")]
     InvalidField,
-    /// A key cannot be decoded or parsed.
+    /// A field is encrypted by more than one step.
+    #[error("A field is encrypted more than once")]
+    DuplicateField,
+    /// A key cannot be decoded or parsed, or is too weak.
     #[error("Invalid transformation key")]
     InvalidKey,
     /// A signed message references a header that is not in the request.
@@ -68,6 +73,23 @@ struct Payload {
     headers: Vec<(String, Maskable<String>)>,
 }
 
+/// An algorithm and the encoding of its output, shared by the steps whose output is written as
+/// text (encrypt and sign).
+#[derive(Debug)]
+struct EncodedAlgorithm<A> {
+    algorithm: A,
+    encoding: ProxyEncoding,
+}
+
+impl<A> EncodedAlgorithm<A> {
+    /// Encode the algorithm's output as text.
+    fn encode(&self, bytes: &[u8]) -> String {
+        match self.encoding {
+            ProxyEncoding::Base64 => BASE64_ENGINE.encode(bytes),
+        }
+    }
+}
+
 /// One executable transformation step.
 trait Step: std::fmt::Debug + Send + Sync {
     /// Apply this step to the payload.
@@ -92,13 +114,14 @@ impl ValidatedPlan {
     pub fn new(
         transformation: &ProxyTransformation,
         body: &ProxyBody,
-        headers: &HashMap<String, String>,
+        headers: &Headers,
     ) -> Result<Self, TransformError> {
         let template = match body {
             ProxyBody::Json(template) => Ok(template),
             ProxyBody::Xml(_) => Err(TransformError::UnsupportedBody),
         }?;
         validate_order(&transformation.steps)?;
+        validate_encrypt_fields(&transformation.steps)?;
         validate_signature_headers(&transformation.steps, headers)?;
         transformation
             .steps
@@ -130,22 +153,22 @@ impl ValidatedPlan {
 
 /// The executable step for an instruction.
 fn step(
-    instruction: &TransformInstruction,
+    instruction: &ProxyTransformInstruction,
     template: &Value,
-    headers: &HashMap<String, String>,
+    headers: &Headers,
 ) -> Result<Box<dyn Step>, TransformError> {
     match instruction {
-        TransformInstruction::Encrypt {
+        ProxyTransformInstruction::Encrypt {
             field,
             scheme,
             key,
             encoding,
         } => encrypt::EncryptStep::new(field, *scheme, key, *encoding, template)
             .map(|step| -> Box<dyn Step> { Box::new(step) }),
-        TransformInstruction::Serialize { format } => {
+        ProxyTransformInstruction::Serialize { format } => {
             Ok(Box::new(serialize::SerializeStep::new(*format)))
         }
-        TransformInstruction::Sign {
+        ProxyTransformInstruction::Sign {
             message,
             scheme,
             key,
@@ -158,11 +181,11 @@ fn step(
 
 /// Encrypt steps change the JSON body, so they come before the one serialize step, and nothing
 /// may change the bytes once they can be signed.
-fn validate_order(steps: &[TransformInstruction]) -> Result<(), TransformError> {
-    let phase = |instruction: &TransformInstruction| match instruction {
-        TransformInstruction::Encrypt { .. } => 0,
-        TransformInstruction::Serialize { .. } => 1,
-        TransformInstruction::Sign { .. } => 2,
+fn validate_order(steps: &[ProxyTransformInstruction]) -> Result<(), TransformError> {
+    let phase = |instruction: &ProxyTransformInstruction| match instruction {
+        ProxyTransformInstruction::Encrypt { .. } => 0,
+        ProxyTransformInstruction::Serialize { .. } => 1,
+        ProxyTransformInstruction::Sign { .. } => 2,
     };
     let ordered = steps
         .iter()
@@ -170,24 +193,43 @@ fn validate_order(steps: &[TransformInstruction]) -> Result<(), TransformError> 
         .all(|(current, next)| phase(current) <= phase(next));
     let serializations = steps
         .iter()
-        .filter(|step| matches!(step, TransformInstruction::Serialize { .. }))
+        .filter(|step| matches!(step, ProxyTransformInstruction::Serialize { .. }))
         .count();
     when(!ordered || serializations != 1, || {
         Err(TransformError::InvalidOrder)
     })
 }
 
+/// Each field is encrypted at most once: a second encryption would take the first one's
+/// ciphertext as its plaintext, which is too long for the key, and fail after the vault read.
+fn validate_encrypt_fields(steps: &[ProxyTransformInstruction]) -> Result<(), TransformError> {
+    let fields: Vec<&str> = steps
+        .iter()
+        .filter_map(|step| match step {
+            ProxyTransformInstruction::Encrypt { field, .. } => Some(field.as_str()),
+            ProxyTransformInstruction::Serialize { .. }
+            | ProxyTransformInstruction::Sign { .. } => None,
+        })
+        .collect();
+    let repeated = fields
+        .iter()
+        .enumerate()
+        .any(|(index, field)| fields.iter().skip(index + 1).any(|other| other == field));
+    when(repeated, || Err(TransformError::DuplicateField))
+}
+
 /// A signature header must be a valid name, must not already be in the request or be set by the
 /// proxy itself, and must not be written by two steps.
 fn validate_signature_headers(
-    steps: &[TransformInstruction],
-    headers: &HashMap<String, String>,
+    steps: &[ProxyTransformInstruction],
+    headers: &Headers,
 ) -> Result<(), TransformError> {
     let targets: Vec<&str> = steps
         .iter()
         .filter_map(|step| match step {
-            TransformInstruction::Sign { header, .. } => Some(header.as_str()),
-            TransformInstruction::Encrypt { .. } | TransformInstruction::Serialize { .. } => None,
+            ProxyTransformInstruction::Sign { header, .. } => Some(header.as_str()),
+            ProxyTransformInstruction::Encrypt { .. }
+            | ProxyTransformInstruction::Serialize { .. } => None,
         })
         .collect();
     targets
@@ -196,6 +238,7 @@ fn validate_signature_headers(
         .map_err(|_| TransformError::InvalidHeader)?;
     let conflict = targets.iter().enumerate().any(|(index, target)| {
         headers
+            .as_map()
             .keys()
             .map(String::as_str)
             .chain(BODY_HEADERS)
@@ -203,28 +246,4 @@ fn validate_signature_headers(
             .any(|name| name.eq_ignore_ascii_case(target))
     });
     when(conflict, || Err(TransformError::ConflictingHeader))
-}
-
-/// The value of a request header. Names are case-insensitive, and duplicates with different
-/// values are rejected instead of picking one.
-fn header_value<'a>(
-    headers: &'a HashMap<String, String>,
-    name: &str,
-) -> Result<&'a str, TransformError> {
-    let mut values = headers
-        .iter()
-        .filter(|(key, _)| key.eq_ignore_ascii_case(name))
-        .map(|(_, value)| value.as_str());
-    let first = values.next().ok_or(TransformError::MissingHeader)?;
-    when(values.any(|value| value != first), || {
-        Err(TransformError::ConflictingHeader)
-    })?;
-    Ok(first)
-}
-
-/// Encode bytes as text.
-fn encode(encoding: Encoding, bytes: &[u8]) -> String {
-    match encoding {
-        Encoding::Base64 => BASE64_ENGINE.encode(bytes),
-    }
 }
