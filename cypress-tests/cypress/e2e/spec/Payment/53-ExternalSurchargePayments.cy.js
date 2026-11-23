@@ -9,12 +9,6 @@ import {
 
 let globalState;
 
-// Covers PR #14354: the surcharge calculated by an external surcharge
-// processor (InterPayments) is returned by the eligibility check, carried on the
-// confirm response, and persisted on the payment. The amount and percentage
-// come from the connector, so they are checked for consistency, not for fixed
-// values.
-//
 // Needs the surcharge connector that 03-ConnectorCreate creates from the
 // "interpayments" entry in creds.json; the spec skips itself without it.
 describe("External surcharge - payments", () => {
