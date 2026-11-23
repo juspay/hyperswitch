@@ -2584,11 +2584,12 @@ impl TryFrom<&PaymentsSyncRouterData> for PaymentService {
         let auth = WorldpayxmlAuthType::try_from(&item.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
 
+        // Order inquiries can use the original order code when no transaction ID is stored.
         let order_code = item
             .request
             .connector_transaction_id
             .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+            .unwrap_or_else(|_| item.connector_request_reference_id.clone());
 
         let inquiry = Some(Inquiry {
             order_inquiry: OrderInquiry { order_code },
@@ -4061,11 +4062,12 @@ impl TryFrom<PayoutsResponseRouterData<PoFulfill, PayoutResponse>>
 impl TryFrom<&PayoutsRouterData<PoSync>> for PaymentService {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &PayoutsRouterData<PoSync>) -> Result<Self, Self::Error> {
-        let order_code = item.request.connector_payout_id.to_owned().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "order_code".into(),
-            },
-        )?;
+        // Order inquiries can use the original order code when no payout ID is stored.
+        let order_code = item
+            .request
+            .connector_payout_id
+            .clone()
+            .unwrap_or_else(|| item.connector_request_reference_id.clone());
 
         let auth = WorldpayxmlAuthType::try_from(&item.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;

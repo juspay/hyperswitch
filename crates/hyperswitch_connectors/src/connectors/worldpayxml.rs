@@ -227,7 +227,17 @@ impl ConnectorCommon for Worldpayxml {
     }
 }
 
-impl ConnectorValidation for Worldpayxml {}
+impl ConnectorValidation for Worldpayxml {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        _is_three_ds: bool,
+        _status: common_enums::AttemptStatus,
+        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        Ok(())
+    }
+}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Worldpayxml {
     //TODO: implement sessions flow
