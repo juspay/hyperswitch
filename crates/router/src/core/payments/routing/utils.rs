@@ -181,47 +181,6 @@ impl DecisionEngineEndpoint {
 
 const DECISION_ENGINE_ADMIN_SECRET_HEADER: &str = "x-admin-secret";
 
-pub(super) fn build_decision_engine_http_request<Req>(
-    config: &crate::configs::settings::OpenRouter,
-    http_method: services::Method,
-    path: &str,
-    request_body: Option<Req>,
-    profile_id: Option<&id_type::ProfileId>,
-) -> RoutingResult<common_utils::request::Request>
-where
-    Req: Serialize + Send + Sync + 'static + Clone,
-{
-    let url = format!("{}/{path}", config.url.trim_end_matches('/'));
-    let mut request_builder = services::RequestBuilder::new()
-        .method(http_method)
-        .url(&url);
-
-    if !config.admin_secret.peek().is_empty() {
-        request_builder = request_builder.headers(vec![(
-            DECISION_ENGINE_ADMIN_SECRET_HEADER.to_string(),
-            config.admin_secret.clone().into_masked(),
-        )]);
-    }
-
-    if DecisionEngineEndpoint::from_path(path) == DecisionEngineEndpoint::Decide {
-        // DE merchants are HS profiles. The service credential authenticates HS; this
-        // header identifies the profile whose rules and scoring configuration apply.
-        let profile_id = profile_id.ok_or(errors::RoutingError::OpenRouterError(
-            "decision_engine: /decide requires a connected profile".to_string(),
-        ))?;
-        request_builder =
-            request_builder.header("x-connected-merchant-id", profile_id.get_string_repr());
-    }
-
-    if let Some(body_content) = request_body {
-        request_builder = request_builder.set_body(common_utils::request::RequestContent::Json(
-            Box::new(body_content),
-        ));
-    }
-
-    Ok(request_builder.build())
-}
-
 pub async fn build_and_send_decision_engine_http_request<Req, Res, ErrRes>(
     state: &SessionState,
     http_method: services::Method,
@@ -236,15 +195,44 @@ where
     Res: Serialize + serde::de::DeserializeOwned + std::fmt::Debug + Clone + 'static,
     ErrRes: serde::de::DeserializeOwned + std::fmt::Debug + Clone + DecisionEngineErrorsInterface,
 {
-    let http_request = build_decision_engine_http_request(
-        &state.conf.open_router,
-        http_method,
-        path,
-        request_body,
-        events_wrapper.as_ref().map(|wrapper| &wrapper.profile_id),
-    )?;
-    let url = http_request.url.clone();
+    let decision_engine_base_url = &state.conf.open_router.url;
+    let url = format!("{decision_engine_base_url}/{path}");
     logger::debug!(decision_engine_api_call_url = %url, decision_engine_request_path = %path, http_method = ?http_method, "decision_engine: Initiating decision_engine API call ({})", context_message);
+
+    let mut request_builder = services::RequestBuilder::new()
+        .method(http_method)
+        .url(&url);
+
+    // The Decision Engine authenticates Hyperswitch via a shared admin secret: its admin
+    // endpoints (merchant provisioning, SSO code mint) verify the header in the handler, and
+    // its protected router accepts it as service-to-service auth. Attach it on every call
+    // when configured; an empty secret omits the header.
+    let admin_secret = &state.conf.open_router.admin_secret;
+    if !admin_secret.peek().is_empty() {
+        request_builder = request_builder.headers(vec![(
+            DECISION_ENGINE_ADMIN_SECRET_HEADER.to_string(),
+            admin_secret.clone().into_masked(),
+        )]);
+    }
+
+    if DecisionEngineEndpoint::from_path(path) == DecisionEngineEndpoint::Decide {
+        // DE uses the HS profile ID to select merchant rules and scoring configuration.
+        let profile_id = events_wrapper
+            .as_ref()
+            .map(|wrapper| &wrapper.profile_id)
+            .ok_or(errors::RoutingError::OpenRouterError(
+                "decision_engine: /decide requires a connected profile".to_string(),
+            ))?;
+        request_builder =
+            request_builder.header("x-connected-merchant-id", profile_id.get_string_repr());
+    }
+
+    if let Some(body_content) = request_body {
+        let body = common_utils::request::RequestContent::Json(Box::new(body_content));
+        request_builder = request_builder.set_body(body);
+    }
+
+    let http_request = request_builder.build();
     let should_parse_response = events_wrapper
         .as_ref()
         .map(|wrapper| wrapper.parse_response)
