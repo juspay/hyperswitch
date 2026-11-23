@@ -35,7 +35,7 @@ pub mod error_codes {
     pub const PAYMENT_PENDING: &str = "PAYMENT_PENDING";
 }
 
-pub type Parameters = HashMap<String, String>;
+pub use api_models::telephone_order::TelephoneOrderParameters as Parameters;
 
 /// Why a charge failed, in terms the provider can read back to the caller.
 #[derive(Debug)]
@@ -179,10 +179,13 @@ pub trait TelephoneOrderAdapter {
     ) -> Box<dyn AuthenticateAndFetch<AuthenticationData, SessionState>> {
         Box::new(ApiKeyBasicAuthWithMerchantIdFromRoute {
             merchant_id,
-            profile_id: extract_id(Self::parameters(request), "profile_id")
-                // An unusable id is rejected with `INVALID_REQUEST` in `charge`.
-                .ok()
-                .flatten(),
+            profile_id: extract_id(
+                Self::parameters(request).and_then(|parameters| parameters.profile_id.as_deref()),
+                "profile_id",
+            )
+            // An unusable id is rejected with `INVALID_REQUEST` in `charge`.
+            .ok()
+            .flatten(),
         })
     }
 
@@ -191,7 +194,11 @@ pub trait TelephoneOrderAdapter {
     fn resolve_payment_id(
         request: &Self::Request,
     ) -> Result<Option<common_utils::id_type::PaymentId>, Failure> {
-        extract_id(Self::parameters(request), "payment_id").map(|supplied| {
+        extract_id(
+            Self::parameters(request).and_then(|parameters| parameters.payment_id.as_deref()),
+            "payment_id",
+        )
+        .map(|supplied| {
             supplied.or_else(|| Self::idempotency_reference(request).and_then(derive_payment_id))
         })
     }
@@ -348,15 +355,18 @@ fn build_context(
         profile_id: resolve_profile_id(auth, parameters)?,
         payment_id,
         // A convenience: an unusable one is dropped rather than failing the charge.
-        customer_id: extract_id(parameters, "customer_id")
-            .inspect_err(|failure| {
-                logger::warn!(
-                    "Ignoring unusable customer_id from telephone order parameters: {}",
-                    failure.message
-                )
-            })
-            .ok()
-            .flatten(),
+        customer_id: extract_id(
+            parameters.and_then(|parameters| parameters.customer_id.as_deref()),
+            "customer_id",
+        )
+        .inspect_err(|failure| {
+            logger::warn!(
+                "Ignoring unusable customer_id from telephone order parameters: {}",
+                failure.message
+            )
+        })
+        .ok()
+        .flatten(),
         capture_method: resolve_capture_method(parameters)?,
         metadata: build_metadata(parameters),
     })
@@ -368,7 +378,10 @@ fn resolve_profile_id(
     auth: &AuthenticationData,
     parameters: Option<&Parameters>,
 ) -> Result<Option<common_utils::id_type::ProfileId>, Failure> {
-    extract_id::<common_utils::id_type::ProfileId>(parameters, "profile_id")?;
+    extract_id::<common_utils::id_type::ProfileId>(
+        parameters.and_then(|parameters| parameters.profile_id.as_deref()),
+        "profile_id",
+    )?;
 
     Ok(auth
         .profile
@@ -380,8 +393,8 @@ fn resolve_capture_method(
     parameters: Option<&Parameters>,
 ) -> Result<Option<common_enums::CaptureMethod>, Failure> {
     parameters
-        .and_then(|parameters| parameters.get("capture_method"))
-        .map(|value| match value.as_str() {
+        .and_then(|parameters| parameters.capture_method.as_deref())
+        .map(|value| match value {
             "automatic" => Ok(common_enums::CaptureMethod::Automatic),
             "manual" => Ok(common_enums::CaptureMethod::Manual),
             other => Err(Failure::new(
@@ -392,19 +405,18 @@ fn resolve_capture_method(
         .transpose()
 }
 
-/// Reads one Hyperswitch id out of the parameters. An unusable value is rejected, not ignored.
-fn extract_id<I>(parameters: Option<&Parameters>, key: &str) -> Result<Option<I>, Failure>
+/// Parses one Hyperswitch id. An unusable value is rejected, not ignored.
+fn extract_id<I>(value: Option<&str>, field: &str) -> Result<Option<I>, Failure>
 where
     I: TryFrom<std::borrow::Cow<'static, str>>,
     <I as TryFrom<std::borrow::Cow<'static, str>>>::Error: std::fmt::Display,
 {
-    parameters
-        .and_then(|parameters| parameters.get(key))
+    value
         .map(|value| {
-            I::try_from(std::borrow::Cow::Owned(value.clone())).map_err(|error| {
+            I::try_from(std::borrow::Cow::Owned(value.to_owned())).map_err(|error| {
                 Failure::new(
                     error_codes::INVALID_REQUEST,
-                    format!("parameters.{key} is not a valid {key}: {error}"),
+                    format!("parameters.{field} is not a valid {field}: {error}"),
                 )
             })
         })

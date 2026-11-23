@@ -49234,6 +49234,44 @@
           }
         }
       },
+      "TelephoneOrderParameters": {
+        "allOf": [
+          {
+            "type": "object",
+            "description": "Whatever else the merchant put on the `<Pay>` verb, carried through unread."
+          },
+          {
+            "type": "object",
+            "properties": {
+              "payment_id": {
+                "type": "string",
+                "description": "Charges this payment id rather than one derived from the provider's attempt id.",
+                "example": "pay_8320b449b06630271e378214dab80ce5",
+                "nullable": true
+              },
+              "profile_id": {
+                "type": "string",
+                "description": "The profile to charge against. Absent, the merchant's default profile is used.",
+                "example": "pro_GUMsmmzTU7oadT00pJeo",
+                "nullable": true
+              },
+              "customer_id": {
+                "type": "string",
+                "description": "An unusable value is dropped, not rejected.",
+                "example": "cus_1a2b3c4d5e6f7g8h9i0j",
+                "nullable": true
+              },
+              "capture_method": {
+                "type": "string",
+                "description": "`automatic` (the default) or `manual`.",
+                "example": "manual",
+                "nullable": true
+              }
+            }
+          }
+        ],
+        "description": "The IVR's `<Parameter>` tags. The four Hyperswitch reads are named; the rest are the merchant's\nand ride along into the payment's `metadata`. Keys are lowercase: Twilio lowercases parameter\nnames, so a camelCase one never matches and lands in the passthrough instead.\n\nValues stay `String` so a bad one fails the charge with an `error_code` in a `200`, rather than\nfailing deserialization and answering with an HTTP error the provider cannot read."
+      },
       "ThirdPartySdkSessionResponse": {
         "type": "object",
         "required": [
@@ -49924,8 +49962,11 @@
             "nullable": true
           },
           "parameters": {
-            "type": "object",
-            "description": "Values from the IVR's `<Parameter>` tags, stored unmasked in the payment's `metadata`. `profile_id`, `payment_id`, `customer_id` and `capture_method` are also read. `capture_method` takes `automatic` (the default) or `manual`.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TelephoneOrderParameters"
+              }
+            ],
             "nullable": true
           }
         }
