@@ -115,6 +115,22 @@ pub(super) fn validate_payout_mutation_request(
     }
 }
 
+#[cfg(feature = "v1")]
+async fn get_and_validate_payout_customer(
+    state: &SessionState,
+    platform: &domain::Platform,
+    req: &payouts::PayoutCreateRequest,
+) -> RouterResult<Option<domain::Customer>> {
+    match req.get_customer_id() {
+        Some(customer_id) => helpers::get_existing_customer_details(state, customer_id, platform)
+            .await
+            .map(Some),
+        None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "customer_id".into(),
+        })),
+    }
+}
+
 /// Validate payout ID uniqueness within the merchant's storage scheme.
 #[instrument(skip(db))]
 pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
@@ -162,7 +178,6 @@ pub async fn validate_create_request(
     todo!()
 }
 
-/// Validate identity before customer creation or raw-method lookup.
 #[cfg(feature = "v1")]
 pub async fn validate_create_request(
     state: &SessionState,
@@ -199,8 +214,7 @@ pub async fn validate_create_request(
         .attach_printable("invalid merchant_id in request"))
     })?;
 
-    // Resolve the profile before any customer side effects so the cap applies to the
-    // exact merchant/profile context that will own the payout.
+    // Resolve the profile before checking its payout limit.
     let business_profile = core_utils::get_profile_from_business_details(
         req.business_country,
         req.business_label.as_ref(),
@@ -255,7 +269,6 @@ pub async fn validate_create_request(
         None => Ok(()),
     }?;
 
-    // Resolve the profile and kill switch before creating customers or resolving payout methods.
     let business_profile = core_utils::get_profile_from_business_details(
         req.business_country,
         req.business_label.as_ref(),
@@ -268,19 +281,7 @@ pub async fn validate_create_request(
         .await?;
     let profile_id = business_profile.get_id().to_owned();
 
-    // Fetch customer details (merge of loose fields + customer object) and create DB entry
-    let customer_in_request = helpers::get_customer_details_from_request(req);
-    let customer = if customer_in_request.customer_id.is_some()
-        || customer_in_request.name.is_some()
-        || customer_in_request.email.is_some()
-        || customer_in_request.phone.is_some()
-        || customer_in_request.phone_country_code.is_some()
-        || customer_in_request.document_details.is_some()
-    {
-        helpers::get_or_create_customer_details(state, &customer_in_request, platform).await?
-    } else {
-        None
-    };
+    let customer = get_and_validate_payout_customer(state, platform, req).await?;
 
     let payment_method: Option<PaymentMethod> =
         match (req.payout_token.as_ref(), req.payout_method_id.clone()) {
