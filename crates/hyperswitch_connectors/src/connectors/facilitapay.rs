@@ -832,6 +832,10 @@ impl webhooks::IncomingWebhook for Facilitapay {
             )
             .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
+        connector_webhook_secrets
+            .validate()
+            .map_err(|_| errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
         // FacilitaPay uses a simple 4-digit secret for verification
         Ok(webhook_body.notification.secret.peek()
             == connector_webhook_secrets.merchant_secret.peek())

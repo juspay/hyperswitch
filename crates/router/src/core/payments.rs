@@ -10378,10 +10378,13 @@ async fn decide_payment_method_tokenize_action(
     is_connector_tokenization_enabled: bool,
     is_network_transaction_id_flow: bool,
 ) -> RouterResult<TokenizationAction> {
-    if matches!(
+    let is_stripe_split_payment = matches!(
         payment_intent_data.split_payments,
         Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_))
-    ) {
+    ) && connector_name
+        == router_types::Connector::Stripe.to_string();
+
+    if is_stripe_split_payment {
         match pm_parent_token {
             // If the payment method is not stored in the router and this is not a network tokenization flow,
             // there is no need to resolve the payment method data from the payment method ID.
@@ -10834,6 +10837,7 @@ pub struct PaymentDataUpdateRequestFields {
     pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<api_models::payments::RecipientDetails>,
+    pub sender_details: Option<api_models::sender::SenderDetails>,
 }
 
 #[derive(Clone)]
