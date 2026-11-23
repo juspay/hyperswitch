@@ -813,6 +813,15 @@ function assertPaymentSurcharge(paymentBody, globalState, expectation) {
     ).to.equal(expectedPercentage);
   }
 
+  // The surcharge is the percentage of the order amount: 3% of 6000 is 180.
+  expect(
+    surchargeDetails.surcharge_amount,
+    "surcharge_amount is the percentage of the order amount"
+  ).to.be.closeTo(
+    (paymentBody.amount * surchargeDetails.surcharge_percentage) / 100,
+    0.5
+  );
+
   if (globalState.get("surchargeAmount") !== undefined) {
     expect(
       surchargeDetails.surcharge_amount,

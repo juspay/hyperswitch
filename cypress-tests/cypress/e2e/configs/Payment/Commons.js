@@ -1156,7 +1156,7 @@ const requiresCaptureResponse = {
 };
 
 const externalSurchargeConfirm = {
-  ExpectSurcharge: true,
+  ExpectSurcharge: { surcharge_percentage: externalSurchargePercentage },
   Request: {
     payment_method: "card",
     payment_method_data: { card: successfulNo3DSCardDetails },
