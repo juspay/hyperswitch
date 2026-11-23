@@ -443,38 +443,42 @@ mod tests {
         )
         .expect("valid decide request");
         let value = serde_json::to_value(request).expect("request JSON");
-        assert_eq!(value["amount"], 1234);
-        assert_eq!(value["payment_method_type"], "card");
-        assert_eq!(value["payment_method_sub_type"], "credit");
-        assert_eq!(value["payment_type"], "ppt_mandate");
-        assert_eq!(value["business_country"], "US");
-        assert_eq!(value["billing_country"], "GB");
-        assert_eq!(value["card"]["card_issuing_country_code"], "IN");
-        assert_eq!(value["card"]["card_isin"], "001234");
-        assert_eq!(value["card"]["card_extended_bin"], "00123456");
-        assert_eq!(value["card"]["card_type"], "credit");
-        assert_eq!(value["card"]["card_issuer"], "Issuer");
-        assert_eq!(value["customer_device_platform"], "web");
-        assert_eq!(value["customer_device_type"], "desktop");
-        assert_eq!(value["transaction_initiator"], "merchant");
-        assert_eq!(value["metadata"]["segment"], "premium");
-        assert_eq!(
-            value["routing_config"]["eligible_connectors"],
-            json!([
-                {"connector": "stripe", "merchant_connector_id": "mca_one"},
-                {"connector": "stripe", "merchant_connector_id": "mca_two"}
-            ])
-        );
-        assert_eq!(
-            value["routing_config"]["preferred_connectors"],
-            json!([
-                {"connector": "stripe", "merchant_connector_id": "mca_two"}
-            ])
-        );
-        assert_eq!(
-            value["routing_config"]["ranking_algorithm"],
-            "SR_BASED_ROUTING"
-        );
+        for (path, expected) in [
+            ("/amount", json!(1234)),
+            ("/payment_method_type", json!("card")),
+            ("/payment_method_sub_type", json!("credit")),
+            ("/payment_type", json!("ppt_mandate")),
+            ("/business_country", json!("US")),
+            ("/billing_country", json!("GB")),
+            ("/card/card_issuing_country_code", json!("IN")),
+            ("/card/card_isin", json!("001234")),
+            ("/card/card_extended_bin", json!("00123456")),
+            ("/card/card_type", json!("credit")),
+            ("/card/card_issuer", json!("Issuer")),
+            ("/customer_device_platform", json!("web")),
+            ("/customer_device_type", json!("desktop")),
+            ("/transaction_initiator", json!("merchant")),
+            ("/metadata/segment", json!("premium")),
+            (
+                "/routing_config/eligible_connectors",
+                json!([
+                    {"connector": "stripe", "merchant_connector_id": "mca_one"},
+                    {"connector": "stripe", "merchant_connector_id": "mca_two"}
+                ]),
+            ),
+            (
+                "/routing_config/preferred_connectors",
+                json!([
+                    {"connector": "stripe", "merchant_connector_id": "mca_two"}
+                ]),
+            ),
+            (
+                "/routing_config/ranking_algorithm",
+                json!("SR_BASED_ROUTING"),
+            ),
+        ] {
+            assert_eq!(value.pointer(path), Some(&expected), "{path}");
+        }
         for removed in [
             "merchant_id",
             "created_by",
@@ -506,14 +510,33 @@ mod tests {
                 .expect("wallet request"),
         )
         .expect("request JSON");
-        assert_eq!(value["wallet"], "apple_pay");
-        assert_eq!(value["payment_method_type"], "wallet");
-        assert_eq!(value["payment_method_sub_type"], "apple_pay");
+        assert_eq!(
+            value.pointer("/wallet").expect("serialized field"),
+            "apple_pay"
+        );
+        assert_eq!(
+            value
+                .pointer("/payment_method_type")
+                .expect("serialized field"),
+            "wallet"
+        );
+        assert_eq!(
+            value
+                .pointer("/payment_method_sub_type")
+                .expect("serialized field"),
+            "apple_pay"
+        );
         for absent in ["card", "metadata", "customer_device_platform"] {
             assert!(value.get(absent).is_none());
         }
-        assert!(value["routing_config"].get("ranking_algorithm").is_none());
-        assert!(value["routing_config"]
+        assert!(value
+            .pointer("/routing_config")
+            .expect("serialized field")
+            .get("ranking_algorithm")
+            .is_none());
+        assert!(value
+            .pointer("/routing_config")
+            .expect("serialized field")
             .get("preferred_connectors")
             .is_none());
     }
@@ -549,14 +572,15 @@ mod tests {
             "warnings": [{"code": "future_warning"}]
         })).expect("extensible response");
         let recorded = serde_json::to_value(&response).expect("recorded response");
-        assert_eq!(recorded["id"], "dec_test");
-        assert_eq!(recorded["warnings"], json!([{"code": "future_warning"}]));
-        assert_eq!(recorded["outcome"]["reason"], "future_reason");
-        assert_eq!(
-            recorded["success_rate"]["diagnostics"],
-            json!({"unstable": true})
-        );
-        assert_eq!(recorded["future_section"], json!({"value": true}));
+        for (path, expected) in [
+            ("/id", json!("dec_test")),
+            ("/warnings", json!([{"code": "future_warning"}])),
+            ("/outcome/reason", json!("future_reason")),
+            ("/success_rate/diagnostics", json!({"unstable": true})),
+            ("/future_section", json!({"value": true})),
+        ] {
+            assert_eq!(recorded.pointer(path), Some(&expected), "{path}");
+        }
         let outcome = normalize_decide_routing_response(&response).expect("normalized response");
         assert_eq!(
             outcome

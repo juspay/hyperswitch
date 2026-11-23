@@ -1,7 +1,10 @@
 use std::time::Duration;
 
 use api_models::routing::{RoutableChoiceKind, RoutableConnectorChoice};
-use common_utils::id_type;
+use common_utils::{
+    errors::{CustomResult, ValidationError},
+    id_type,
+};
 use euclid::enums::RoutableConnectors;
 use external_services::http_client::send_request;
 use hyperswitch_interfaces::{errors::HttpClientError, types::Proxy};
@@ -19,8 +22,8 @@ use super::super::{
 };
 use crate::{configs::settings::OpenRouter, services};
 
-fn profile_id() -> id_type::ProfileId {
-    "pro_decide_http".parse().expect("valid test profile")
+fn profile_id() -> CustomResult<id_type::ProfileId, ValidationError> {
+    "pro_decide_http".parse()
 }
 
 fn config(server: &MockServer) -> OpenRouter {
@@ -98,7 +101,7 @@ async fn decide_http_sends_profile_scope_and_preserves_ranked_mca_order() {
         services::Method::Post,
         "decide",
         Some(serde_json::from_value::<DecideRequest>(body).expect("typed HS request")),
-        Some(&profile_id()),
+        Some(&profile_id().expect("valid test profile")),
     )
     .expect("build scoped decide request");
     let response = send_request(&proxy(), request, Some(2))
@@ -149,7 +152,7 @@ async fn decide_http_no_connector_preserves_hs_static_fallback_order_and_approac
         services::Method::Post,
         "decide",
         Some(body),
-        Some(&profile_id()),
+        Some(&profile_id().expect("valid test profile")),
     )
     .expect("build decide request");
     let response = send_request(&proxy(), request, Some(2))
@@ -227,7 +230,7 @@ async fn decide_http_keeps_hybrid_auth_without_adding_connected_merchant_scope()
         services::Method::Post,
         "routing/hybrid",
         Some(body),
-        Some(&profile_id()),
+        Some(&profile_id().expect("valid test profile")),
     )
     .expect("build legacy hybrid request");
     let response = send_request(&proxy(), request, Some(2))
@@ -259,7 +262,7 @@ async fn decide_http_omits_unconfigured_service_secret() {
         services::Method::Post,
         "decide",
         Some(request_body()),
-        Some(&profile_id()),
+        Some(&profile_id().expect("valid test profile")),
     )
     .expect("build request with unconfigured service secret");
     send_request(&proxy(), request, Some(2))
@@ -287,7 +290,7 @@ async fn decide_http_rejects_malformed_success_response() {
         services::Method::Post,
         "decide",
         Some(request_body()),
-        Some(&profile_id()),
+        Some(&profile_id().expect("valid test profile")),
     )
     .expect("build decide request");
     let response = send_request(&proxy(), request, Some(2))
@@ -312,7 +315,7 @@ async fn decide_http_preserves_non_success_status_for_shared_error_handling() {
         services::Method::Post,
         "decide",
         Some(request_body()),
-        Some(&profile_id()),
+        Some(&profile_id().expect("valid test profile")),
     )
     .expect("build decide request");
     let response = send_request(&proxy(), request, Some(2))
@@ -343,7 +346,7 @@ async fn decide_http_respects_the_request_timeout() {
         services::Method::Post,
         "decide",
         Some(request_body()),
-        Some(&profile_id()),
+        Some(&profile_id().expect("valid test profile")),
     )
     .expect("build decide request");
     let error = send_request(&proxy(), request, Some(1))

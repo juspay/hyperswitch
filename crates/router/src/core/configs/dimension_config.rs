@@ -1551,16 +1551,23 @@ mod decision_engine_decide_config_tests {
             .expect("valid Superposition seed")
             .try_deserialize()
             .expect("seed JSON");
-        let config = &seed["default-configs"][DecisionEngineDecideEnabled::SUPERPOSITION_KEY];
+        let config = seed
+            .get("default-configs")
+            .and_then(|configs| configs.get(DecisionEngineDecideEnabled::SUPERPOSITION_KEY))
+            .expect("decide rollout config in seed");
 
-        assert_eq!(config["value"], false);
-        assert_eq!(config["schema"]["type"], "boolean");
+        assert_eq!(config.get("value"), Some(&serde_json::json!(false)));
+        assert_eq!(
+            config.pointer("/schema/type"),
+            Some(&serde_json::json!("boolean"))
+        );
+        let dimensions = seed.get("dimensions").expect("seed dimensions");
         for dimension in [
             "processor_merchant_id",
             "provider_merchant_id",
             "profile_id",
         ] {
-            assert!(seed["dimensions"].get(dimension).is_some());
+            assert!(dimensions.get(dimension).is_some());
         }
     }
 
