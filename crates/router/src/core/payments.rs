@@ -12964,7 +12964,7 @@ where
         chosen_connector_routing_data.clone(),
         payment_data,
         &payment_method_info,
-        &state.conf.cross_currency_mit_supported_connectors,
+        &state.conf.mandates.cross_currency_mit_supported_connectors,
     )?;
 
     routing_data.routed_through = Some(
@@ -13113,7 +13113,7 @@ where
                             )?;
 
                             helpers::validate_connector_mandate_currency(
-                                &state.conf.cross_currency_mit_supported_connectors,
+                                &state.conf.mandates.cross_currency_mit_supported_connectors,
                                 connector_data.connector_name,
                                 mandate_reference_record.original_payment_authorized_currency,
                                 payment_data.get_currency(),

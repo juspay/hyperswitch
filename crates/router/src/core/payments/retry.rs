@@ -205,7 +205,7 @@ where
                             connector_routing_data.clone(),
                             payment_data,
                             &payment_method_info,
-                            &state.conf.cross_currency_mit_supported_connectors,
+                            &state.conf.mandates.cross_currency_mit_supported_connectors,
                         )?;
                         payment_data.set_mandate_id(mandates::MandateIds {
                             mandate_id: None,

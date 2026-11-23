@@ -781,6 +781,11 @@ bank_transfer.pix_automatico_push = { connector_list = "santander" }
 bank_transfer.pix_automatico_qr = { connector_list = "santander" }
 network_token.network_token.connector_list = "peachpayments"
 
+# Empty by default; listed connectors bypass connector-mandate currency equality validation.
+# Applies across payment methods and currencies. Confirm connector/account support before enabling.
+[mandates.cross_currency_mit_supported_connectors]
+connector_list = [] # Example: ["stripe"]
+
 [mandates.supported_payment_methods]
 card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan,ecommpay,worldpayraft,elavon_pg"
 card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan,ecommpay,worldpayraft,elavon_pg"
@@ -1585,12 +1590,6 @@ connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,s
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
-
-# Empty by default. Opted-in connectors allow cross-currency connector mandates
-# for all merchants using this deployment. Confirm processor/account support first.
-# Legacy mandate amount and currency validation remains unchanged.
-[cross_currency_mit_supported_connectors]
-connector_list = [] # Example: ["stripe"]
 
 [notify_iframe_exit_and_redirect]
 connector_list = "worldpayxml"
