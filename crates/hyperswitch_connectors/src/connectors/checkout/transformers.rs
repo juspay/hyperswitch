@@ -1,3 +1,4 @@
+use api_models::sender::SenderDetails;
 use common_enums::{
     enums::{self, AttemptStatus, PaymentChannel},
     CountryAlpha2,
@@ -42,8 +43,9 @@ use crate::{
     },
     unimplemented_payment_method,
     utils::{
-        self, CardData, PaymentsAuthorizeRequestData, PaymentsCaptureRequestData,
-        PaymentsSyncRequestData, RouterData as OtherRouterData, WalletData as OtherWalletData,
+        self, CardData, IndividualSenderDetailsData, PaymentsAuthorizeRequestData,
+        PaymentsCaptureRequestData, PaymentsSyncRequestData, RouterData as OtherRouterData,
+        SenderAddressDetailsData, SenderDetailsData, WalletData as OtherWalletData,
     },
 };
 
@@ -236,6 +238,7 @@ pub struct CardSource {
     pub cvv: Option<Secret<String>>,
     pub billing_address: Option<CheckoutAddress>,
     pub account_holder: Option<CheckoutAccountHolderDetails>,
+    pub stored: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -276,6 +279,7 @@ pub struct DecryptedWalletToken {
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
     pub billing_address: Option<CheckoutAddress>,
+    stored: Option<bool>,
 }
 
 #[skip_serializing_none]
@@ -444,20 +448,19 @@ pub struct CheckoutBillingDescriptor {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum CheckoutSenderType {
-    Individual,
-}
-
-#[skip_serializing_none]
-#[derive(Debug, Serialize)]
-pub struct CheckoutSender {
-    #[serde(rename = "type")]
-    pub sender_type: CheckoutSenderType,
-    pub first_name: Secret<String>,
-    pub last_name: Secret<String>,
-    pub address: CheckoutAddress,
-    pub date_of_birth: Secret<time::Date>,
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum CheckoutSender {
+    Individual {
+        first_name: Secret<String>,
+        last_name: Secret<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        date_of_birth: Option<Secret<time::Date>>,
+        address: CheckoutAddress,
+    },
+    Corporate {
+        company_name: Secret<String>,
+        address: CheckoutAddress,
+    },
 }
 
 #[skip_serializing_none]
@@ -591,29 +594,59 @@ fn build_checkout_recipient(
     })
 }
 
+fn build_checkout_sender_address(
+    address: &api_models::payments::AddressDetails,
+) -> Result<CheckoutAddress, error_stack::Report<errors::ConnectorError>> {
+    let country = address.get_sender_country()?;
+
+    Ok(CheckoutAddress {
+        address_line1: Some(address.get_sender_line1()?),
+        address_line2: address.line2.clone(),
+        city: Some(address.get_sender_city()?),
+        state: get_checkout_aft_state(
+            address.state.clone(),
+            country,
+            "sender_details.address.state",
+        )?,
+        zip: Some(address.get_sender_zip()?),
+        country: Some(country),
+    })
+}
+
 fn build_checkout_sender(
     router_data: &PaymentsAuthorizeRouterData,
 ) -> Result<CheckoutSender, error_stack::Report<errors::ConnectorError>> {
-    let country = router_data.get_billing_country()?;
+    // The sender details are filled in from the billing address of the payment method in core,
+    // so any field missing here is missing from both.
+    let sender_details = router_data
+        .request
+        .sender_details
+        .as_ref()
+        .ok_or_else(utils::missing_field_err("sender_details"))?;
 
-    Ok(CheckoutSender {
-        sender_type: CheckoutSenderType::Individual,
-        first_name: router_data.get_billing_first_name()?,
-        last_name: router_data.get_billing_last_name()?,
-        date_of_birth: router_data.get_customer_date_of_birth()?,
-        address: CheckoutAddress {
-            address_line1: Some(router_data.get_billing_line1()?),
-            address_line2: router_data.get_optional_billing_line2(),
-            city: Some(router_data.get_billing_city()?),
-            state: get_checkout_aft_state(
-                router_data.get_optional_billing_state(),
-                country,
-                "payment_method_data.billing.address.state",
-            )?,
-            zip: Some(router_data.get_billing_zip()?),
-            country: Some(country),
-        },
-    })
+    let address = build_checkout_sender_address(sender_details.get_sender_address()?)?;
+
+    match sender_details {
+        SenderDetails::Individual(individual) => Ok(CheckoutSender::Individual {
+            first_name: individual.get_sender_first_name()?,
+            last_name: individual.get_sender_last_name()?,
+            // For backward compatibility, fall back to the customer's date of birth, which was
+            // the only source of the sender's date of birth before sender details were added.
+            // The error names the sender field, since that is where the merchant should send it.
+            date_of_birth: Some(
+                individual
+                    .date_of_birth
+                    .clone()
+                    .or_else(|| router_data.get_optional_customer_date_of_birth())
+                    .ok_or_else(utils::missing_field_err("sender_details.date_of_birth"))?,
+            ),
+            address,
+        }),
+        SenderDetails::Corporate(corporate) => Ok(CheckoutSender::Corporate {
+            company_name: corporate.company_name.clone(),
+            address,
+        }),
+    }
 }
 
 #[skip_serializing_none]
@@ -851,6 +884,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         first_name,
                         last_name,
                     }),
+                    stored: Some(false),
                 });
                 Ok((
                     payment_source,
@@ -917,6 +951,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                                     cvv: None,
                                     billing_address: billing_details,
                                     account_holder: None,
+                                    stored: Some(false),
                                 }),
                             }
                         }
@@ -990,11 +1025,12 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     source_id: item.router_data.request.connector_mandate_id(),
                     billing_address: billing_details,
                 });
-                let previous_id = Some(
-                    item.router_data
-                        .request
-                        .get_connector_mandate_request_reference_id()?,
-                );
+                let previous_id = item
+                    .router_data
+                    .request
+                    .get_connector_mandate_request_reference_id()
+                    .attach_printable("connector_mandate_request_reference_id not found")
+                    .ok();
                 let p_type = CheckoutPaymentType::from(item.router_data.request.mit_category);
                 Ok((mandate_source, previous_id, Some(true), p_type, None))
             }
@@ -1011,6 +1047,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                         first_name,
                         last_name,
                     }),
+                    stored: Some(true),
                 });
 
                 let previous_id = Some(
@@ -1055,6 +1092,7 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     expiry_month: exp_month,
                     expiry_year: expiry_year_4_digit,
                     billing_address: billing_details,
+                    stored: Some(true),
                 });
 
                 Ok((
