@@ -2120,6 +2120,7 @@ pub enum WalletDetail {
         application_primary_account_number: cards::CardNumber,
         expiry_month: Secret<String>,
         expiry_year: Secret<String>,
+        auth_method: Option<common_enums::GooglePayAuthMethod>,
     },
 }
 
@@ -2139,6 +2140,7 @@ impl From<common_types::payments::GPayPredecryptData> for WalletDetail {
             application_primary_account_number: data.application_primary_account_number,
             expiry_month: data.card_exp_month,
             expiry_year: data.card_exp_year,
+            auth_method: data.auth_method,
         }
     }
 }
@@ -2159,10 +2161,12 @@ impl From<payment_methods::WalletDetail> for WalletDetail {
                 application_primary_account_number,
                 expiry_month,
                 expiry_year,
+                auth_method,
             } => Self::GooglePayDecryptedData {
                 application_primary_account_number,
                 expiry_month,
                 expiry_year,
+                auth_method,
             },
         }
     }
@@ -2184,10 +2188,12 @@ impl From<WalletDetail> for payment_methods::WalletDetail {
                 application_primary_account_number,
                 expiry_month,
                 expiry_year,
+                auth_method,
             } => Self::GooglePayDecryptedData {
                 application_primary_account_number,
                 expiry_month,
                 expiry_year,
+                auth_method,
             },
         }
     }

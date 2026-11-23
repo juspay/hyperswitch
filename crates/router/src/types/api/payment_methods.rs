@@ -152,6 +152,28 @@ impl PaymentMethodSessionExt for api_models::payment_methods::PaymentMethodSessi
         &self,
         payment_method_session: &hyperswitch_domain_models::payment_methods::PaymentMethodSession,
     ) -> RouterResult<()> {
+        let data = &self.payment_method_data.payment_method_data;
+        let matches_method = match data {
+            api_models::payment_methods::PaymentMethodSessionData::Card(_) => {
+                self.payment_method_type == api_models::enums::PaymentMethod::Card
+            }
+            api_models::payment_methods::PaymentMethodSessionData::BankDebit(_) => {
+                self.payment_method_type == api_models::enums::PaymentMethod::BankDebit
+            }
+            api_models::payment_methods::PaymentMethodSessionData::Wallet(
+                api_models::payment_methods::PaymentMethodSessionWalletData::GooglePay(_),
+            ) => {
+                self.payment_method_type == api_models::enums::PaymentMethod::Wallet
+                    && self.payment_method_subtype
+                        == Some(api_models::enums::PaymentMethodType::GooglePay)
+            }
+        };
+        utils::when(!matches_method, || {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Payment method data does not match its type or subtype".to_string(),
+            }))
+        })?;
+
         utils::when(
             self.payment_method_type != api_models::enums::PaymentMethod::Card
                 && self.payment_method_subtype.is_none(),

@@ -1828,14 +1828,14 @@ pub async fn payment_methods_session_retrieve(
         &req,
         payment_method_session_id.clone(),
         |state, auth: auth::AuthenticationData, payment_method_session_id, _| async move {
-            record_payment_method_session_metrics(
+            Box::pin(record_payment_method_session_metrics(
                 "session_retrieve",
                 payment_methods_routes::payment_methods_session_retrieve(
                     state,
                     auth.platform.get_provider().clone(),
                     payment_method_session_id,
                 ),
-            )
+            ))
             .await
         },
         auth::sdk_or_api_or_client_auth(

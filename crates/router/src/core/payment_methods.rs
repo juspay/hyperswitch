@@ -1329,17 +1329,199 @@ pub async fn retrieve_payment_method_with_token(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
+fn decrypt_google_pay_for_vault(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    google_pay: &payment_methods::PaymentMethodSessionGooglePayData,
+) -> RouterResult<payment_methods::GooglePayDecryptedInfo> {
+    when(
+        google_pay.tokenization_data.token_type
+            != api_models::payments::GooglePayTokenizationType::Direct,
+        || {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Google Pay decryption requires a DIRECT token".to_string(),
+            }))
+        },
+    )?;
+    let merchant = platform.get_provider().get_account();
+    let (resource_data, resource_key) = profile
+        .google_pay_decryption_config
+        .as_ref()
+        .map(|data| {
+            (
+                data,
+                profile.google_pay_decryption_config_encrypted.as_ref(),
+            )
+        })
+        .or_else(|| {
+            merchant.google_pay_decryption_config.as_ref().map(|data| {
+                (
+                    data,
+                    merchant.google_pay_decryption_config_encrypted.as_ref(),
+                )
+            })
+        })
+        .ok_or_else(|| {
+            report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "No Google Pay resource is configured for the profile or merchant"
+                    .to_string(),
+            })
+        })?;
+    let resource_key = resource_key.ok_or_else(|| {
+        report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: "The linked Google Pay resource has no private key".to_string(),
+        })
+    })?;
+    let data = resource_data
+        .get("data")
+        .get_required_value("Google Pay resource data")?;
+    let mode = data
+        .get("mode")
+        .get_required_value("Google Pay resource mode")?;
+    <api_models::hierarchical_resources::GooglePayResourceMode as serde::Deserialize>::deserialize(
+        mode,
+    )
+    .change_context(errors::ApiErrorResponse::InvalidRequestData {
+        message: "The linked Google Pay resource is not configured for direct mode".to_string(),
+    })
+    .attach_printable("Failed to parse linked Google Pay resource mode")?;
+    when(
+        data.get("protocol_version")
+            .and_then(serde_json::Value::as_str)
+            != Some(consts::PROTOCOL),
+        || {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "The linked Google Pay resource has an unsupported protocol".to_string(),
+            }))
+        },
+    )?;
+    let google_merchant_id = data
+        .get("google_merchant_id")
+        .and_then(serde_json::Value::as_str)
+        .get_required_value("Google Pay resource merchant identifier")?;
+    let recipient_id = data
+        .get("recipient_id")
+        .and_then(serde_json::Value::as_str)
+        .get_required_value("Google Pay resource recipient identifier")?;
+    when(
+        recipient_id.strip_prefix(consts::GOOGLE_PAY_MERCHANT_RECIPIENT_PREFIX)
+            != Some(google_merchant_id),
+        || {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "The linked Google Pay recipient does not match its Google Merchant ID"
+                    .to_string(),
+            }))
+        },
+    )?;
+    let private_key = resource_key
+        .get_inner()
+        .peek()
+        .get("data")
+        .and_then(|data| data.get("google_pay_private_key"))
+        .and_then(serde_json::Value::as_str)
+        .get_required_value("Google Pay resource private key")?;
+    let root_signing_keys = state
+        .conf
+        .google_pay_decrypt_keys
+        .as_ref()
+        .map(|keys| keys.get_inner().google_pay_root_signing_keys.clone())
+        .ok_or_else(|| {
+            report!(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Google Pay root signing keys are required for token decryption")
+        })?;
+    let decryptor = payments_core::helpers::GooglePayTokenDecryptor::new(
+        root_signing_keys,
+        Secret::new(recipient_id.to_owned()),
+        Secret::new(private_key.to_owned()),
+        api_models::payments::GooglePayTokenizationType::Direct,
+        None,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to initialize Google Pay decryptor")?;
+    let decrypted = decryptor
+        .decrypt_token(google_pay.tokenization_data.token.peek().clone(), true)
+        .change_context(errors::ApiErrorResponse::InvalidRequestData {
+            message: "Failed to verify and decrypt the Google Pay token".to_string(),
+        })
+        .attach_printable("Google Pay token verification or decryption failed")?;
+    let decrypted_data = common_types::payments::GPayPredecryptData::from(decrypted);
+    let wallet_info = payment_methods::PaymentMethodDataWalletInfo {
+        last4: Some(google_pay.info.card_details.clone()),
+        card_network: Some(google_pay.info.card_network.clone()),
+        card_type: Some(google_pay.pm_type.clone()),
+        card_exp_month: Some(decrypted_data.card_exp_month.clone()),
+        card_exp_year: Some(decrypted_data.card_exp_year.clone()),
+        auth_code: None,
+        email: None,
+        provider_details: None,
+    };
+    Ok(payment_methods::GooglePayDecryptedInfo {
+        decrypted_data,
+        wallet_info,
+    })
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+async fn create_payment_method_retrieval_token(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    payment_method: &domain::PaymentMethod,
+    payment_method_type: common_enums::PaymentMethod,
+    storage_type: common_enums::StorageType,
+    wallet_data: Option<&payment_methods::WalletPaymentMethodData>,
+) -> RouterResult<String> {
+    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+    let token_data = get_pm_list_token_data(payment_method_type, payment_method, storage_type)?;
+    if let Some(token_data) = token_data {
+        pm_routes::ParentPaymentMethodToken::create_key_for_token(&parent_payment_method_token)
+            .insert(
+                profile.get_order_fulfillment_time_or_default(),
+                token_data,
+                state,
+            )
+            .await?;
+    }
+    if let Some(wallet) = wallet_data {
+        match wallet {
+            payment_methods::WalletPaymentMethodData::GooglePayDecrypted(google_pay) => {
+                vault::store_google_pay_cryptogram(
+                    state,
+                    Secret::new(parent_payment_method_token.as_str()),
+                    google_pay.decrypted_data.cryptogram.as_ref(),
+                    google_pay.decrypted_data.eci_indicator.as_deref(),
+                    profile.get_order_fulfillment_time_or_default(),
+                    platform.get_provider().get_key_store(),
+                )
+                .await?;
+            }
+            payment_methods::WalletPaymentMethodData::ApplePay(_)
+            | payment_methods::WalletPaymentMethodData::ApplePayDecrypted(_)
+            | payment_methods::WalletPaymentMethodData::GooglePay(_)
+            | payment_methods::WalletPaymentMethodData::PayPal(_) => (),
+        }
+    }
+    Ok(parent_payment_method_token)
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
 pub(crate) fn get_payment_method_create_request(
-    payment_method_data: &api_models::payments::PaymentMethodData,
-    payment_method_type: storage_enums::PaymentMethod,
-    payment_method_subtype: Option<storage_enums::PaymentMethodType>,
-    customer_id: Option<id_type::GlobalCustomerId>,
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    request: &payment_methods::PaymentMethodSessionConfirmRequest,
     billing_address: Option<&api_models::payments::Address>,
     payment_method_session: Option<&domain::payment_methods::PaymentMethodSession>,
     storage_type: common_enums::StorageType,
 ) -> RouterResult<payment_methods::PaymentMethodCreate> {
-    match payment_method_data {
-        api_models::payments::PaymentMethodData::Card(card) => {
+    let payment_method_type = request.payment_method_type;
+    let payment_method_subtype = request.payment_method_subtype;
+    let customer_id = payment_method_session.and_then(|session| session.customer_id.clone());
+    match &request.payment_method_data.payment_method_data {
+        payment_methods::PaymentMethodSessionData::Card(card) => {
             payments_core::helpers::validate_card_expiry(
                 &card.card_exp_month,
                 &card.card_exp_year,
@@ -1385,16 +1567,16 @@ pub(crate) fn get_payment_method_create_request(
             };
             Ok(payment_method_request)
         }
-        api_models::payments::PaymentMethodData::BankDebit(bank_debit) => {
+        payment_methods::PaymentMethodSessionData::BankDebit(bank_debit) => {
             let bank_debit_detail = match bank_debit {
-                api_models::payments::BankDebitData::AchBankDebit {
+                payment_methods::PaymentMethodSessionBankDebitData::AchBankDebit {
                     account_number,
                     routing_number,
                     bank_account_holder_name,
                     bank_name,
                     bank_type,
                     bank_holder_type,
-                    ..
+                    billing_details: _,
                 } => payment_methods::BankDebitDetail::Ach {
                     account_number: account_number.clone(),
                     routing_number: routing_number.clone(),
@@ -1403,15 +1585,6 @@ pub(crate) fn get_payment_method_create_request(
                     bank_type: *bank_type,
                     bank_holder_type: *bank_holder_type,
                 },
-                _ => {
-                    return Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
-                        message: "unsupported bank debit type in payment method session"
-                            .to_string()
-                    })
-                    .attach_printable(
-                        "Only ACH bank debit is supported in payment method sessions",
-                    ))
-                }
             };
 
             let payment_method_request = payment_methods::PaymentMethodCreate {
@@ -1428,10 +1601,26 @@ pub(crate) fn get_payment_method_create_request(
             };
             Ok(payment_method_request)
         }
-        _ => Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
-            message: "payment method type is not supported in payment method session".to_string()
-        })
-        .attach_printable("Payment method data is incorrect")),
+        payment_methods::PaymentMethodSessionData::Wallet(
+            payment_methods::PaymentMethodSessionWalletData::GooglePay(google_pay),
+        ) => {
+            let google_pay =
+                decrypt_google_pay_for_vault(state, platform, profile, google_pay.as_ref())?;
+            Ok(payment_methods::PaymentMethodCreate {
+                payment_method_type,
+                payment_method_subtype,
+                metadata: None,
+                customer_id,
+                payment_method_data: payment_methods::PaymentMethodCreateData::Wallet(
+                    payment_methods::WalletPaymentMethodData::GooglePayDecrypted(Box::new(
+                        google_pay,
+                    )),
+                ),
+                billing: billing_address.cloned(),
+                network_tokenization: None,
+                storage_type,
+            })
+        }
     }
 }
 
@@ -1819,12 +2008,67 @@ pub async fn create_payment_method(
 pub async fn create_payment_method_core(
     state: &SessionState,
     _request_state: &routes::app::ReqState,
-    req: api::PaymentMethodCreate,
+    mut req: api::PaymentMethodCreate,
     platform: &domain::Platform,
     profile: &domain::Profile,
     customer_acceptance: Option<common_utils::pii::SecretSerdeValue>,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
-    match req.storage_type {
+    req.validate()?;
+    let (payment_method_data, google_pay_cryptogram) = match req.payment_method_data {
+        payment_methods::PaymentMethodCreateData::Wallet(
+            payment_methods::WalletPaymentMethodData::GooglePay(google_pay),
+        ) if google_pay.tokenization_data.is_some()
+            || google_pay.info.is_some()
+            || google_pay.description.is_some() =>
+        {
+            when(
+                req.payment_method_subtype != Some(common_enums::PaymentMethodType::GooglePay),
+                || {
+                    Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                        message:
+                            "Encrypted Google Pay data requires the google_pay payment method subtype"
+                                .to_string(),
+                    }))
+                },
+            )?;
+            let encrypted_google_pay = payment_methods::PaymentMethodSessionGooglePayData {
+                pm_type: google_pay
+                    .card_type
+                    .get_required_value("payment_method_data.wallet.google_pay.type")?,
+                description: google_pay
+                    .description
+                    .get_required_value("payment_method_data.wallet.google_pay.description")?,
+                info: google_pay
+                    .info
+                    .get_required_value("payment_method_data.wallet.google_pay.info")?,
+                tokenization_data: google_pay.tokenization_data.get_required_value(
+                    "payment_method_data.wallet.google_pay.tokenization_data",
+                )?,
+            };
+            let mut google_pay =
+                decrypt_google_pay_for_vault(state, platform, profile, &encrypted_google_pay)?;
+            let cryptogram = google_pay
+                .decrypted_data
+                .cryptogram
+                .take()
+                .map(|cryptogram| payment_methods::GooglePayCryptogramData {
+                    cryptogram,
+                    eci_indicator: google_pay.decrypted_data.eci_indicator.take(),
+                });
+            (
+                payment_methods::PaymentMethodCreateData::Wallet(
+                    payment_methods::WalletPaymentMethodData::GooglePayDecrypted(Box::new(
+                        google_pay,
+                    )),
+                ),
+                cryptogram,
+            )
+        }
+        payment_method_data => (payment_method_data, None),
+    };
+    req.payment_method_data = payment_method_data;
+    let storage_type = req.storage_type;
+    let (response, payment_method) = match storage_type {
         common_enums::StorageType::Volatile => {
             create_volatile_payment_method_core(
                 state,
@@ -1840,7 +2084,19 @@ pub async fn create_payment_method_core(
             create_persistent_payment_method_core(state, _request_state, req, platform, profile)
                 .await
         }
+    }?;
+    if let Some(cryptogram) = google_pay_cryptogram.as_ref() {
+        vault::store_google_pay_cryptogram(
+            state,
+            Secret::new(response.id.get_string_repr()),
+            Some(&cryptogram.cryptogram),
+            cryptogram.eci_indicator.as_deref(),
+            profile.get_order_fulfillment_time_or_default(),
+            platform.get_provider().get_key_store(),
+        )
+        .await?;
     }
+    Ok((response, payment_method))
 }
 
 #[cfg(feature = "v2")]
@@ -2013,7 +2269,11 @@ pub async fn create_volatile_payment_method_core(
         id_type::GlobalPaymentMethodId::generate(&state.conf.cell_information.id);
 
     match &req.payment_method_data {
-        api::PaymentMethodCreateData::Card(_) | api::PaymentMethodCreateData::BankDebit(_) => {
+        api::PaymentMethodCreateData::Card(_)
+        | api::PaymentMethodCreateData::BankDebit(_)
+        | api::PaymentMethodCreateData::Wallet(api::WalletPaymentMethodData::GooglePayDecrypted(
+            _,
+        )) => {
             let payment_method_type = req.payment_method_type.to_string();
             logger::info!("Creating volatile {} payment method", payment_method_type);
             Box::pin(create_generic_volatile_payment_method(
@@ -4412,9 +4672,9 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                 api::WalletPaymentMethodData::ApplePayDecrypted(data) => Ok(
                     payment_methods::PaymentMethodsData::WalletDetails(data.wallet_info),
                 ),
-                api::WalletPaymentMethodData::GooglePay(data) => {
-                    Ok(payment_methods::PaymentMethodsData::WalletDetails(*data))
-                }
+                api::WalletPaymentMethodData::GooglePay(data) => Ok(
+                    payment_methods::PaymentMethodsData::WalletDetails((*data).into()),
+                ),
                 api::WalletPaymentMethodData::GooglePayDecrypted(data) => Ok(
                     payment_methods::PaymentMethodsData::WalletDetails(data.wallet_info),
                 ),
@@ -5203,6 +5463,7 @@ pub async fn get_external_vault_token(
         storage::PaymentTokenData::BankDebit(bank_debit_token_data) => {
             bank_debit_token_data.payment_method_id
         }
+        storage::PaymentTokenData::WalletToken(wallet) => wallet.payment_method_id,
         storage::PaymentTokenData::TemporaryGeneric(_) => {
             Err(errors::ApiErrorResponse::NotImplemented {
                 message: errors::NotImplementedMessage::Reason(
@@ -6071,16 +6332,26 @@ fn get_pm_list_context(
                 )),
             })
         }
-        Some(domain::payment_method_data::PaymentMethodsData::WalletDetails(_))
-        | Some(domain::payment_method_data::PaymentMethodsData::NetworkToken(_))
-        | None => Some(PaymentMethodListContext::TemporaryToken {
-            token_data: is_payment_associated.then_some(
-                storage::PaymentTokenData::temporary_generic(generate_id(
-                    consts::ID_LENGTH,
-                    "token",
-                )),
-            ),
-        }),
+        Some(domain::payment_method_data::PaymentMethodsData::WalletDetails(_)) => {
+            Some(PaymentMethodListContext::TemporaryToken {
+                token_data: is_payment_associated.then_some(
+                    storage::PaymentTokenData::wallet_token(
+                        payment_method.get_id().clone(),
+                        storage_type,
+                    ),
+                ),
+            })
+        }
+        Some(domain::payment_method_data::PaymentMethodsData::NetworkToken(_)) | None => {
+            Some(PaymentMethodListContext::TemporaryToken {
+                token_data: is_payment_associated.then_some(
+                    storage::PaymentTokenData::temporary_generic(generate_id(
+                        consts::ID_LENGTH,
+                        "token",
+                    )),
+                ),
+            })
+        }
         Some(domain::payment_method_data::PaymentMethodsData::BankRedirect(bank_redirect)) => None,
     };
 
@@ -6502,6 +6773,23 @@ pub async fn retrieve_payment_method(
                 })
                 .ok();
             }
+            if let Some(payment_methods::RawPaymentMethodData::Wallet(
+                payment_methods::RawWalletDetail::GooglePayDecryptedData {
+                    application_primary_account_number: _,
+                    expiry_month: _,
+                    expiry_year: _,
+                    auth_method: _,
+                    payment_data,
+                },
+            )) = &mut raw_payment_method_data
+            {
+                *payment_data = vault::consume_google_pay_cryptogram(
+                    &state,
+                    &payment_method_id_or_token.payment_method_id,
+                    platform.get_provider().get_key_store(),
+                )
+                .await?;
+            }
         }
         RawPaymentMethodFetchAccess::Denied => {
             raw_payment_method_data = get_proxy_card_data(&payment_method);
@@ -6594,6 +6882,9 @@ pub async fn fetch_payment_method_by_storage(
                     storage::PaymentTokenData::BankDebit(bank_debit) => {
                         Some(bank_debit.payment_method_id)
                     }
+                    storage::PaymentTokenData::WalletToken(wallet) => {
+                        Some(wallet.payment_method_id)
+                    }
                     _ => None,
                 })
                 .ok_or_else(|| {
@@ -6619,6 +6910,9 @@ pub async fn fetch_payment_method_by_storage(
                 Some(storage::PaymentTokenData::PermanentCard(card)) => Ok(card.payment_method_id),
                 Some(storage::PaymentTokenData::BankDebit(bank_debit)) => {
                     Ok(bank_debit.payment_method_id)
+                }
+                Some(storage::PaymentTokenData::WalletToken(wallet)) => {
+                    Ok(wallet.payment_method_id)
                 }
                 Some(_) => Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound)
                     .attach_printable("Unexpected token data variant for payment method fetch")),
@@ -6740,6 +7034,10 @@ pub async fn resolve_storage_type_from_token(
                         Some(storage::PaymentTokenData::BankDebit(bank_debit)),
                     ))
                 }
+                storage::PaymentTokenData::WalletToken(wallet) => Ok((
+                    wallet.storage_type,
+                    Some(storage::PaymentTokenData::WalletToken(wallet)),
+                )),
                 // Any token kind other than PermanentCard is invalid for retrieving a saved payment method.
                 // Only PermanentCard is currently supported; all other enum variants should be removed.
                 storage::PaymentTokenData::TemporaryGeneric(_)
@@ -8271,14 +8569,10 @@ pub async fn payment_methods_session_confirm(
     };
 
     let create_payment_method_request = get_payment_method_create_request(
-        request
-            .payment_method_data
-            .payment_method_data
-            .as_ref()
-            .get_required_value("payment_method_data")?,
-        request.payment_method_type,
-        request.payment_method_subtype,
-        payment_method_session.customer_id.clone(),
+        &state,
+        &platform,
+        &profile,
+        &request,
         unified_billing_address.as_ref(),
         Some(&payment_method_session),
         storage_type,
@@ -8295,24 +8589,20 @@ pub async fn payment_methods_session_confirm(
     ))
     .await?;
 
-    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
-
-    let token_data = get_pm_list_token_data(
-        request.payment_method_type,
-        &payment_method,
-        create_payment_method_request.storage_type,
-    )?;
-
-    // insert the token data into redis
-    if let Some(token_data) = token_data {
-        pm_routes::ParentPaymentMethodToken::create_key_for_token(&parent_payment_method_token)
-            .insert(
-                profile.get_order_fulfillment_time_or_default(),
-                token_data,
-                &state,
-            )
-            .await?;
+    let wallet_data = match &create_payment_method_request.payment_method_data {
+        payment_methods::PaymentMethodCreateData::Wallet(wallet) => Some(wallet),
+        _ => None,
     };
+    let parent_payment_method_token = create_payment_method_retrieval_token(
+        &state,
+        &platform,
+        &profile,
+        &payment_method,
+        request.payment_method_type,
+        create_payment_method_request.storage_type,
+        wallet_data,
+    )
+    .await?;
 
     let associated_pm_data = payment_method_response.payment_method_data.clone();
 
@@ -8603,6 +8893,9 @@ pub async fn payment_method_get_token_details_core(
         }
         storage::PaymentTokenData::BankDebit(bank_debit) => {
             (bank_debit.payment_method_id, bank_debit.storage_type)
+        }
+        storage::PaymentTokenData::WalletToken(wallet) => {
+            (wallet.payment_method_id, wallet.storage_type)
         }
         _ => Err(errors::ApiErrorResponse::PaymentMethodNotFound)?,
     };
