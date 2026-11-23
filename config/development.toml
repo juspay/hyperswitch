@@ -1395,7 +1395,7 @@ network_token.network_token.connector_list = "peachpayments"
 
 
 [mandates.cross_currency_mit_supported_connectors]
-connector_list = [] # Example: ["stripe"]
+connector_list = ["datatrans", "stripe"]
 # Optional rules by connector and payment-method type; both currencies must be listed.
 # Missing or empty rules use pm_filters for the requested currency; absent filters allow it.
 # [mandates.cross_currency_mit_supported_connectors.currency_rules.stripe]
