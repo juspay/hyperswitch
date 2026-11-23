@@ -130,9 +130,16 @@ export const runSurchargePayment = (
 
 // Captures the whole charged total (order amount + surcharge).
 export const captureFullAmount = (globalState) => {
+  const data = cardData(globalState, "ExternalSurchargeManualCapture");
+  // The status after a capture depends on the connector (Stripe: succeeded,
+  // Cybersource: processing), so take it from the connector's own Capture config.
+  const captureStatus = cardData(globalState, "Capture")?.Response?.body
+    ?.status;
   cy.captureCallTest(
     Cypress._.cloneDeep(fixtures.captureBody),
-    cardData(globalState, "ExternalSurchargeManualCapture"),
+    captureStatus
+      ? { ...data, Response: { status: 200, body: { status: captureStatus } } }
+      : data,
     globalState
   );
 };
