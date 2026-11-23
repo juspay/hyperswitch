@@ -261,6 +261,16 @@ pub async fn send_request(
                 }
             }
         }
+        Err(error)
+            if error.current_context() == &HttpClientError::ConnectionClosedIncompleteMessage =>
+        {
+            metrics::CONNECTION_CLOSED_NOT_RESENT.add(1, metrics_tag);
+            logger::info!(
+                %method,
+                "Not re-sending request after connection closed before message could complete"
+            );
+            Err(error)
+        }
         response => response,
     };
 
