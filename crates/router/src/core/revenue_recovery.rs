@@ -86,12 +86,12 @@ pub async fn record_ab_routing(
         domain::ProcessorKeyStore::from_untagged(merchant_context.key_store.clone());
     let storage_scheme = processor_account.get_storage_scheme();
 
-    let failed_attempt = match state
+    let attempt = match state
         .store
         .find_payment_attempt_by_id(&processor_key_store, attempt_id, storage_scheme)
         .await
     {
-        Ok(failed_attempt) => failed_attempt,
+        Ok(attempt) => attempt,
         Err(error) => {
             router_env::logger::error!(
                 ?error,
@@ -102,7 +102,7 @@ pub async fn record_ab_routing(
         }
     };
 
-    let Some(mut feature_metadata) = failed_attempt.feature_metadata.clone() else {
+    let Some(mut feature_metadata) = attempt.feature_metadata.clone() else {
         router_env::logger::warn!(
             attempt_id = %attempt_id.get_string_repr(),
             "Cannot record an A/B arm: the attempt has no feature metadata"
@@ -129,7 +129,7 @@ pub async fn record_ab_routing(
 
     match state
         .store
-        .update_payment_attempt(&processor_key_store, failed_attempt, update, storage_scheme)
+        .update_payment_attempt(&processor_key_store, attempt, update, storage_scheme)
         .await
     {
         Ok(_) => router_env::logger::info!(
@@ -1397,6 +1397,7 @@ async fn insert_execute_pcr_task_to_pt(
             tracking_data.static_ladder_progress = static_ladder_progress;
             tracking_data.prev_attempt_error_code = prev_attempt_error_code;
             tracking_data.payment_processor_token = Some(Secret::new(payment_processor_token));
+            tracking_data.retry_algorithm = retry_algorithm;
 
             let tracking_data_json = serde_json::to_value(&tracking_data)
                 .change_context(errors::RecoveryError::ValueNotFound)

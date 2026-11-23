@@ -3136,7 +3136,7 @@ pub struct PaymentAttemptRevenueRecoveryData {
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     /// Id of the recovery request that recorded this transaction.
     pub recovery_request_id: Option<String>,
-    /// A/B arm of the retry decision made after this attempt failed.
+    /// A/B arm of the retry decision that scheduled this attempt.
     pub retry_algorithm: Option<common_enums::RevenueRecoveryABAlgorithm>,
 }
 
