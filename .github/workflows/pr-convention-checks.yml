@@ -201,7 +201,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 130
     concurrency:
-      group: deja-art-gate-${{ github.event.pull_request.number || github.run_id }}
+      # Metadata events must not cancel an active or pending replay waiter.
+      # New commits and explicit replay requests can still replace one another.
+      group: >-
+        deja-art-gate-${{ github.event.pull_request.number || github.run_id }}-${{
+          (github.event.action == 'synchronize' ||
+           (github.event.action == 'labeled' && github.event.label.name == 'deja-art')) &&
+          'request' || github.run_id }}
       cancel-in-progress: true
     permissions:
       checks: read
@@ -216,6 +222,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           CHECK_NAME: Deja ART Replay
           STARTED_BY_LABEL: ${{ github.event.action == 'labeled' && github.event.label.name == 'deja-art' }}
+          REPLAY_REQUESTED: ${{ (github.event.action == 'labeled' && github.event.label.name == 'deja-art') || contains(github.event.pull_request.labels.*.name, 'deja-art') }}
           EVENT_AT: ${{ github.event.pull_request.updated_at }}
           REPLAY_STARTS_WITHIN_SECONDS: 600
           COME_BACK_WITHIN_SECONDS: 6000
@@ -237,32 +244,37 @@ jobs:
                  end'
           }
 
-          # A replay normally re-opens its existing check, but concurrent
-          # builds can leave duplicates; only this label's fresh checks count.
-          if [ "$STARTED_BY_LABEL" = "true" ]; then
-            echo "The deja-art label was added: waiting for a replay of ${short} to start..."
+          # Metadata events can arrive before Jenkins publishes the new check.
+          # While the request label is present, follow startup too; an older
+          # failed attempt is not evidence that the requested replay started.
+          if [ "$REPLAY_REQUESTED" = "true" ]; then
+            echo "A Deja ART replay was requested: waiting for a replay of ${short} to start..."
             waited=0
-            until runs | jq -e --arg since "$EVENT_AT" 'any(.[]; .started_at >= $since)' > /dev/null; do
+            s="$(state)"
+            until [[ "$s" == "running" || "$s" == result$'\t'* ||
+                     ( "$STARTED_BY_LABEL" == "true" && "$s" == noverdict$'\t'* ) ]]; do
               if [ "$waited" -ge "$REPLAY_STARTS_WITHIN_SECONDS" ]; then
                 echo "::error::Adding the deja-art label did not start a Deja ART replay on ${short} within $((REPLAY_STARTS_WITHIN_SECONDS / 60)) minutes. Add the label again to retry."
                 exit 1
               fi
               sleep "$POLL_SECONDS"; waited=$((waited + POLL_SECONDS))
-            done
-            echo "Replay found; waiting for its result..."
-            waited=0
-            s="$(state)"
-            while [ "$s" = "running" ]; do
-              if [ "$waited" -ge "$COME_BACK_WITHIN_SECONDS" ]; then
-                echo "::error::The Deja ART replay on ${short} has not come back after $((COME_BACK_WITHIN_SECONDS / 60)) minutes. See the 'Deja ART Replay' check; add the label again to retry."
-                exit 1
-              fi
-              sleep "$POLL_SECONDS"; waited=$((waited + POLL_SECONDS))
               s="$(state)"
             done
-          else
-            s="$(state)"
+            echo "Replay found; waiting for its result..."
           fi
+
+          # An edit or automatic label observes the same replay without
+          # replacing the request's waiter or failing while it is running.
+          waited=0
+          s="$(state)"
+          while [ "$s" = "running" ]; do
+            if [ "$waited" -ge "$COME_BACK_WITHIN_SECONDS" ]; then
+              echo "::error::The Deja ART replay on ${short} has not come back after $((COME_BACK_WITHIN_SECONDS / 60)) minutes. See the 'Deja ART Replay' check; add the label again to retry."
+              exit 1
+            fi
+            sleep "$POLL_SECONDS"; waited=$((waited + POLL_SECONDS))
+            s="$(state)"
+          done
 
           IFS=$'\t' read -r word title conclusion <<< "$s"
           case "$word" in
