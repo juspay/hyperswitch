@@ -63,6 +63,26 @@ export const shouldSkipExternalSurcharge = (globalState) => {
   return cy.wrap(skip);
 };
 
+// Yields true when the surcharge connector can calculate a surcharge in this
+// environment. Links the profile, creates a payment and asks for eligibility; a
+// connector error (the router cannot reach the surcharge service) yields false.
+export const isSurchargeServiceAvailable = (globalState) => {
+  cy.linkSurchargeConnectorToProfile(globalState);
+  cy.createPaymentIntentTest(
+    fixtures.createPaymentBody,
+    cardData(globalState, "ExternalSurchargePaymentIntent"),
+    "no_three_ds",
+    "automatic",
+    globalState
+  );
+  cy.paymentMethodsCallTest(globalState);
+  return cy.surchargeServiceAvailabilityCheck(
+    fixtures.eligibilityCheckBody,
+    cardData(globalState, "ExternalSurchargeEligibility"),
+    globalState
+  );
+};
+
 // A customer-initiated card payment with an external surcharge: create the
 // payment intent, eligibility check (which calculates the surcharge), confirm
 // (the response must carry the surcharge). Returns an object whose

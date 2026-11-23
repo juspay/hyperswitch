@@ -9374,6 +9374,50 @@ Cypress.Commands.add("blocklistDeleteRule", (type, data, globalState) => {
   });
 });
 
+// Yields true when the eligibility call returns a surcharge calculated by the
+// surcharge connector. A connector error (for example no UCS behind the router)
+// comes back as a 200 with error_details and a null surcharge_percentage.
+Cypress.Commands.add(
+  "surchargeServiceAvailabilityCheck",
+  (requestBody, data, globalState) => {
+    const body = {
+      ...requestBody,
+      client_secret: globalState.get("clientSecret"),
+      ...data?.Request,
+    };
+
+    return cy
+      .request({
+        method: "POST",
+        url: `${globalState.get("baseUrl")}/payments/${globalState.get("paymentID")}/eligibility`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": globalState.get("publishableKey"),
+        },
+        body,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+
+        const surchargeDetails = response.body?.surcharge_details;
+        const errorDetails = surchargeDetails?.error_details;
+        if (errorDetails) {
+          cy.task(
+            "cli_log",
+            `Surcharge connector error: ${JSON.stringify(errorDetails)}`
+          );
+        }
+
+        return cy.wrap(
+          response.status === 200 &&
+            !errorDetails &&
+            typeof surchargeDetails?.surcharge_percentage === "number"
+        );
+      });
+  }
+);
+
 Cypress.Commands.add(
   "paymentsEligibilityCheck",
   (requestBody, data, globalState) => {

@@ -3,6 +3,7 @@ import State from "../../../utils/State";
 import {
   captureFullAmount,
   cardData,
+  isSurchargeServiceAvailable,
   runSurchargePayment,
   shouldSkipExternalSurcharge,
 } from "../../../utils/externalSurcharge";
@@ -10,7 +11,8 @@ import {
 let globalState;
 
 // Needs the surcharge connector that 03-ConnectorCreate creates from the
-// "interpayments" entry in creds.json; the spec skips itself without it.
+// "interpayments" entry in creds.json, and a router that can reach the
+// surcharge service; the spec skips itself without either.
 describe("External surcharge - payments", () => {
   before("seed global state", function () {
     let skip = false;
@@ -22,6 +24,18 @@ describe("External surcharge - payments", () => {
       })
       .then((shouldSkip) => {
         skip = shouldSkip;
+        if (!skip) {
+          return isSurchargeServiceAvailable(globalState);
+        }
+      })
+      .then((available) => {
+        if (!skip && !available) {
+          cy.task(
+            "cli_log",
+            "The surcharge service is not reachable in this environment, skipping the external surcharge spec"
+          );
+          skip = true;
+        }
       })
       .then(() => {
         if (skip) {
