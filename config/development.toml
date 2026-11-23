@@ -1396,6 +1396,11 @@ network_token.network_token.connector_list = "peachpayments"
 
 [mandates.cross_currency_mit_supported_connectors]
 connector_list = [] # Example: ["stripe"]
+# Optional rules by connector and payment-method type; both currencies must be listed.
+# Missing or empty rules use pm_filters for the requested currency; absent filters allow it.
+# [mandates.cross_currency_mit_supported_connectors.currency_rules.stripe]
+# credit = ["USD", "CAD"]
+# debit = ["USD", "CAD"]
 
 [mandates.supported_payment_methods]
 bank_debit.ach = { connector_list = "gocardless,adyen,stripe,payload" }

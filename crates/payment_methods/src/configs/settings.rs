@@ -144,6 +144,53 @@ impl InstallmentConfig {
 #[serde(default, deny_unknown_fields)]
 pub struct CrossCurrencyMitSupportedConnectors {
     pub connector_list: HashSet<enums::Connector>,
+    #[serde(deserialize_with = "deserialize_cross_currency_mit_currency_rules")]
+    pub currency_rules: CrossCurrencyMitCurrencyRules,
+}
+
+pub type CrossCurrencyMitCurrencyRules =
+    HashMap<enums::Connector, HashMap<enums::PaymentMethodType, HashSet<enums::Currency>>>;
+
+fn deserialize_cross_currency_mit_currency_rules<'de, D>(
+    deserializer: D,
+) -> Result<CrossCurrencyMitCurrencyRules, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum CurrencyList {
+        Array(HashSet<enums::Currency>),
+        Csv(String),
+    }
+
+    let rules =
+        HashMap::<enums::Connector, HashMap<enums::PaymentMethodType, CurrencyList>>::deserialize(
+            deserializer,
+        )?;
+    rules
+        .into_iter()
+        .map(|(connector, methods)| {
+            let methods = methods
+                .into_iter()
+                .map(|(method, currencies)| {
+                    let currencies = match currencies {
+                        CurrencyList::Array(currencies) => currencies,
+                        CurrencyList::Csv(currencies) => {
+                            if currencies.trim().is_empty() {
+                                HashSet::new()
+                            } else {
+                                deserialize_hashset_inner(currencies)
+                                    .map_err(serde::de::Error::custom)?
+                            }
+                        }
+                    };
+                    Ok((method, currencies))
+                })
+                .collect::<Result<_, D::Error>>()?;
+            Ok((connector, methods))
+        })
+        .collect()
 }
 
 #[derive(Debug, Deserialize, Clone)]

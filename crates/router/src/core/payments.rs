@@ -12965,6 +12965,7 @@ where
         payment_data,
         &payment_method_info,
         &state.conf.mandates.cross_currency_mit_supported_connectors,
+        &state.conf.pm_filters,
     )?;
 
     routing_data.routed_through = Some(
@@ -12994,6 +12995,7 @@ pub fn get_mandate_reference_id<F: Clone, D>(
     payment_data: &mut D,
     payment_method_info: &domain::PaymentMethod,
     cross_currency_mit_supported_connectors: &crate::configs::settings::CrossCurrencyMitSupportedConnectors,
+    pm_filters: &crate::configs::settings::ConnectorFilters,
 ) -> RouterResult<Option<mandates::MandateReferenceId>>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -13038,7 +13040,12 @@ where
 
             helpers::validate_connector_mandate_currency(
                 cross_currency_mit_supported_connectors,
+                pm_filters,
                 connector_routing_data.connector_data.connector_name,
+                payment_data
+                    .get_payment_attempt()
+                    .payment_method_type
+                    .or(payment_method_info.get_payment_method_subtype()),
                 mandate_reference_record.original_payment_authorized_currency,
                 payment_data.get_currency(),
             )?;
@@ -13114,7 +13121,10 @@ where
 
                             helpers::validate_connector_mandate_currency(
                                 &state.conf.mandates.cross_currency_mit_supported_connectors,
+                                &state.conf.pm_filters,
                                 connector_data.connector_name,
+                                payment_data.get_payment_attempt().payment_method_type
+                                    .or(payment_method_info.get_payment_method_subtype()),
                                 mandate_reference_record.original_payment_authorized_currency,
                                 payment_data.get_currency(),
                             )?;

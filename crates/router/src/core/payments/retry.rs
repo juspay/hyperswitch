@@ -206,6 +206,7 @@ where
                             payment_data,
                             &payment_method_info,
                             &state.conf.mandates.cross_currency_mit_supported_connectors,
+                            &state.conf.pm_filters,
                         )?;
                         payment_data.set_mandate_id(mandates::MandateIds {
                             mandate_id: None,
