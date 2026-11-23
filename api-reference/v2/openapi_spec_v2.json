@@ -15779,20 +15779,6 @@
           }
         }
       },
-      "Encoding": {
-        "type": "string",
-        "description": "Encodings for ciphertexts and signatures",
-        "enum": [
-          "base64"
-        ]
-      },
-      "EncryptScheme": {
-        "type": "string",
-        "description": "Encryption algorithms",
-        "enum": [
-          "rsa_oaep_sha256"
-        ]
-      },
       "ErrorCategory": {
         "type": "string",
         "enum": [
@@ -20689,30 +20675,6 @@
             "$ref": "#/components/schemas/TransactionType"
           }
         }
-      },
-      "MessagePart": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "header"
-            ],
-            "properties": {
-              "header": {
-                "type": "string",
-                "description": "The value of a request header"
-              }
-            }
-          },
-          {
-            "type": "string",
-            "description": "The serialized body bytes",
-            "enum": [
-              "body"
-            ]
-          }
-        ],
-        "description": "A part of a signed message: `{\"header\": \"Api-Key\"}` or `\"body\"`"
       },
       "MetadataValue": {
         "type": "object",
@@ -31643,6 +31605,44 @@
           }
         }
       },
+      "ProxyEncoding": {
+        "type": "string",
+        "description": "Encodings for ciphertexts and signatures",
+        "enum": [
+          "base64"
+        ]
+      },
+      "ProxyEncryptScheme": {
+        "type": "string",
+        "description": "Encryption algorithms",
+        "enum": [
+          "rsa_oaep_sha256"
+        ]
+      },
+      "ProxyMessagePart": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "header"
+            ],
+            "properties": {
+              "header": {
+                "type": "string",
+                "description": "Name of a request header whose value is signed"
+              }
+            }
+          },
+          {
+            "type": "string",
+            "description": "The serialized body bytes",
+            "enum": [
+              "body"
+            ]
+          }
+        ],
+        "description": "A part of a signed message: `{\"header\": \"Api-Key\"}` or `\"body\"`"
+      },
       "ProxyRequest": {
         "type": "object",
         "required": [
@@ -31722,6 +31722,121 @@
         ],
         "description": "The destination's response body: JSON when it parses as JSON, otherwise its text, such\nas an XML document. Only UTF-8 text is supported. Both variants serialize to the bare\nvalue, so a JSON string and text look the same on the wire; this type is serialize-only."
       },
+      "ProxySerializeFormat": {
+        "type": "string",
+        "description": "Serialization formats",
+        "enum": [
+          "json"
+        ]
+      },
+      "ProxySignScheme": {
+        "type": "string",
+        "description": "Signing algorithms",
+        "enum": [
+          "hmac_sha256"
+        ]
+      },
+      "ProxyTransformInstruction": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "Encrypt a string field of the JSON body and replace it with the encoded ciphertext",
+            "required": [
+              "field",
+              "scheme",
+              "key",
+              "encoding",
+              "operation"
+            ],
+            "properties": {
+              "field": {
+                "type": "string",
+                "description": "JSON Pointer to the string field to encrypt, such as\n`/source/encryptionData/encryptionBlock`. Its value after vault substitution is the\nplaintext; it is replaced in place by the encoded ciphertext."
+              },
+              "scheme": {
+                "$ref": "#/components/schemas/ProxyEncryptScheme"
+              },
+              "key": {
+                "type": "string",
+                "description": "Base64-encoded DER public key in SubjectPublicKeyInfo (SPKI) format"
+              },
+              "encoding": {
+                "$ref": "#/components/schemas/ProxyEncoding"
+              },
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "encrypt"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Serialize the JSON body to the bytes that are signed and sent",
+            "required": [
+              "format",
+              "operation"
+            ],
+            "properties": {
+              "format": {
+                "$ref": "#/components/schemas/ProxySerializeFormat"
+              },
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "serialize"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "Sign a message built from request headers and the body bytes, and write the encoded\nsignature to a header",
+            "required": [
+              "message",
+              "scheme",
+              "key",
+              "encoding",
+              "header",
+              "operation"
+            ],
+            "properties": {
+              "message": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ProxyMessagePart"
+                },
+                "description": "The parts of the signed message, concatenated in order"
+              },
+              "scheme": {
+                "$ref": "#/components/schemas/ProxySignScheme"
+              },
+              "key": {
+                "type": "string",
+                "description": "The signing secret"
+              },
+              "encoding": {
+                "$ref": "#/components/schemas/ProxyEncoding"
+              },
+              "header": {
+                "type": "string",
+                "description": "The header the signature is written to; it must not already be in the request"
+              },
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "sign"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "One transformation step",
+        "discriminator": {
+          "propertyName": "operation"
+        }
+      },
       "ProxyTransformation": {
         "type": "object",
         "description": "Steps run in order: encrypt steps, then exactly one serialize step, then sign steps.",
@@ -31732,7 +31847,7 @@
           "steps": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/TransformInstruction"
+              "$ref": "#/components/schemas/ProxyTransformInstruction"
             },
             "description": "The steps to run on the body"
           }
@@ -35207,13 +35322,6 @@
           }
         }
       },
-      "SerializeFormat": {
-        "type": "string",
-        "description": "Serialization formats",
-        "enum": [
-          "json"
-        ]
-      },
       "SessionToken": {
         "oneOf": [
           {
@@ -35481,13 +35589,6 @@
               }
             }
           }
-        ]
-      },
-      "SignScheme": {
-        "type": "string",
-        "description": "Signing algorithms",
-        "enum": [
-          "hmac_sha256"
         ]
       },
       "SizeVariants": {
@@ -36859,107 +36960,6 @@
           "payout",
           "three_ds_authentication"
         ]
-      },
-      "TransformInstruction": {
-        "oneOf": [
-          {
-            "type": "object",
-            "description": "Encrypt a string field of the JSON body and replace it with the encoded ciphertext",
-            "required": [
-              "field",
-              "scheme",
-              "key",
-              "encoding",
-              "operation"
-            ],
-            "properties": {
-              "field": {
-                "type": "string",
-                "description": "JSON Pointer to the field, such as `/source/encryptionData/encryptionBlock`"
-              },
-              "scheme": {
-                "$ref": "#/components/schemas/EncryptScheme"
-              },
-              "key": {
-                "type": "string",
-                "description": "The base64-encoded DER public key"
-              },
-              "encoding": {
-                "$ref": "#/components/schemas/Encoding"
-              },
-              "operation": {
-                "type": "string",
-                "enum": [
-                  "encrypt"
-                ]
-              }
-            }
-          },
-          {
-            "type": "object",
-            "description": "Serialize the JSON body to the bytes that are signed and sent",
-            "required": [
-              "format",
-              "operation"
-            ],
-            "properties": {
-              "format": {
-                "$ref": "#/components/schemas/SerializeFormat"
-              },
-              "operation": {
-                "type": "string",
-                "enum": [
-                  "serialize"
-                ]
-              }
-            }
-          },
-          {
-            "type": "object",
-            "description": "Sign a message built from request headers and the body bytes, and write the encoded\nsignature to a header",
-            "required": [
-              "message",
-              "scheme",
-              "key",
-              "encoding",
-              "header",
-              "operation"
-            ],
-            "properties": {
-              "message": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/MessagePart"
-                },
-                "description": "The parts of the signed message, concatenated in order"
-              },
-              "scheme": {
-                "$ref": "#/components/schemas/SignScheme"
-              },
-              "key": {
-                "type": "string",
-                "description": "The signing secret"
-              },
-              "encoding": {
-                "$ref": "#/components/schemas/Encoding"
-              },
-              "header": {
-                "type": "string",
-                "description": "The header the signature is written to; it must not already be in the request"
-              },
-              "operation": {
-                "type": "string",
-                "enum": [
-                  "sign"
-                ]
-              }
-            }
-          }
-        ],
-        "description": "One transformation step",
-        "discriminator": {
-          "propertyName": "operation"
-        }
       },
       "TriggeredBy": {
         "type": "string",
