@@ -541,6 +541,18 @@ where
     }
 }
 
+/// Extension trait for whitespace handling on masked strings, without exposing the value
+pub trait SecretStringExt: Sized {
+    /// Returns the value with surrounding whitespace removed, or `None` when nothing is left
+    fn trim_to_non_empty(self) -> Option<Self>;
+}
+
+impl<S: Strategy<String>> SecretStringExt for Secret<String, S> {
+    fn trim_to_non_empty(self) -> Option<Self> {
+        Some(self.map(|value| value.trim().to_owned())).filter(|value| !value.peek().is_empty())
+    }
+}
+
 /// Extension trait for deserializing XML strings using `quick-xml` crate
 pub trait XmlExt {
     /// Deserialize an XML string into the specified type `<T>`.
