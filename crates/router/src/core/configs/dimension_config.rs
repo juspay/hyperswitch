@@ -936,13 +936,7 @@ impl DatabaseBackedConfig for RevenueRecoveryAbAlgorithm {
     }
 }
 
-/// `revenue_recovery.ab_algorithm` as read for one retry decision on an A/B profile: resolved on the
-/// error code of the failure it answers and bucketed on the failed attempt, so an experiment splits
-/// traffic per attempt. Its value is an A/B arm name; a decision with no arm runs the cascading
-/// schedule.
-///
-/// Superposition-only, with no database fallback: the database keys on the profile alone, so a
-/// fallback row would give every decline code the same arm.
+/// `revenue_recovery.ab_algorithm` resolved per retry decision, read from Superposition only.
 #[cfg(feature = "v2")]
 pub struct RevenueRecoveryAbAlgorithmForAttempt;
 
@@ -952,7 +946,6 @@ impl superposition::Config for RevenueRecoveryAbAlgorithmForAttempt {
     type TargetingKey = id_type::GlobalAttemptId;
     const SUPERPOSITION_KEY: &'static str = superposition_consts::REVENUE_RECOVERY_AB_ALGORITHM;
 
-    /// No arm, so the decision runs the cascading schedule.
     fn default_value() -> Self::Output {
         String::new()
     }

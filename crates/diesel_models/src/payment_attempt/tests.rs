@@ -89,8 +89,7 @@ fn test_backwards_compatibility() {
     assert!(deserialized.is_ok());
 }
 
-/// Attempts recorded before `retry_algorithm` existed still read, with no arm; the arm round-trips
-/// once set, and an absent arm is not written out.
+/// Recovery data stored without `retry_algorithm` still deserializes.
 #[cfg(feature = "v2")]
 #[test]
 fn recovery_data_reads_attempts_written_before_retry_algorithm() {

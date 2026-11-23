@@ -644,6 +644,8 @@ pub enum PaymentProcessorTokenResponse {
         scheduled_time: time::PrimitiveDateTime,
         /// The card picked for the retry, which the EXECUTE task pays with
         payment_processor_token: String,
+        /// A/B arm of the retry decision that picked this time
+        retry_algorithm: Option<common_enums::RevenueRecoveryABAlgorithm>,
     },
 
     /// Token locked or unavailable, next attempt possible
@@ -711,23 +713,16 @@ async fn get_retry_time_for_error_code(
     .map(common_utils::date_time::convert_to_pdt)
 }
 
-/// Runs the A/B arm resolved for this retry decision, and records it on the failed attempt the
-/// decision answers, the attempt it was resolved and bucketed on.
+/// Runs the A/B arm resolved for this retry decision.
 #[cfg(feature = "v2")]
-#[allow(clippy::too_many_arguments)]
 async fn get_ab_routed_retry_time(
     state: &SessionState,
     payment_intent: &PaymentIntent,
-    failed_attempt_id: &id_type::GlobalAttemptId,
     algorithm: common_enums::RevenueRecoveryABAlgorithm,
     prev_attempt_error_code: Option<common_enums::StandardisedCode>,
     remaining_grace_days: u32,
     remaining_budget: u32,
-    // Needed only to record the arm on the failed attempt
-    merchant_context: pcr_storage_types::RecoveryMerchantContext<'_>,
 ) -> Option<time::PrimitiveDateTime> {
-    pcr::record_ab_routing(state, failed_attempt_id, merchant_context, algorithm).await;
-
     let schedule_time = get_retry_time_for_error_code(
         state,
         algorithm,
@@ -739,7 +734,6 @@ async fn get_ab_routed_retry_time(
 
     logger::info!(
         payment_id = %payment_intent.id.get_string_repr(),
-        failed_attempt_id = %failed_attempt_id.get_string_repr(),
         ?algorithm,
         schedule_time = ?schedule_time,
         "A/B routing ran the arm resolved for this decision"
@@ -748,13 +742,7 @@ async fn get_ab_routed_retry_time(
     schedule_time
 }
 
-/// The A/B arm for one retry decision on an A/B profile, or `None` when no arm applies and the
-/// decision runs the cascading schedule: the decision has no error code, so no model could pick a
-/// time, or Superposition cannot answer.
-///
-/// Read from Superposition alone, on the error code of the failure the decision answers and
-/// bucketed on the failed attempt, so an experiment on `revenue_recovery.ab_algorithm` splits
-/// traffic per attempt.
+/// The A/B arm for this retry decision, or `None` to run the cascading schedule.
 #[cfg(feature = "v2")]
 async fn resolve_ab_algorithm_for_attempt(
     state: &SessionState,
@@ -794,8 +782,7 @@ async fn resolve_ab_algorithm_for_attempt(
     }
 }
 
-/// Reads a `revenue_recovery.ab_algorithm` value as an arm. Anything else is a misconfiguration,
-/// logged, and the decision runs the cascading schedule.
+/// Parses an A/B arm name; any other value is logged and treated as no arm.
 #[cfg(feature = "v2")]
 fn parse_ab_algorithm(configured: &str) -> Option<common_enums::RevenueRecoveryABAlgorithm> {
     configured
@@ -835,8 +822,7 @@ pub(crate) struct RetryTimingParams<'a> {
     pub retry_algorithm_type: RevenueRecoveryAlgorithmType,
     pub retry_count: u32,
     pub prev_attempt_error_code: Option<common_enums::StandardisedCode>,
-    /// The attempt whose failure this decision answers. Attempt routing buckets its experiments
-    /// on it, so every decision for the same failure lands in the same arm.
+    /// The failed attempt this decision is for.
     pub failed_attempt_id: &'a id_type::GlobalAttemptId,
     pub static_ladder_progress: &'a pcr::schedule::StaticLadderProgress,
     pub remaining_grace_days: u32,
@@ -864,7 +850,7 @@ pub(crate) async fn get_retry_timing(
         remaining_grace_days,
         remaining_budget,
         provider_merchant_id,
-        merchant_context,
+        merchant_context: _,
     } = params;
 
     let retry_timing = match retry_algorithm_type {
@@ -918,9 +904,7 @@ pub(crate) async fn get_retry_timing(
                 )
                 .await;
 
-            // On an A/B profile the arm is resolved for each retry decision, on the error code of
-            // the failure it answers and bucketed on the failed attempt. `None` there means no arm
-            // applies, and the decision runs the cascading schedule.
+            // `None` runs the cascading schedule.
             let ab_algorithm = if ab_enabled {
                 resolve_ab_algorithm_for_attempt(
                     state,
@@ -951,8 +935,7 @@ pub(crate) async fn get_retry_timing(
                     "A/B routing has no arm for this decision, so it runs the cascading schedule"
                 );
 
-                // As in the `Cascading` arm. No ladder position to carry back: the cascading
-                // schedule spends no rungs.
+                // Same as the `Cascading` arm.
                 match schedule_time {
                     Some(time) => RetryTiming::At {
                         retry_time: time,
@@ -978,12 +961,10 @@ pub(crate) async fn get_retry_timing(
                     let time = get_ab_routed_retry_time(
                         state,
                         payment_intent,
-                        failed_attempt_id,
                         algorithm,
                         prev_attempt_error_code,
                         remaining_grace_days,
                         remaining_budget,
-                        merchant_context,
                     )
                     .await;
                     (time, Some(algorithm))
@@ -1019,9 +1000,7 @@ pub(crate) async fn get_retry_timing(
                     (time, None)
                 };
 
-                // Consumed rungs are shared across every arm an invoice runs, by design: only
-                // Ceiling decisions read or spend them, so a Ceiling decision after Standby ones
-                // resumes from the rungs earlier Ceiling decisions spent.
+                // Consumed rungs are shared across all arms of an invoice.
                 let ladder_role = assigned_algorithm.map_or_else(
                     || RetryModelVariant::default().ladder,
                     |arm| RetryModelVariant::from(arm).ladder,
@@ -1138,12 +1117,10 @@ pub(crate) async fn get_retry_timing(
                     "Retry decision"
                 );
 
-                // The arm is recorded on the failed attempt, not on the invoice, so nothing is
-                // handed back for the external-trigger flow to persist onto the intent.
                 RetryTiming::At {
                     retry_time: decision.schedule_time,
                     next_static_ladder_progress: Some(decision.next_progress),
-                    assigned_ab_algorithm: None,
+                    assigned_ab_algorithm: assigned_algorithm,
                 }
             } else {
                 RetryTiming::Decider
@@ -1226,7 +1203,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
         RetryTiming::At {
             retry_time,
             next_static_ladder_progress,
-            assigned_ab_algorithm: _,
+            assigned_ab_algorithm,
         } => {
             let payment_processor_token_response = get_token_availability_for_schedule_time(
                 state,
@@ -1234,6 +1211,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 payment_intent,
                 card_selection,
                 retry_time,
+                assigned_ab_algorithm,
             )
             .await?;
 
@@ -1336,6 +1314,7 @@ async fn get_token_availability_for_schedule_time(
     payment_intent: &PaymentIntent,
     card_selection: CardSelection,
     scheduled_time: time::PrimitiveDateTime,
+    retry_algorithm: Option<common_enums::RevenueRecoveryABAlgorithm>,
 ) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
     let invoice_token = get_invoice_payment_processor_token(payment_intent);
 
@@ -1359,6 +1338,7 @@ async fn get_token_availability_for_schedule_time(
         } => PaymentProcessorTokenResponse::ScheduledTime {
             scheduled_time,
             payment_processor_token,
+            retry_algorithm,
         },
         CardAvailability::WaitHours(retry_wait_time_hours) => {
             let utc_schedule_time: time::OffsetDateTime = common_utils::date_time::now()
@@ -1745,6 +1725,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
             payment_processor_token_response = PaymentProcessorTokenResponse::ScheduledTime {
                 scheduled_time: token.retry_decision.retry_time,
                 payment_processor_token: token.token_details.payment_processor_token,
+                retry_algorithm: None,
             };
         }
     }
@@ -2613,9 +2594,7 @@ pub fn compute_predicted_retry_time(
     // Final decision. The inclusion probability is logged because it is the propensity this draw was
     // made under: without it the schedule cannot be evaluated off-policy afterwards, and it cannot be
     // reconstructed at analysis time because the value surface drifts between draw and analysis.
-    // Logged at info, once per decision, because debug is off in production and the propensity is
-    // what comparing the algorithms routed per error code is weighted by.
-    logger::info!(
+    logger::debug!(
         chosen_day = %chosen_date,
         chosen_hour = hour,
         retry_at = %retry_at,

@@ -4832,8 +4832,7 @@ pub struct PaymentAttemptRecoveryData {
     /// re-run of that recovery request recognises it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recovery_request_id: Option<String>,
-    /// The A/B arm that decided when to retry after this attempt failed. Absent when no arm
-    /// applied: the profile is not on A/B routing, or the decision ran the cascading schedule.
+    /// A/B arm of the retry decision made after this attempt failed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retry_algorithm: Option<common_enums::RevenueRecoveryABAlgorithm>,
 }

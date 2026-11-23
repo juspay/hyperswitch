@@ -489,8 +489,7 @@ pub mod superposition {
     pub const CARD_SWITCHING_ENABLED: &str = "revenue_recovery.card_switching_enabled";
     /// Whether A/B routing decides which retry implementation an invoice runs.
     pub const REVENUE_RECOVERY_AB_ENABLED: &str = "revenue_recovery.ab_enabled";
-    /// Which retry implementation inside the `Smart` arm one retry decision runs under A/B
-    /// routing, by the error code it answers.
+    /// Which retry implementation inside the `Smart` arm a retry decision runs under A/B routing.
     pub const REVENUE_RECOVERY_AB_ALGORITHM: &str = "revenue_recovery.ab_algorithm";
     /// Days from the first attempt during which an invoice may still be retried
     pub const RECOVERY_GRACE_PERIOD_DAYS: &str = "revenue_recovery.grace_period_days";

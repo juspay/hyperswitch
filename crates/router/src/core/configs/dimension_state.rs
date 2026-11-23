@@ -931,13 +931,7 @@ impl DimensionsBase for DimensionsWithMerchantConnectorAccount {
     }
 }
 
-/// Dimensions for revenue recovery configs that can be targeted down to a single decline code.
-///
-/// `error_code` is the standardised code the GSM table resolved for the failure the config is
-/// read for. It is not part of the generic [`Dimensions`] state, so this wraps the profile-scoped
-/// state the recovery configs already resolve on and adds it to the Superposition context only
-/// when it is known. A context that does not mention `error_code` therefore matches exactly as it
-/// did before the dimension existed.
+/// Profile dimensions with the standardised error code of the failure, when known.
 #[derive(Clone)]
 pub struct DimensionsWithRecoveryErrorCode {
     dimensions: DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,

@@ -66,7 +66,7 @@ struct NextRetryInputs<'a> {
     ladder_progress: &'a StaticLadderProgress,
     retry_count: u16,
     last_failure_code: Option<common_enums::StandardisedCode>,
-    /// The attempt the merchant reported, which attempt routing buckets its experiments on
+    /// The attempt the merchant reported.
     reported_attempt_id: &'a id_type::GlobalAttemptId,
     card_availability: CardAvailability,
     retries_after_hard_decline: Option<u16>,
@@ -410,11 +410,11 @@ async fn get_retry_time(
         Ok(RetryTiming::At {
             retry_time,
             next_static_ladder_progress,
-            assigned_ab_algorithm,
+            assigned_ab_algorithm: _,
         }) => Ok(RetryTimeChoice {
             retry_time,
             next_ladder_progress: next_static_ladder_progress,
-            assigned_ab_algorithm,
+            assigned_ab_algorithm: None,
         }),
         Ok(RetryTiming::Decider) => {
             revenue_recovery_workflow::get_schedule_time_to_retry_mit_payments(

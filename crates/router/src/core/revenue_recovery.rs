@@ -73,13 +73,10 @@ use common_enums::enums::ProcessTrackerStatus;
 #[cfg(feature = "v1")]
 use crate::types::common_enums;
 
-/// Records on the failed attempt the A/B arm that decided when to retry after it. The arm is
-/// resolved per retry decision, keyed on that attempt; nothing reads it back to pick the next one.
-/// Merges into the attempt's revenue recovery metadata, and skips the write when the attempt
-/// already carries this arm (a re-run of the same decision resolves the same arm).
+/// Records on a retry attempt the A/B arm of the decision that scheduled it.
 pub async fn record_ab_routing(
     state: &SessionState,
-    failed_attempt_id: &id_type::GlobalAttemptId,
+    attempt_id: &id_type::GlobalAttemptId,
     merchant_context: pcr::RecoveryMerchantContext<'_>,
     assigned_algorithm: common_enums::RevenueRecoveryABAlgorithm,
 ) {
@@ -91,14 +88,14 @@ pub async fn record_ab_routing(
 
     let failed_attempt = match state
         .store
-        .find_payment_attempt_by_id(&processor_key_store, failed_attempt_id, storage_scheme)
+        .find_payment_attempt_by_id(&processor_key_store, attempt_id, storage_scheme)
         .await
     {
         Ok(failed_attempt) => failed_attempt,
         Err(error) => {
             router_env::logger::error!(
                 ?error,
-                failed_attempt_id = %failed_attempt_id.get_string_repr(),
+                attempt_id = %attempt_id.get_string_repr(),
                 "Failed to fetch the attempt to record this decision's A/B arm on"
             );
             return;
@@ -107,14 +104,14 @@ pub async fn record_ab_routing(
 
     let Some(mut feature_metadata) = failed_attempt.feature_metadata.clone() else {
         router_env::logger::warn!(
-            failed_attempt_id = %failed_attempt_id.get_string_repr(),
+            attempt_id = %attempt_id.get_string_repr(),
             "Cannot record an A/B arm: the attempt has no feature metadata"
         );
         return;
     };
     let Some(revenue_recovery) = feature_metadata.revenue_recovery.as_mut() else {
         router_env::logger::warn!(
-            failed_attempt_id = %failed_attempt_id.get_string_repr(),
+            attempt_id = %attempt_id.get_string_repr(),
             "Cannot record an A/B arm: the attempt has no revenue recovery metadata"
         );
         return;
@@ -136,15 +133,15 @@ pub async fn record_ab_routing(
         .await
     {
         Ok(_) => router_env::logger::info!(
-            failed_attempt_id = %failed_attempt_id.get_string_repr(),
+            attempt_id = %attempt_id.get_string_repr(),
             algorithm = %assigned_algorithm,
-            "A/B routing recorded this decision's arm on the failed attempt"
+            "A/B routing recorded this decision's arm on the attempt"
         ),
         Err(error) => router_env::logger::error!(
             ?error,
-            failed_attempt_id = %failed_attempt_id.get_string_repr(),
+            attempt_id = %attempt_id.get_string_repr(),
             algorithm = %assigned_algorithm,
-            "Failed to record this decision's A/B arm on the failed attempt"
+            "Failed to record this decision's A/B arm on the attempt"
         ),
     }
 }
@@ -238,6 +235,7 @@ pub async fn upsert_calculate_pcr_task(
                     max_hybrid_cascading_retry_count,
                 )),
                 payment_processor_token: None,
+                retry_algorithm: None,
             };
 
             let tag = ["PCR"];
@@ -329,6 +327,15 @@ pub async fn record_internal_attempt_and_execute_payment(
 
     match record_attempt {
         Ok(record_attempt_response) => {
+            if let Some(retry_algorithm) = tracking_data.retry_algorithm {
+                record_ab_routing(
+                    state,
+                    &record_attempt_response.id,
+                    revenue_recovery_payment_data.get_merchant_context(),
+                    retry_algorithm,
+                )
+                .await;
+            }
             let action = Box::pin(types::Action::execute_payment(
                 state,
                 revenue_recovery_payment_data.merchant_account.get_id(),
@@ -649,6 +656,7 @@ async fn insert_psync_pcr_task_to_pt(
         invoice_scheduled_time: Some(schedule_time),
         static_ladder_progress,
         payment_processor_token: None,
+        retry_algorithm: None,
     };
     let tag = ["REVENUE_RECOVERY"];
     let process_tracker_entry = storage::ProcessTrackerNew::new(
@@ -987,8 +995,6 @@ pub async fn perform_calculate_workflow(
         router_env::metric_attributes!(
             ("outcome", payment_processor_token_response.as_str()),
             ("algorithm", retry_algorithm_type.to_string()),
-            // Bounded by the standardised codes, so routing per error code can be read off this
-            // series
             (
                 "error_code",
                 tracking_data
@@ -1002,6 +1008,7 @@ pub async fn perform_calculate_workflow(
         revenue_recovery_workflow::PaymentProcessorTokenResponse::ScheduledTime {
             scheduled_time,
             payment_processor_token,
+            retry_algorithm,
         } => {
             logger::info!(
                 process_id = %process.id,
@@ -1031,6 +1038,7 @@ pub async fn perform_calculate_workflow(
                 scheduled_time,
                 next_static_ladder_progress.clone(),
                 payment_processor_token,
+                retry_algorithm,
             )
             .await?;
 
@@ -1341,6 +1349,7 @@ async fn insert_execute_pcr_task_to_pt(
     schedule_time: time::PrimitiveDateTime,
     static_ladder_progress: Option<schedule::StaticLadderProgress>,
     payment_processor_token: String,
+    retry_algorithm: Option<common_enums::RevenueRecoveryABAlgorithm>,
 ) -> Result<storage::ProcessTracker, sch_errors::ProcessTrackerError> {
     let task = "EXECUTE_WORKFLOW";
 
@@ -1455,6 +1464,7 @@ async fn insert_execute_pcr_task_to_pt(
                 invoice_scheduled_time: Some(schedule_time),
                 static_ladder_progress,
                 payment_processor_token: Some(Secret::new(payment_processor_token)),
+                retry_algorithm,
             };
 
             let tag = ["PCR"];
