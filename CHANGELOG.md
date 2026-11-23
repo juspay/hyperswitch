@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.11.1-hotfix10
+
+### Features
+
+- **users:** Email a sign up contact address to request for invitation ([#15360](https://github.com/juspay/hyperswitch/pull/15360)) ([`6e887fd`](https://github.com/juspay/hyperswitch/commit/6e887fd557b432a9261f271aac69ad729ed1c129))
+
+**Full Changelog:** [`2026.11.11.1-hotfix9...2026.11.11.1-hotfix10`](https://github.com/juspay/hyperswitch/compare/2026.11.11.1-hotfix9...2026.11.11.1-hotfix10)
+
+- - -
+
 ## 2026.11.11.1-hotfix9
 
 ### Features
