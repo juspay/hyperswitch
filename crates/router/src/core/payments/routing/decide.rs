@@ -22,7 +22,9 @@ use super::{
     utils::{HybridRoutingOutcome, RoutingApproach},
     RoutingResult,
 };
-use crate::core::errors::RoutingError;
+use crate::{
+    consts::decision_engine_payment_method as payment_method_keys, core::errors::RoutingError,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(super) struct DecideRequest {
@@ -231,32 +233,50 @@ pub(super) fn build_decide_request(
                     card.card_type = Some(value.to_string());
                     None
                 }
-                dir::DirValue::PayLaterType(value) => Some(("pay_later", value.to_string())),
-                dir::DirValue::WalletType(value) => Some(("wallet", value.to_string())),
-                dir::DirValue::UpiType(value) => Some(("upi", value.to_string())),
-                dir::DirValue::VoucherType(value) => Some(("voucher", value.to_string())),
-                dir::DirValue::BankRedirectType(value) => {
-                    Some(("bank_redirect", value.to_string()))
+                dir::DirValue::PayLaterType(value) => {
+                    Some((payment_method_keys::PAY_LATER, value.to_string()))
                 }
-                dir::DirValue::BankDebitType(value) => Some(("bank_debit", value.to_string())),
+                dir::DirValue::WalletType(value) => {
+                    Some((payment_method_keys::WALLET, value.to_string()))
+                }
+                dir::DirValue::UpiType(value) => {
+                    Some((payment_method_keys::UPI, value.to_string()))
+                }
+                dir::DirValue::VoucherType(value) => {
+                    Some((payment_method_keys::VOUCHER, value.to_string()))
+                }
+                dir::DirValue::BankRedirectType(value) => {
+                    Some((payment_method_keys::BANK_REDIRECT, value.to_string()))
+                }
+                dir::DirValue::BankDebitType(value) => {
+                    Some((payment_method_keys::BANK_DEBIT, value.to_string()))
+                }
                 dir::DirValue::BankTransferType(value) => {
-                    Some(("bank_transfer", value.to_string()))
+                    Some((payment_method_keys::BANK_TRANSFER, value.to_string()))
                 }
                 dir::DirValue::RealTimePaymentType(value) => {
-                    Some(("real_time_payment", value.to_string()))
+                    Some((payment_method_keys::REAL_TIME_PAYMENT, value.to_string()))
                 }
-                dir::DirValue::GiftCardType(value) => Some(("gift_card", value.to_string())),
+                dir::DirValue::GiftCardType(value) => {
+                    Some((payment_method_keys::GIFT_CARD, value.to_string()))
+                }
                 dir::DirValue::CardRedirectType(value) => {
-                    Some(("card_redirect", value.to_string()))
+                    Some((payment_method_keys::CARD_REDIRECT, value.to_string()))
                 }
-                dir::DirValue::OpenBankingType(value) => Some(("open_banking", value.to_string())),
+                dir::DirValue::OpenBankingType(value) => {
+                    Some((payment_method_keys::OPEN_BANKING, value.to_string()))
+                }
                 dir::DirValue::MobilePaymentType(value) => {
-                    Some(("mobile_payment", value.to_string()))
+                    Some((payment_method_keys::MOBILE_PAYMENT, value.to_string()))
                 }
-                dir::DirValue::CryptoType(value) => Some(("crypto", value.to_string())),
-                dir::DirValue::RewardType(value) => Some(("reward", value.to_string())),
+                dir::DirValue::CryptoType(value) => {
+                    Some((payment_method_keys::CRYPTO, value.to_string()))
+                }
+                dir::DirValue::RewardType(value) => {
+                    Some((payment_method_keys::REWARD, value.to_string()))
+                }
                 dir::DirValue::NetworkTokenType(value) => {
-                    Some(("network_token", value.to_string()))
+                    Some((payment_method_keys::NETWORK_TOKEN, value.to_string()))
                 }
                 _ => None,
             };

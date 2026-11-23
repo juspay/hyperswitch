@@ -437,6 +437,24 @@ pub const CREQ_CHALLENGE_REQUEST_KEY: &str = "creq";
 pub const UCS_DDC_METHOD_DATA_KEY: &str = "threeDsMethodData";
 pub const UCS_DDC_METHOD_URL_KEY: &str = "threeDsMethodUrl";
 
+pub mod decision_engine_payment_method {
+    pub const PAY_LATER: &str = "pay_later";
+    pub const WALLET: &str = "wallet";
+    pub const UPI: &str = "upi";
+    pub const VOUCHER: &str = "voucher";
+    pub const BANK_REDIRECT: &str = "bank_redirect";
+    pub const BANK_DEBIT: &str = "bank_debit";
+    pub const BANK_TRANSFER: &str = "bank_transfer";
+    pub const REAL_TIME_PAYMENT: &str = "real_time_payment";
+    pub const GIFT_CARD: &str = "gift_card";
+    pub const CARD_REDIRECT: &str = "card_redirect";
+    pub const OPEN_BANKING: &str = "open_banking";
+    pub const MOBILE_PAYMENT: &str = "mobile_payment";
+    pub const CRYPTO: &str = "crypto";
+    pub const REWARD: &str = "reward";
+    pub const NETWORK_TOKEN: &str = "network_token";
+}
+
 /// Superposition configuration keys
 pub mod superposition {
     /// Offer Engine master gate key: boolean, `false` (default) disables all Offer Engine calls.
