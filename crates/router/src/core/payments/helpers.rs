@@ -1471,17 +1471,16 @@ pub(super) fn validate_connector_mandate_currency(
     payment_currency: api_enums::Currency,
 ) -> RouterResult<()> {
     match original_currency {
-        Some(original_currency) => {
-            if original_currency == payment_currency {
-                Ok(())
-            } else if is_cross_currency_mit_allowed(
-                config,
-                pm_filters,
-                connector,
-                payment_method_type,
-                original_currency,
-                payment_currency,
-            ) {
+        Some(original_currency) if original_currency == payment_currency => Ok(()),
+        Some(original_currency) => match is_cross_currency_mit_allowed(
+            config,
+            pm_filters,
+            connector,
+            payment_method_type,
+            original_currency,
+            payment_currency,
+        ) {
+            true => {
                 logger::info!(
                     %connector,
                     ?payment_method_type,
@@ -1490,12 +1489,11 @@ pub(super) fn validate_connector_mandate_currency(
                     "allowing cross-currency connector mandate"
                 );
                 Ok(())
-            } else {
-                Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                    reason: "Cross currency mandates not supported".into(),
-                }))
             }
-        }
+            false => Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+                reason: "Cross currency mandates not supported".into(),
+            })),
+        },
         None => Ok(()),
     }
 }
@@ -1510,23 +1508,25 @@ fn is_cross_currency_mit_allowed(
     original_currency: api_enums::Currency,
     payment_currency: api_enums::Currency,
 ) -> bool {
-    if config.connector_list.contains(&connector) {
-        let currency_rule = payment_method_type
-            .and_then(|method| config.currency_rules.get(&connector)?.get(&method))
-            .filter(|currencies| !currencies.is_empty());
-        match currency_rule {
-            Some(currencies) => {
-                currencies.contains(&original_currency) && currencies.contains(&payment_currency)
+    match config.connector_list.contains(&connector) {
+        true => {
+            let currency_rule = payment_method_type
+                .and_then(|method| config.currency_rules.get(&connector)?.get(&method))
+                .filter(|currencies| !currencies.is_empty());
+            match currency_rule {
+                Some(currencies) => {
+                    currencies.contains(&original_currency)
+                        && currencies.contains(&payment_currency)
+                }
+                None => is_payment_currency_allowed_by_pm_filters(
+                    pm_filters,
+                    connector,
+                    payment_method_type,
+                    payment_currency,
+                ),
             }
-            None => is_payment_currency_allowed_by_pm_filters(
-                pm_filters,
-                connector,
-                payment_method_type,
-                payment_currency,
-            ),
         }
-    } else {
-        false
+        false => false,
     }
 }
 
