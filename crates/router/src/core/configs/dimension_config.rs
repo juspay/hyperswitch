@@ -152,24 +152,6 @@ macro_rules! config {
     };
 }
 
-/// Superposition-only connector eligibility; no database fallback.
-#[derive(Debug, serde::Deserialize, Default)]
-#[serde(default, deny_unknown_fields)]
-pub struct CrossCurrencyMitSupportedConnectors {
-    pub connector_list: HashSet<api_models::enums::Connector>,
-}
-
-impl superposition::Config for CrossCurrencyMitSupportedConnectors {
-    type Output = serde_json::Value;
-    type TargetingKey = id_type::MerchantId;
-    const SUPERPOSITION_KEY: &'static str =
-        superposition_consts::CROSS_CURRENCY_MIT_SUPPORTED_CONNECTORS;
-
-    fn default_value() -> Self::Output {
-        serde_json::json!({ "connector_list": [] })
-    }
-}
-
 /// Superposition-only override, scoped by processor merchant and payment method.
 pub struct ShouldOverrideSetupFutureUsageToOffSession;
 
