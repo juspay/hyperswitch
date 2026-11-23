@@ -1160,8 +1160,6 @@ const externalSurchargeConfirm = {
   Request: {
     payment_method: "card",
     payment_method_data: { card: successfulNo3DSCardDetails },
-    setup_future_usage: "off_session",
-    customer_acceptance: customerAcceptance,
   },
   Response: succeededResponse,
 };
@@ -2419,8 +2417,6 @@ export const connectorDetails = {
     ExternalSurchargePaymentIntent: {
       Request: {
         currency: "USD",
-        setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -2430,8 +2426,7 @@ export const connectorDetails = {
       },
     },
     // InterPayments (surcharge_processor) computes the surcharge on this card at
-    // eligibility time. surcharge_percentage is supplied by the live connector, so
-    // only its presence/type is asserted, not an exact value.
+    // eligibility time. The percentage is pinned to externalSurchargePercentage.
     ExternalSurchargeEligibility: {
       Request: {
         payment_method_type: "card",
