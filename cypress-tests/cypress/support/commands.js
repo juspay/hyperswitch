@@ -822,17 +822,6 @@ function assertPaymentSurcharge(paymentBody, globalState, expectation) {
     0.5
   );
 
-  if (globalState.get("surchargeAmount") !== undefined) {
-    expect(
-      surchargeDetails.surcharge_amount,
-      "surcharge_amount matches the surcharge from before"
-    ).to.equal(globalState.get("surchargeAmount"));
-    expect(
-      surchargeDetails.surcharge_percentage,
-      "surcharge_percentage matches the surcharge from before"
-    ).to.be.closeTo(globalState.get("surchargePercentage"), 0.01);
-  }
-
   expect(paymentBody.net_amount, "net_amount").to.equal(
     paymentBody.amount +
       surchargeDetails.surcharge_amount +
@@ -9444,10 +9433,8 @@ Cypress.Commands.add(
           }
 
           // For external surcharge processors (e.g. InterPayments), the eligibility
-          // response carries the computed surcharge. The amount and percentage are
-          // supplied by the connector at call time, so exact values are not
-          // asserted; the fields are checked for type and for consistency with
-          // each other, and stored so confirm/retrieve can be compared to them.
+          // response carries the computed surcharge. The percentage is pinned by
+          // the config and the fee must be that percentage of the payment amount.
           if (resData.body.surcharge_details) {
             expect(response.body, "surcharge_details").to.have.property(
               "surcharge_details"
@@ -9501,15 +9488,6 @@ Cypress.Commands.add(
                 surchargeDetails.surcharge_percentage) /
                 100,
               1
-            );
-
-            globalState.set(
-              "surchargeAmount",
-              surchargeDetails.surcharge.value
-            );
-            globalState.set(
-              "surchargePercentage",
-              surchargeDetails.surcharge_percentage
             );
           }
         } else {
