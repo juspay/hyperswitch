@@ -34190,6 +34190,18 @@
             "description": "Last 4 digits of the card number",
             "nullable": true
           },
+          "device_pan_bin": {
+            "type": "string",
+            "description": "First six digits of the decrypted device PAN, when available.",
+            "example": "424242",
+            "nullable": true
+          },
+          "device_pan_extended_bin": {
+            "type": "string",
+            "description": "First eight device PAN digits, populated when the modular wallet extended BIN setting is enabled.",
+            "example": "42424242",
+            "nullable": true
+          },
           "card_network": {
             "type": "string",
             "description": "The information of the payment method",

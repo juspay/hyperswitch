@@ -4254,12 +4254,13 @@ pub fn get_applepay_wallet_info(
     item: ApplePayWalletData,
     payment_method_token: Option<PaymentMethodToken>,
 ) -> payment_methods::PaymentMethodDataWalletInfo {
-    let (card_exp_month, card_exp_year) = match payment_method_token {
+    let (card_exp_month, card_exp_year, device_pan_bin) = match payment_method_token {
         Some(PaymentMethodToken::ApplePayDecrypt(token)) => (
             Some(token.application_expiration_month.clone()),
             Some(token.application_expiration_year.clone()),
+            Some(token.get_device_pan_bin()),
         ),
-        _ => (None, None),
+        _ => (None, None, None),
     };
     payment_methods::PaymentMethodDataWalletInfo {
         last4: Some(
@@ -4273,6 +4274,8 @@ pub fn get_applepay_wallet_info(
                 .rev()
                 .collect(),
         ),
+        device_pan_bin,
+        device_pan_extended_bin: None,
         card_network: Some(item.payment_method.network),
         card_type: Some(item.payment_method.pm_type),
         card_exp_month,
@@ -4298,6 +4301,10 @@ pub fn get_googlepay_wallet_info(
         .map(|data| data.card_exp_year.clone());
     payment_methods::PaymentMethodDataWalletInfo {
         last4: Some(item.info.card_details),
+        device_pan_bin: googlepay_decrypt_data
+            .as_ref()
+            .and_then(|data| data.get_device_pan_bin()),
+        device_pan_extended_bin: None,
         card_network: Some(item.info.card_network),
         card_type: Some(item.pm_type),
         card_exp_month,

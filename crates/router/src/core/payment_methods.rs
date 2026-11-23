@@ -1501,6 +1501,8 @@ fn decrypt_google_pay_for_vault(
     let decrypted_data = common_types::payments::GPayPredecryptData::from(decrypted);
     let wallet_info = payment_methods::PaymentMethodDataWalletInfo {
         last4: Some(google_pay.info.card_details.clone()),
+        device_pan_bin: None,
+        device_pan_extended_bin: None,
         card_network: Some(google_pay.info.card_network.clone()),
         card_type: Some(google_pay.pm_type.clone()),
         card_exp_month: Some(decrypted_data.card_exp_month.clone()),
@@ -3749,10 +3751,16 @@ async fn execute_payment_method_create(
             external_vault_source,
         )) => {
             let pm_update = create_pm_additional_data_update(
-                Some(build_payment_methods_additional_data_for_create(
-                    req,
-                    &payment_method_data,
-                )),
+                Some(
+                    build_payment_methods_additional_data_for_create(
+                        state,
+                        platform,
+                        profile,
+                        req,
+                        &payment_method_data,
+                    )
+                    .await,
+                ),
                 state,
                 platform.get_provider().get_key_store(),
                 Some(vault_id.get_string_repr().clone()),
@@ -3983,10 +3991,16 @@ pub async fn create_generic_volatile_payment_method(
                 payment_method_billing_address.clone(),
                 state,
                 platform.get_provider().get_key_store(),
-                Some(build_payment_methods_additional_data_for_create(
-                    &req,
-                    &payment_method_data,
-                )),
+                Some(
+                    build_payment_methods_additional_data_for_create(
+                        state,
+                        platform,
+                        profile,
+                        &req,
+                        &payment_method_data,
+                    )
+                    .await,
+                ),
                 Some(req.payment_method_type),
                 payment_method_subtype,
                 locker_id,
@@ -4799,34 +4813,7 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
             Self::BankDebit(bank_debit_details) => Ok(
                 payment_methods::PaymentMethodsData::BankDebit(bank_debit_details.clone().into()),
             ),
-            Self::Wallet(wallet_data) => match wallet_data {
-                api::WalletPaymentMethodData::ApplePay(data) => Ok(
-                    payment_methods::PaymentMethodsData::WalletDetails(data.wallet_info),
-                ),
-                api::WalletPaymentMethodData::ApplePayDecrypted(data) => Ok(
-                    payment_methods::PaymentMethodsData::WalletDetails(data.wallet_info),
-                ),
-                api::WalletPaymentMethodData::GooglePay(data) => Ok(
-                    payment_methods::PaymentMethodsData::WalletDetails((*data).into()),
-                ),
-                api::WalletPaymentMethodData::GooglePayDecrypted(data) => Ok(
-                    payment_methods::PaymentMethodsData::WalletDetails(data.wallet_info),
-                ),
-                api::WalletPaymentMethodData::PayPal(data) => {
-                    Ok(payment_methods::PaymentMethodsData::WalletDetails(
-                        payment_methods::PaymentMethodDataWalletInfo {
-                            last4: None,
-                            card_network: None,
-                            card_type: None,
-                            card_exp_month: None,
-                            card_exp_year: None,
-                            auth_code: None,
-                            provider_details: None,
-                            email: data.email,
-                        },
-                    ))
-                }
-            },
+            Self::Wallet(wallet_data) => Ok(wallet_data.into()),
             Self::BankRedirect(bank_redirect_data) => {
                 Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
                     message: "Bank redirect payment method data is not supported".to_string()
@@ -5731,7 +5718,10 @@ fn create_connector_token_details_update(
 }
 
 #[cfg(feature = "v2")]
-fn build_payment_methods_additional_data_for_create(
+async fn build_payment_methods_additional_data_for_create(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
     req: &api::PaymentMethodCreate,
     payment_method_data: &domain::PaymentMethodVaultingData,
 ) -> domain::PaymentMethodsData {
@@ -5740,32 +5730,85 @@ fn build_payment_methods_additional_data_for_create(
     let wallet_info_from_request = match &req.payment_method_data {
         api::PaymentMethodCreateData::Wallet(api::WalletPaymentMethodData::ApplePayDecrypted(
             apple_pay_decrypted,
-        )) => Some(apple_pay_decrypted.wallet_info.clone()),
+        )) => Some(&apple_pay_decrypted.wallet_info),
         api::PaymentMethodCreateData::Wallet(api::WalletPaymentMethodData::GooglePayDecrypted(
             google_pay_decrypted,
-        )) => Some(google_pay_decrypted.wallet_info.clone()),
+        )) => Some(&google_pay_decrypted.wallet_info),
         _ => None,
     };
 
     match (vaulted_payment_methods_data, wallet_info_from_request) {
         (domain::PaymentMethodsData::WalletDetails(vaulted_wallet_info), Some(wallet_info)) => {
+            let (device_pan_bin, device_pan) = match &req.payment_method_data {
+                api::PaymentMethodCreateData::Wallet(
+                    api::WalletPaymentMethodData::ApplePayDecrypted(apple_pay),
+                ) => (
+                    vaulted_wallet_info.device_pan_bin,
+                    Some(&apple_pay.decrypted_data.application_primary_account_number),
+                ),
+                api::PaymentMethodCreateData::Wallet(
+                    api::WalletPaymentMethodData::GooglePayDecrypted(google_pay),
+                ) => {
+                    let device_pan_bin = vaulted_wallet_info
+                        .device_pan_bin
+                        .or_else(|| google_pay.decrypted_data.get_device_pan_bin());
+                    let device_pan = device_pan_bin
+                        .as_ref()
+                        .map(|_| &google_pay.decrypted_data.application_primary_account_number);
+                    (device_pan_bin, device_pan)
+                }
+                _ => (None, None),
+            };
+            let device_pan_extended_bin = match device_pan {
+                Some(device_pan) => {
+                    let dimensions = dimension_state::Dimensions::new()
+                        .with_processor_merchant_id(
+                            platform.get_processor().get_processor_merchant_id(),
+                        )
+                        .with_provider_merchant_id(
+                            platform.get_provider().get_provider_merchant_id(),
+                        )
+                        .with_profile_id(profile.get_id().clone());
+                    let enabled = dimensions
+                        .get_enable_extended_device_pan_bin(
+                            state.store.as_ref(),
+                            state.superposition_service.as_ref(),
+                            req.customer_id.as_ref(),
+                        )
+                        .await;
+                    enabled.then(|| device_pan.get_extended_card_bin())
+                }
+                None => None,
+            };
+
             domain::PaymentMethodsData::WalletDetails(
                 payment_methods::PaymentMethodDataWalletInfo {
-                    last4: wallet_info.last4.or(vaulted_wallet_info.last4),
+                    last4: wallet_info.last4.clone().or(vaulted_wallet_info.last4),
+                    device_pan_bin,
+                    device_pan_extended_bin,
                     card_network: wallet_info
                         .card_network
+                        .clone()
                         .or(vaulted_wallet_info.card_network),
-                    card_type: wallet_info.card_type.or(vaulted_wallet_info.card_type),
+                    card_type: wallet_info
+                        .card_type
+                        .clone()
+                        .or(vaulted_wallet_info.card_type),
                     card_exp_month: wallet_info
                         .card_exp_month
+                        .clone()
                         .or(vaulted_wallet_info.card_exp_month),
                     card_exp_year: wallet_info
                         .card_exp_year
+                        .clone()
                         .or(vaulted_wallet_info.card_exp_year),
-                    auth_code: wallet_info.auth_code.or(vaulted_wallet_info.auth_code),
-                    email: wallet_info.email.or(vaulted_wallet_info.email),
+                    auth_code: wallet_info
+                        .auth_code
+                        .clone()
+                        .or(vaulted_wallet_info.auth_code),
+                    email: wallet_info.email.clone().or(vaulted_wallet_info.email),
                     provider_details: payment_methods::WalletProviderDetails::merge(
-                        wallet_info.provider_details,
+                        wallet_info.provider_details.clone(),
                         vaulted_wallet_info.provider_details,
                     ),
                 },
@@ -9410,6 +9453,8 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                             Some(domain::PaymentMethodsData::WalletDetails(info)) => info,
                             None => payment_methods::PaymentMethodDataWalletInfo {
                                 last4: None,
+                                device_pan_bin: None,
+                                device_pan_extended_bin: None,
                                 card_network: None,
                                 card_type: None,
                                 card_exp_month: None,

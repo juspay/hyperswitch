@@ -361,6 +361,26 @@ impl DatabaseBackedConfig for EnableExtendedCardBin {
     }
 }
 
+#[cfg(feature = "v2")]
+config! {
+    superposition_key = ENABLE_EXTENDED_DEVICE_PAN_BIN,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::GlobalCustomerId
+}
+
+#[cfg(feature = "v2")]
+impl DatabaseBackedConfig for EnableExtendedDevicePanBin {
+    const KEY: &'static str = "enable_extended_device_pan_bin";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_profile_id()
+            .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
+    }
+}
+
 config! {
     superposition_key = PAYMENT_BLOCKLIST_GUARD,
     output = bool,

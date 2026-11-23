@@ -3195,6 +3195,8 @@ pub(crate) fn get_paypal_wallet_info(
             payer_id,
         } if email.is_some() || payer_id.is_some() => Some(PaymentMethodDataWalletInfo {
             last4: None,
+            device_pan_bin: None,
+            device_pan_extended_bin: None,
             card_network: None,
             card_type: None,
             card_exp_month: None,
@@ -3227,6 +3229,8 @@ pub async fn prepare_saved_wallet_data_from_connector_response(
                 (email, payer_id) => {
                     let mut wallet_info = PaymentMethodDataWalletInfo {
                         last4: None,
+                        device_pan_bin: None,
+                        device_pan_extended_bin: None,
                         card_network: None,
                         card_type: None,
                         card_exp_month: None,
