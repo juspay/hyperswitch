@@ -184,9 +184,8 @@ pub struct ConfigMetadata {
     pub workspace_id: Option<InputData>,
     pub merchant_id: Option<MerchantIdConfig>,
     /// Rapid Connect: Merchant ID and Datawire ID keyed by payment channel
-    pub merchant_details: Option<
-        HashMap<api_models::enums::PaymentChannel, PaymentChannelMerchantDetailsConfig>,
-    >,
+    pub merchant_details:
+        Option<HashMap<api_models::enums::PaymentChannel, PaymentChannelMerchantDetailsConfig>>,
     pub endpoint_prefix: Option<InputData>,
     pub mcc: Option<InputData>,
     pub merchant_country_code: Option<InputData>,
