@@ -1990,6 +1990,10 @@ pub fn build_unified_connector_service_payment_method(
             ) => {
                 Some(payments_grpc::token_payment_method_type::TokenPaymentMethod::GooglePay.into())
             }
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::PayLater(
+                hyperswitch_domain_models::payment_method_data::PayLaterData::KlarnaRedirect {}
+                | hyperswitch_domain_models::payment_method_data::PayLaterData::KlarnaSdk { .. },
+            ) => Some(payments_grpc::token_payment_method_type::TokenPaymentMethod::Klarna.into()),
             _ => None,
         };
         return Ok(payments_grpc::PaymentMethod {
