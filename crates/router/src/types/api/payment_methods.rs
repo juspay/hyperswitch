@@ -167,6 +167,13 @@ impl PaymentMethodSessionExt for api_models::payment_methods::PaymentMethodSessi
                     && self.payment_method_subtype
                         == Some(api_models::enums::PaymentMethodType::ApplePay)
             }
+            api_models::payment_methods::PaymentMethodSessionData::Wallet(
+                api_models::payment_methods::PaymentMethodSessionWalletData::GooglePay(_),
+            ) => {
+                self.payment_method_type == api_models::enums::PaymentMethod::Wallet
+                    && self.payment_method_subtype
+                        == Some(api_models::enums::PaymentMethodType::GooglePay)
+            }
         };
         utils::when(!matches_method, || {
             Err(report!(errors::ApiErrorResponse::InvalidRequestData {

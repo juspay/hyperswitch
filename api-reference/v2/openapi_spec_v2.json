@@ -17458,6 +17458,84 @@
           "UNKNOWN"
         ]
       },
+      "GooglePayCreateData": {
+        "type": "object",
+        "description": "Google Pay create accepts existing wallet metadata or encrypted DIRECT token data.\nEncrypted input uses the linked profile resource, or the merchant default when absent.",
+        "properties": {
+          "last4": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_network": {
+            "type": "string",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "provider_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WalletProviderDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "info": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/GooglePayPaymentMethodInfo"
+              }
+            ],
+            "nullable": true
+          },
+          "tokenization_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodSessionGooglePayTokenizationData"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "GooglePayCryptogramData": {
+        "type": "object",
+        "description": "One-purchase Google Pay authentication data; never included in durable wallet data.",
+        "required": [
+          "cryptogram"
+        ],
+        "properties": {
+          "cryptogram": {
+            "type": "string"
+          },
+          "eci_indicator": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "GooglePayDecrypt": {
         "type": "object",
         "required": [
@@ -25805,6 +25883,49 @@
           }
         }
       },
+      "PaymentMethodSessionGooglePayData": {
+        "type": "object",
+        "description": "Encrypted Google Pay DIRECT input for session confirmation; no payment is authorized.\nUses the profile's linked resource, or the merchant default when profile configuration is absent.",
+        "required": [
+          "type",
+          "description",
+          "info",
+          "tokenization_data"
+        ],
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "info": {
+            "$ref": "#/components/schemas/GooglePayPaymentMethodInfo"
+          },
+          "tokenization_data": {
+            "$ref": "#/components/schemas/PaymentMethodSessionGooglePayTokenizationData"
+          }
+        }
+      },
+      "PaymentMethodSessionGooglePayTokenizationData": {
+        "type": "object",
+        "required": [
+          "type",
+          "token"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Google's tokenization type; session confirmation accepts DIRECT only.",
+            "example": "DIRECT"
+          },
+          "token": {
+            "type": "string",
+            "description": "Google-issued encrypted ECv2 token JSON. Decrypted credentials are not accepted."
+          }
+        },
+        "additionalProperties": false
+      },
       "PaymentMethodSessionRequest": {
         "type": "object",
         "required": [
@@ -26023,6 +26144,17 @@
             "properties": {
               "apple_pay": {
                 "$ref": "#/components/schemas/PaymentMethodSessionApplePayData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "google_pay"
+            ],
+            "properties": {
+              "google_pay": {
+                "$ref": "#/components/schemas/PaymentMethodSessionGooglePayData"
               }
             }
           }
@@ -32048,6 +32180,22 @@
                   },
                   "expiry_year": {
                     "type": "string"
+                  },
+                  "auth_method": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/GooglePayAuthMethod"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "payment_data": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/GooglePayCryptogramData"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -38581,6 +38729,14 @@
                   "expiry_year": {
                     "type": "string",
                     "description": "The card's expiry year"
+                  },
+                  "auth_method": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/GooglePayAuthMethod"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -38644,7 +38800,7 @@
             ],
             "properties": {
               "google_pay": {
-                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+                "$ref": "#/components/schemas/GooglePayCreateData"
               }
             }
           },

@@ -7430,8 +7430,8 @@ pub struct EncryptedData {
     signature: String,
     intermediate_signing_key: IntermediateSigningKey,
     protocol_version: GooglePayProtocolVersion,
-    #[serde(with = "common_utils::custom_serde::json_string")]
-    signed_message: GooglePaySignedMessage,
+    // Google's signature covers the original string, including JSON escapes and field ordering.
+    signed_message: hyperswitch_masking::Secret<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -7580,9 +7580,14 @@ impl GooglePayTokenDecryptor {
             self.verify_signature(&encrypted_data)?;
         }
 
-        let ephemeral_public_key = encrypted_data.signed_message.ephemeral_public_key.peek();
-        let tag = encrypted_data.signed_message.tag.peek();
-        let encrypted_message = encrypted_data.signed_message.encrypted_message.peek();
+        let signed_message: GooglePaySignedMessage = encrypted_data
+            .signed_message
+            .peek()
+            .parse_struct("GooglePaySignedMessage")
+            .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
+        let ephemeral_public_key = signed_message.ephemeral_public_key.peek();
+        let tag = signed_message.tag.peek();
+        let encrypted_message = signed_message.encrypted_message.peek();
 
         // derive the shared key
         let shared_key = self.get_shared_key(ephemeral_public_key)?;
@@ -7811,15 +7816,11 @@ impl GooglePayTokenDecryptor {
         let sender_id = String::from_utf8(consts::SENDER_ID.to_vec())
             .change_context(errors::GooglePayDecryptionError::DeserializationFailed)?;
 
-        // serialize the signed message to string
-        let signed_message = serde_json::to_string(&encrypted_data.signed_message)
-            .change_context(errors::GooglePayDecryptionError::SignedKeyParsingFailure)?;
-
         // construct the signed data
         let signed_data = self.construct_signed_data_for_signature_verification(
             &sender_id,
             consts::PROTOCOL,
-            &signed_message,
+            encrypted_data.signed_message.peek(),
         )?;
 
         // hash the signed data

@@ -555,6 +555,7 @@ pub async fn get_payout_method_data_generic(
                             application_primary_account_number,
                             expiry_month,
                             expiry_year,
+                            auth_method: _,
                         } => Ok(Some(payouts::PayoutMethodData::Wallet(
                             api_models::payouts::Wallet::GooglePayDecrypt(
                                 api_models::payouts::GooglePayDecrypt {

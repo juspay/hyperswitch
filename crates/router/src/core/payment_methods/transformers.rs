@@ -1893,26 +1893,34 @@ impl
                         application_primary_account_number,
                         expiry_month,
                         expiry_year,
-                    } => domain::WalletData::GooglePay(domain::GooglePayWalletData {
-                        pm_type: card_type,
-                        description: String::new(),
-                        info: domain::GooglePayPaymentMethodInfo {
-                            card_network,
-                            card_details: last4,
-                            assurance_details: None,
-                            card_funding_source: None,
-                        },
-                        tokenization_data: common_types::payments::GpayTokenizationData::Decrypted(
-                            common_types::payments::GPayPredecryptData {
-                                auth_method: None,
-                                card_exp_month: expiry_month,
-                                card_exp_year: expiry_year,
-                                application_primary_account_number,
-                                cryptogram: None,
-                                eci_indicator: None,
+                        auth_method,
+                        payment_data,
+                    } => {
+                        let (cryptogram, eci_indicator) = match payment_data {
+                            Some(data) => (Some(data.cryptogram), data.eci_indicator),
+                            None => (None, None),
+                        };
+                        domain::WalletData::GooglePay(domain::GooglePayWalletData {
+                            pm_type: card_type,
+                            description: String::new(),
+                            info: domain::GooglePayPaymentMethodInfo {
+                                card_network,
+                                card_details: last4,
+                                assurance_details: None,
+                                card_funding_source: None,
                             },
-                        ),
-                    }),
+                            tokenization_data: common_types::payments::GpayTokenizationData::Decrypted(
+                                common_types::payments::GPayPredecryptData {
+                                    auth_method,
+                                    card_exp_month: expiry_month,
+                                    card_exp_year: expiry_year,
+                                    application_primary_account_number,
+                                    cryptogram,
+                                    eci_indicator,
+                                },
+                            ),
+                        })
+                    },
                 };
 
                 Ok(Self(domain::PaymentMethodData::Wallet(wallet_data)))

@@ -265,6 +265,7 @@ impl PaymentMethodVaultingData {
                         application_primary_account_number,
                         expiry_month,
                         expiry_year,
+                        auth_method: _,
                     } => payment_methods::PaymentMethodDataWalletInfo {
                         last4: Some(application_primary_account_number.get_last4()),
                         card_network: None,
@@ -338,6 +339,7 @@ impl PaymentMethodVaultingData {
                         application_primary_account_number,
                         expiry_month,
                         expiry_year,
+                        auth_method: _,
                     } => (
                         application_primary_account_number.clone(),
                         expiry_month.clone(),
@@ -393,7 +395,9 @@ impl PaymentMethodVaultingData {
                 }
                 | payment_method_data::WalletDetail::GooglePayDecryptedData {
                     application_primary_account_number,
-                    ..
+                    expiry_month: _,
+                    expiry_year: _,
+                    auth_method: _,
                 },
             ) => AuxiliaryFingerprintData::CardNumber(application_primary_account_number.clone()),
             Self::BankRedirect(bank_redirect) => match bank_redirect {
