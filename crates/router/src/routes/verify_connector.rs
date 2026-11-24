@@ -1,6 +1,6 @@
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::verify_connector::VerifyConnectorRequest;
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 use super::AppState;
 use crate::{

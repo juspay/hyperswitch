@@ -115,6 +115,7 @@ where
         }
         Ok(api::ApplicationResponse::StatusOk) => api::http_response_ok(),
         Ok(api::ApplicationResponse::TextPlain(text)) => api::http_response_plaintext(text),
+        Ok(api::ApplicationResponse::Xml(xml)) => api::http_response_xml(xml),
         Ok(api::ApplicationResponse::FileData((file_data, content_type))) => {
             api::http_response_file_data(file_data, content_type)
         }
@@ -134,6 +135,7 @@ where
             let config = state.conf();
             api::build_redirection_form(
                 &redirection_data.redirect_form,
+                redirection_data.callback_url.as_ref(),
                 redirection_data.payment_method_data,
                 redirection_data.amount,
                 redirection_data.currency,

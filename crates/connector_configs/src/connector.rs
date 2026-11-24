@@ -154,6 +154,7 @@ pub enum MerchantIdConfig {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConfigMetadata {
     pub merchant_config_currency: Option<InputData>,
+    pub country_of_incorporation: Option<InputData>,
     pub merchant_account_id: Option<InputData>,
     pub account_name: Option<InputData>,
     pub account_type: Option<InputData>,
@@ -171,6 +172,8 @@ pub struct ConfigMetadata {
     pub boleto: Option<Vec<InputData>>,
     pub client_id: Option<InputData>,
     pub client_secret: Option<InputData>,
+    pub connector_client_id: Option<InputData>,
+    pub connector_currency_account_id: Option<InputData>,
     pub workspace_id: Option<InputData>,
     pub merchant_id: Option<MerchantIdConfig>,
     pub endpoint_prefix: Option<InputData>,
@@ -243,11 +246,46 @@ pub struct ConnectorWebhookRegisterDetailsConfig {
     pub event_types: Option<Vec<String>>,
 }
 
+/// Determines which Hyperswitch webhook endpoint a connector should use.
+/// Dashboard uses this to show the mTLS callback URL only for connectors that
+/// verify incoming webhook requests with mTLS.
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum WebhookUrlType {
+    /// Standard webhook endpoint.
+    #[default]
+    NonMtls,
+    /// mTLS-enabled webhook endpoint.
+    Mtls,
+}
+
+/// Wallet flow, based on who decrypts the wallet token
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WalletFlow {
+    /// The wallet token is decrypted by the connector
+    Encrypt,
+    /// The wallet token is decrypted by Hyperswitch or Merchant
+    Decrypt,
+}
+
+/// Input to be collected for `pay_via_single_use_token` of a payment method type
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct PayViaSingleUseTokenInputData {
+    /// Wallet flows for which the value has to be collected
+    pub flows: Vec<WalletFlow>,
+    #[serde(flatten)]
+    pub input_data: InputData,
+}
+
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConnectorTomlConfig {
     pub connector_auth: Option<ConnectorAuthType>,
     pub connector_webhook_details: Option<api_models::admin::MerchantConnectorWebhookDetails>,
+    #[serde(default)]
+    pub webhook_url_type: WebhookUrlType,
     pub metadata: Option<Box<ConfigMetadata>>,
     pub connector_wallets_details: Option<Box<ConnectorWalletDetailsConfig>>,
     pub connector_webhook_register_details: Option<ConnectorWebhookRegisterDetailsConfig>,
@@ -269,6 +307,9 @@ pub struct ConnectorTomlConfig {
     pub is_verifiable: Option<bool>,
     pub real_time_payment: Option<Vec<Provider>>,
     pub network_token: Option<Vec<Provider>>,
+    /// Inputs to be collected for `pay_via_single_use_token`, keyed by payment method type
+    pub pay_via_single_use_token:
+        Option<HashMap<api_models::enums::PaymentMethodType, PayViaSingleUseTokenInputData>>,
 }
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -306,6 +347,8 @@ pub struct ConnectorConfig {
     pub custombilling: Option<ConnectorTomlConfig>,
     pub checkbook: Option<ConnectorTomlConfig>,
     pub checkout: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub checkout_payout: Option<ConnectorTomlConfig>,
     pub coinbase: Option<ConnectorTomlConfig>,
     pub coingate: Option<ConnectorTomlConfig>,
     pub cryptopay: Option<ConnectorTomlConfig>,
@@ -394,6 +437,7 @@ pub struct ConnectorConfig {
     pub nuvei: Option<ConnectorTomlConfig>,
     pub paybox: Option<ConnectorTomlConfig>,
     pub paydotcom: Option<ConnectorTomlConfig>,
+    pub payhound: Option<ConnectorTomlConfig>,
     pub payload: Option<ConnectorTomlConfig>,
     pub payme: Option<ConnectorTomlConfig>,
     pub paynearme: Option<ConnectorTomlConfig>,
@@ -420,6 +464,7 @@ pub struct ConnectorConfig {
     pub rapyd: Option<ConnectorTomlConfig>,
     pub redsys: Option<ConnectorTomlConfig>,
     pub revolv3: Option<ConnectorTomlConfig>,
+    pub betterpayment: Option<ConnectorTomlConfig>,
     pub saferpay: Option<ConnectorTomlConfig>,
     pub sanlam_payshield: Option<ConnectorTomlConfig>,
     pub santander: Option<ConnectorTomlConfig>,
@@ -502,6 +547,7 @@ impl ConnectorConfig {
         match connector {
             PayoutConnectors::Adyen => Ok(connector_data.adyen_payout),
             PayoutConnectors::Adyenplatform => Ok(connector_data.adyenplatform_payout),
+            PayoutConnectors::Checkout => Ok(connector_data.checkout_payout),
             PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
             PayoutConnectors::Deutschebank => Ok(connector_data.deutschebank_payout),
             PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
@@ -682,6 +728,7 @@ impl ConnectorConfig {
             Connector::Nuvei => Ok(connector_data.nuvei),
             Connector::Paybox => Ok(connector_data.paybox),
             Connector::Paydotcom => Ok(connector_data.paydotcom),
+            Connector::Payhound => Ok(connector_data.payhound),
             Connector::Payload => Ok(connector_data.payload),
             Connector::Payme => Ok(connector_data.payme),
             Connector::Paynearme => Ok(connector_data.paynearme),
@@ -700,6 +747,7 @@ impl ConnectorConfig {
             Connector::Redsys => Ok(connector_data.redsys),
             Connector::Revolv3 => Ok(connector_data.revolv3),
             Connector::Riskified => Ok(connector_data.riskified),
+            Connector::Betterpayment => Ok(connector_data.betterpayment),
             Connector::Saferpay => Ok(connector_data.saferpay),
             Connector::SanlamPayshield => Ok(connector_data.sanlam_payshield),
             Connector::Santander => Ok(connector_data.santander),

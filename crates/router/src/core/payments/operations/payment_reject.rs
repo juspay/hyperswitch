@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use api_models::{enums::FrmSuggestion, payments::PaymentsCancelRequest};
 use async_trait::async_trait;
 use error_stack::ResultExt;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -150,7 +150,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, PaymentsCancelRequest
             .attach_printable("'profile_id' not set in payment intent")?;
 
         let business_profile = state
-            .store
+            .accounts_store
             .find_business_profile_by_profile_id(
                 platform.get_processor().get_key_store(),
                 profile_id,

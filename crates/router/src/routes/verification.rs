@@ -1,6 +1,6 @@
 use actix_web::{web, HttpRequest, Responder};
 use api_models::verifications;
-use router_env::{instrument, tracing, Flow};
+use router_env::{instrument, Flow};
 
 use super::app::AppState;
 use crate::{
@@ -116,6 +116,17 @@ pub async fn retrieve_apple_pay_verified_domains(
     let merchant_id = &params.merchant_id;
     let mca_id = &params.merchant_connector_account_id;
 
+    #[cfg(feature = "v1")]
+    let api_key_auth = auth::HeaderAuth(auth::ApiKeyAuth {
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
+    });
+    #[cfg(feature = "v2")]
+    let api_key_auth = auth::V2ApiKeyAuth {
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -145,10 +156,7 @@ pub async fn retrieve_apple_pay_verified_domains(
             }
         },
         auth::auth_type(
-            &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
-                allow_platform_self_operation: false,
-            }),
+            &api_key_auth,
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountRead,
                 allow_connected: true,

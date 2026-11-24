@@ -216,7 +216,7 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
     }
 
     /// Get the merchant's configured webhook verification secrets.
-    /// Returns an error when webhook details are not configured.
+    /// Returns an error when webhook details are not configured or the secret is blank.
     async fn get_webhook_source_verification_merchant_secret(
         &self,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -237,6 +237,12 @@ pub trait IncomingWebhook: ConnectorCommon + Sync {
                         format!(
                             "Deserializing MerchantConnectorWebhookDetails failed {debug_suffix}",
                         )
+                    })?;
+                connector_webhook_details
+                    .validate()
+                    .map_err(|_| errors::ConnectorError::WebhookVerificationSecretNotFound)
+                    .attach_printable_lazy(|| {
+                        format!("Merchant connector webhook secret is blank {debug_suffix}")
                     })?;
                 Ok(api_models::webhooks::ConnectorWebhookSecrets {
                     secret: connector_webhook_details

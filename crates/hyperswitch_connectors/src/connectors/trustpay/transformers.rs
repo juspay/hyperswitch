@@ -163,9 +163,9 @@ pub struct BankPaymentInformationResponse {
 
 #[derive(Debug, Serialize, Eq, PartialEq)]
 pub struct CallbackURLs {
-    pub success: String,
-    pub cancel: String,
-    pub error: String,
+    pub success: Secret<String>,
+    pub cancel: Secret<String>,
+    pub error: Secret<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -179,7 +179,7 @@ pub struct PaymentRequestCards {
     pub cardholder: Secret<String>,
     pub reference: String,
     #[serde(rename = "redirectUrl")]
-    pub redirect_url: String,
+    pub redirect_url: Secret<String>,
     #[serde(rename = "billing[city]")]
     pub billing_city: String,
     #[serde(rename = "billing[country]")]
@@ -245,7 +245,7 @@ pub struct PaymentRequestNetworkToken {
     #[serde(rename = "exp")]
     pub expiry_date: Secret<String>,
     #[serde(rename = "RedirectUrl")]
-    pub redirect_url: String,
+    pub redirect_url: Secret<String>,
     #[serde(rename = "threeDSecureEnrollmentStatus")]
     pub enrollment_status: char,
     #[serde(rename = "threeDSecureEci")]
@@ -344,7 +344,7 @@ fn get_card_request_data(
     params: TrustpayMandatoryParams,
     amount: StringMajorUnit,
     ccard: &Card,
-    return_url: String,
+    return_url: Secret<String>,
 ) -> Result<TrustpayPaymentsRequest, Error> {
     let email = item.request.get_email()?;
     let customer_ip_address = browser_info.get_ip_address()?;
@@ -470,7 +470,7 @@ fn get_bank_redirection_request_data(
                 debtor: get_debtor_info(item, pm, params)?,
             },
             callback_urls: CallbackURLs {
-                success: format!("{return_url}?status=SuccessOk"),
+                success: utils::append_url_query_param(&return_url, "status", "SuccessOk")?,
                 cancel: return_url.clone(),
                 error: return_url,
             },
@@ -504,7 +504,7 @@ fn get_bank_transfer_request_data(
                 debtor: get_bank_transfer_debtor_info(item, pm, params)?,
             },
             callback_urls: CallbackURLs {
-                success: format!("{return_url}?status=SuccessOk"),
+                success: utils::append_url_query_param(&return_url, "status", "SuccessOk")?,
                 cancel: return_url.clone(),
                 error: return_url,
             },
@@ -900,9 +900,12 @@ fn handle_cards_response(
 
     let form_fields = response.redirect_params.unwrap_or_default();
     let redirection_data = response.redirect_url.map(|url| RedirectForm::Form {
-        endpoint: url.to_string(),
+        endpoint: url.to_string().into(),
         method: Method::Post,
-        form_fields,
+        form_fields: (form_fields)
+            .into_iter()
+            .map(|(key, value)| (key, value.into()))
+            .collect(),
     });
     let error = if msg.is_some() {
         Some(ErrorResponse {

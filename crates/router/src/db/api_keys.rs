@@ -1,5 +1,5 @@
 use error_stack::report;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 #[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache::{self, CacheKind};
 
@@ -10,6 +10,7 @@ use crate::{
     types::storage,
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait ApiKeyInterface {
     async fn insert_api_key(

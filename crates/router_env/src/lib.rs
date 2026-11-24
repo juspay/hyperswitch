@@ -4,6 +4,8 @@
 
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 
+/// Origin of an operation within an async task.
+pub mod call_origin;
 /// Utilities to identify members of the current cargo workspace.
 pub mod cargo_workspace;
 pub mod env;
@@ -11,6 +13,8 @@ pub mod logger;
 pub mod metrics;
 #[cfg(feature = "actix_web")]
 pub mod request_id;
+#[cfg(feature = "actix_web")]
+pub mod request_path;
 #[cfg(feature = "actix_web")]
 pub mod root_span;
 /// `cargo` build instructions generation for obtaining information about the application

@@ -66,7 +66,7 @@ use hyperswitch_interfaces::connector_integration_interface::RouterDataConversio
 #[cfg(feature = "v2")]
 use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::{PeekInterface, Secret};
-use router_env::{instrument, tracing};
+use router_env::instrument;
 #[cfg(feature = "v2")]
 use storage_impl::behaviour::Conversion;
 use time::Duration;
@@ -94,7 +94,7 @@ use crate::{
     types::{
         api::{PaymentMethodCreateExt, PaymentMethodSessionExt},
         domain::types as domain_types,
-        storage::{ephemeral_key, PaymentMethodListContext},
+        storage::PaymentMethodListContext,
         transformers::{ForeignFrom, ForeignTryFrom},
         Tokenizable,
     },
@@ -4564,7 +4564,8 @@ pub async fn list_payment_methods_for_session(
         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
         .attach_printable("Unable to find payment method")?;
 
-    let payment_connector_accounts = db
+    let payment_connector_accounts = state
+        .accounts_store
         .list_enabled_connector_accounts_by_profile_id(
             profile.get_id(),
             platform.get_processor().get_key_store(),

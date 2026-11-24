@@ -4,7 +4,10 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::{
     core::{
         errors::{ApiErrorResponse, NotImplementedMessage, RouterResult},
-        payments::{self, access_token, helpers, transformers, PaymentData},
+        payments::{
+            self, access_token, callback_urls::ConnectorCallbackUrls, helpers, transformers,
+            PaymentData,
+        },
     },
     routes::SessionState,
     services,
@@ -27,6 +30,7 @@ impl ConstructFlowSpecificData<api::Reject, types::PaymentsRejectData, types::Pa
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
         _payment_method: Option<common_enums::PaymentMethod>,
         _payment_method_type: Option<common_enums::PaymentMethodType>,
+        connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<types::PaymentsRejectRouterData> {
         Box::pin(transformers::construct_payment_router_data::<
             api::Reject,
@@ -42,6 +46,7 @@ impl ConstructFlowSpecificData<api::Reject, types::PaymentsRejectData, types::Pa
             header_payload,
             None,
             None,
+            connector_callback_urls,
         ))
         .await
     }
@@ -56,6 +61,7 @@ impl ConstructFlowSpecificData<api::Reject, types::PaymentsRejectData, types::Pa
         merchant_connector_account: &domain::MerchantConnectorAccountTypeDetails,
         merchant_recipient_data: Option<types::MerchantRecipientData>,
         header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
+        _connector_callback_urls: &mut ConnectorCallbackUrls,
     ) -> RouterResult<types::PaymentsRejectRouterData> {
         todo!()
     }

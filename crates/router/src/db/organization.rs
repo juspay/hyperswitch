@@ -1,12 +1,14 @@
 use common_utils::{errors::CustomResult, id_type};
 use diesel_models::{organization as storage, organization::OrganizationBridge};
 use error_stack::report;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 #[cfg(feature = "accounts_cache")]
 use storage_impl::redis::cache::{self, CacheKind};
+use storage_impl::DatabaseStore;
 
-use crate::{connection, core::errors, services::Store};
+use crate::{core::errors, services::Store};
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait OrganizationInterface {
     async fn insert_organization(
@@ -33,7 +35,7 @@ impl OrganizationInterface for Store {
         &self,
         organization: storage::OrganizationNew,
     ) -> CustomResult<storage::Organization, errors::StorageError> {
-        let conn = connection::pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
         organization
             .insert(&conn)
             .await
@@ -46,7 +48,7 @@ impl OrganizationInterface for Store {
         org_id: &id_type::OrganizationId,
     ) -> CustomResult<storage::Organization, errors::StorageError> {
         let find_call = || async {
-            let conn = connection::pg_accounts_connection_read(self).await?;
+            let conn = self.pg_accounts_connection_read().await?;
             storage::Organization::find_by_org_id(&conn, org_id.to_owned())
                 .await
                 .map_err(|error| report!(errors::StorageError::from(error)))
@@ -75,7 +77,7 @@ impl OrganizationInterface for Store {
         org_id: &id_type::OrganizationId,
         update: storage::OrganizationUpdate,
     ) -> CustomResult<storage::Organization, errors::StorageError> {
-        let conn = connection::pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
         let update_call = || async {
             storage::Organization::update_by_org_id(&conn, org_id.to_owned(), update)
                 .await

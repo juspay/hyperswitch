@@ -1,6 +1,6 @@
 use diesel_models::ConfigNew;
 use error_stack::ResultExt;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 use super::{MockDb, Store};
 use crate::{
@@ -9,6 +9,7 @@ use crate::{
     types::storage,
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait HealthCheckDbInterface {
     async fn health_check_db(&self) -> CustomResult<(), errors::HealthCheckDBError>;

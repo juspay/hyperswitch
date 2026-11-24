@@ -2,7 +2,9 @@ pub mod transformers;
 use std::sync::LazyLock;
 
 use base64::Engine;
-use common_enums::{enums, CaptureMethod, PaymentMethod, PaymentMethodType};
+use common_enums::{
+    enums, CallConnectorAction, CaptureMethod, PaymentAction, PaymentMethod, PaymentMethodType,
+};
 use common_utils::{
     consts::BASE64_ENGINE,
     errors::{self as common_errors, CustomResult},
@@ -24,8 +26,8 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RedirectCallback,
+        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -34,8 +36,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     errors,
@@ -728,6 +730,21 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Hipay {
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
+    }
+}
+
+impl ConnectorRedirectResponse for Hipay {
+    fn get_notification_callback(&self) -> Option<RedirectCallback> {
+        Some(RedirectCallback::Response)
+    }
+
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        _json_payload: Option<Value>,
+        _action: PaymentAction,
+    ) -> CustomResult<CallConnectorAction, errors::ConnectorError> {
+        Ok(CallConnectorAction::Trigger)
     }
 }
 

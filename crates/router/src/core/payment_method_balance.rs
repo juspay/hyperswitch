@@ -328,7 +328,7 @@ pub async fn payments_check_and_apply_pm_data_core(
 }
 
 #[instrument(skip_all)]
-pub async fn persist_individual_pm_balance_details_in_redis<'a>(
+pub async fn persist_individual_pm_balance_details_in_redis(
     state: &SessionState,
     business_profile: &domain::Profile,
     pm_balance_data: &domain::PaymentMethodBalanceData<'_>,

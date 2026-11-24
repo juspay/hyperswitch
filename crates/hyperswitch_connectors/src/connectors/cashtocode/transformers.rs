@@ -32,8 +32,8 @@ pub struct CashtocodePaymentsRequest {
     first_name: Option<Secret<String>>,
     last_name: Option<Secret<String>>,
     user_alias: Secret<id_type::CustomerId>,
-    requested_url: String,
-    cancel_url: String,
+    requested_url: Secret<String>,
+    cancel_url: Secret<String>,
     email: Option<Email>,
     mid: Secret<String>,
 }
@@ -64,7 +64,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, FloatMajorUnit)> for CashtocodePayme
     ) -> Result<Self, Self::Error> {
         let customer_id = item.get_customer_id()?;
         let url = match env::which() {
-            Env::Development => "https://example.com".to_string(),
+            Env::Development => "https://example.com".to_string().into(),
             _ => item.request.get_router_return_url()?,
         };
         let mid = get_mid(
@@ -213,7 +213,7 @@ fn get_redirect_form_data(
     match payment_method_type {
         enums::PaymentMethodType::ClassicReward => Ok(RedirectForm::Form {
             //redirect form is manually constructed because the connector for this pm type expects query params in the url
-            endpoint: response_data.pay_url.to_string(),
+            endpoint: response_data.pay_url.to_string().into(),
             method: Method::Post,
             form_fields: Default::default(),
         }),

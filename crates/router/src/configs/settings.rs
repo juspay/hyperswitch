@@ -8,7 +8,8 @@ use std::{
 use analytics::{opensearch::OpenSearchConfig, ReportConfig};
 use api_models::enums;
 use common_enums;
-use common_utils::{ext_traits::ConfigExt, id_type, types::user::EmailThemeConfig};
+use common_types::{primitive_wrappers::SafeString, user::theme::EmailThemeConfig};
+use common_utils::{ext_traits::ConfigExt, id_type, types::Url};
 use config::{Environment, File};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
@@ -37,9 +38,10 @@ use hyperswitch_masking::{Maskable, PeekInterface, Secret};
 pub use payment_methods::configs::{
     settings::{
         BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields,
-        EligiblePaymentMethods, InstallmentConfig, Installments, Mandates, PaymentMethodAuth,
-        PaymentMethodType, RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
-        SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
+        CrossCurrencyMitSupportedConnectors, EligiblePaymentMethods, InstallmentConfig,
+        Installments, Mandates, PaymentMethodAuth, PaymentMethodType, RequiredFieldFinal,
+        RequiredFields, SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
+        SupportedPaymentMethodsForMandate, ZeroMandates,
     },
     AuthenticationServiceConfig, MicroServicesConfig,
 };
@@ -104,7 +106,7 @@ pub struct Settings<S: SecretState> {
     pub connectors: Connectors,
     pub forex_api: SecretStateContainer<ForexApi, S>,
     pub refund: Refund,
-    pub eph_key: EphemeralConfig,
+    pub eph_key: ClientSecretConfig,
     pub scheduler: Option<SchedulerSettings>,
     #[cfg(feature = "kv_store")]
     pub drainer: DrainerSettings,
@@ -1020,6 +1022,16 @@ pub struct UserSettings {
     pub force_two_factor_auth: bool,
     pub force_cookies: bool,
     pub idle_session_timeout_in_secs: Option<u32>,
+    #[serde(default)]
+    pub accept_password_on_signup_with_merchant_id: bool,
+    pub internal_merchant_id: id_type::MerchantId,
+    pub email_token_expiry_in_secs: u64,
+    pub password_max_attempts: u16,
+    pub password_lock_duration_in_secs: i64,
+    pub forgot_password_max_attempts: u16,
+    pub forgot_password_attempts_window_in_secs: i64,
+    pub signup_disabled: bool,
+    pub signup_contact_email: String,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -1166,7 +1178,7 @@ pub struct Refund {
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(default)]
-pub struct EphemeralConfig {
+pub struct ClientSecretConfig {
     pub validity: i64,
 }
 
@@ -1565,6 +1577,7 @@ impl Settings<SecuredSecret> {
             .with_list_parse_key("redis.cluster_urls")
             .with_list_parse_key("events.kafka.brokers")
             .with_list_parse_key("connectors.supported.wallets")
+            .with_list_parse_key("mandates.cross_currency_mit_supported_connectors.connector_list")
             .with_list_parse_key("report_download_config.process_tracker.email_bcc")
             .with_list_parse_key("report_download_config.process_tracker_reports")
             .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id");
@@ -1846,10 +1859,29 @@ impl Default for CellInformation {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ThemeSettings {
     pub storage: FileStorageConfig,
     pub email_config: EmailThemeConfig,
+}
+
+impl Default for ThemeSettings {
+    fn default() -> Self {
+        Self {
+            storage: FileStorageConfig::default(),
+            email_config: EmailThemeConfig {
+                entity_name: SafeString::default(),
+                #[allow(clippy::expect_used)]
+                entity_logo_url: Url::wrap(
+                    url::Url::parse("https://example.com/Logo.png")
+                        .expect("Failed to parse default email entity logo URL"),
+                ),
+                primary_color: SafeString::default(),
+                foreground_color: SafeString::default(),
+                background_color: SafeString::default(),
+            },
+        }
+    }
 }
 
 fn deserialize_hashmap_inner<K, V>(
@@ -2024,6 +2056,8 @@ impl<'de> Deserialize<'de> for TenantConfig {
         #[derive(Deserialize)]
         struct Inner {
             base_url: String,
+            #[serde(default)]
+            mtls_base_url: Option<String>,
             schema: String,
             accounts_schema: String,
             redis_key_prefix: String,
@@ -2042,6 +2076,7 @@ impl<'de> Deserialize<'de> for TenantConfig {
                         Tenant {
                             tenant_id: key,
                             base_url: value.base_url,
+                            mtls_base_url: value.mtls_base_url,
                             schema: value.schema,
                             accounts_schema: value.accounts_schema,
                             redis_key_prefix: value.redis_key_prefix,

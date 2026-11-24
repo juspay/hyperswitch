@@ -38,7 +38,7 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, tracing, tracing::Instrument};
 use unified_connector_service_client::payments as payments_grpc;
 
-use super::{source_verification::IncomingWebhookVerifier, types, MERCHANT_ID};
+use super::{source_verification::IncomingWebhookVerifier, MERCHANT_ID};
 use crate::{
     consts,
     core::{
@@ -75,7 +75,7 @@ use crate::{
 use crate::{core::payouts, types::storage::PayoutAttemptUpdate};
 
 #[allow(clippy::too_many_arguments)]
-pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
+pub async fn incoming_webhooks_wrapper(
     state: SessionState,
     req_state: ReqState,
     req: &actix_web::HttpRequest,
@@ -85,7 +85,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     is_relay_webhook: bool,
 ) -> RouterResponse<serde_json::Value> {
     let (webhook_response, webhooks_response_tracker, serialized_req) =
-        Box::pin(incoming_webhooks_core::<W>(
+        Box::pin(incoming_webhooks_core(
             state.clone(),
             req_state,
             req,
@@ -119,7 +119,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
 }
 
 #[cfg(feature = "v1")]
-pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
+pub async fn network_token_incoming_webhooks_wrapper(
     state: SessionState,
     req: &actix_web::HttpRequest,
     body: actix_web::web::Bytes,
@@ -133,7 +133,7 @@ pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookTy
     };
 
     let (webhook_response, webhooks_response_tracker, serialized_req, _merchant_id) = Box::pin(
-        network_token_incoming_webhooks_core::<W>(&state, request_details),
+        network_token_incoming_webhooks_core(&state, request_details),
     )
     .await?;
 
@@ -174,7 +174,7 @@ fn confirm_path_for_flow(
 
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
+async fn incoming_webhooks_core(
     state: SessionState,
     req_state: ReqState,
     req: &actix_web::HttpRequest,
@@ -187,6 +187,9 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     WebhookResponseTracker,
     common_utils::pii::SecretSerdeValue,
 )> {
+    let merchant_connector_account =
+        validate_webhook_connector_account(&state, &platform, connector_name_or_mca_id).await?;
+
     // Initial setup and metrics
     metrics::WEBHOOK_INCOMING_COUNT.add(
         1,
@@ -212,9 +215,14 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     // If Yes, then it will return UnifiedAuthenticationService
     // If No, then it will return Direct
     // Direct Signifies its not a authentication connector
-    let three_ds_execution_path =
-        fetch_three_ds_execution_path(&platform, connector_name_or_mca_id, &state, &dimensions)
-            .await?;
+    let three_ds_execution_path = fetch_three_ds_execution_path(
+        &platform,
+        connector_name_or_mca_id,
+        merchant_connector_account,
+        &state,
+        &dimensions,
+    )
+    .await?;
 
     // Each arm resolves its path (UAS vs Direct/UCS) and returns a
     // `WebhookOutcome`, the network verification decision, and the connector/name
@@ -465,11 +473,16 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 async fn fetch_three_ds_execution_path(
     platform: &domain::Platform,
     connector_name_or_mca_id: &str,
+    merchant_connector_account: Option<domain::MerchantConnectorAccount>,
     state: &SessionState,
     _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
 ) -> errors::RouterResult<ThreeDsProcessingMode> {
-    let (merchant_connector_account, connector, connector_name) =
-        fetch_optional_mca_and_connector(state, platform, connector_name_or_mca_id).await?;
+    let (connector, connector_name) = match &merchant_connector_account {
+        Some(mca) => {
+            get_connector_by_connector_name(state, &mca.connector_name, Some(mca.get_id()))?
+        }
+        None => get_connector_by_connector_name(state, connector_name_or_mca_id, None)?,
+    };
 
     let mca_details = MerchantConnectorDetails {
         merchant_connector_account,
@@ -580,7 +593,7 @@ async fn process_webhook_business_logic(
     let profile_id = &merchant_connector_account.profile_id;
 
     let business_profile = state
-        .store
+        .accounts_store
         .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
@@ -847,7 +860,7 @@ fn handle_incoming_webhook_error(
 
 #[instrument(skip_all)]
 #[cfg(feature = "v1")]
-async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
+async fn network_token_incoming_webhooks_core(
     state: &SessionState,
     request_details: IncomingWebhookRequestDetails<'_>,
 ) -> errors::RouterResult<(
@@ -1286,6 +1299,7 @@ async fn process_payout_incoming_webhook(
         None,
         &action_req,
         common_utils::consts::DEFAULT_LOCALE,
+        false,
     ))
     .await?;
 
@@ -1353,6 +1367,7 @@ async fn payout_incoming_webhook_update_status(
             &payout_data.payouts,
             payouts_update,
             payout_attempt,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await
@@ -2572,13 +2587,16 @@ async fn update_payment_method_mandate_status(
     let updated_mandate_details = updated_mandate_details
         .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable("no updated mandate details for payment method")?;
-    let connector_mandate_id = updated_mandate_details
+    let mandate_record = updated_mandate_details
         .payments
         .as_ref()
         .and_then(|payments| payments.get(merchant_connector_id))
-        .map(|mandate_record| mandate_record.connector_mandate_id.clone())
         .ok_or(errors::ApiErrorResponse::WebhookProcessingFailure)
-        .attach_printable("connector mandate id not found for payment method mandate webhook")?;
+        .attach_printable("mandate record not found for payment method mandate webhook")?;
+    let connector_mandate_id = mandate_record.connector_mandate_id.clone();
+    let mandate_metadata = mandate_record.mandate_metadata.clone();
+    let mandate_amount = mandate_record.original_payment_authorized_amount;
+    let mandate_currency = mandate_record.original_payment_authorized_currency;
     let connector_mandate_details_value = updated_mandate_details
         .get_mandate_details_value()
         .map_err(|err| {
@@ -2622,6 +2640,10 @@ async fn update_payment_method_mandate_status(
         let mandate_response = api::mandates::MandateResponse {
             mandate_id: connector_mandate_id.clone(),
             payment_id: Some(payment_id.clone()),
+            amount: mandate_amount.map(common_utils::types::MinorUnit::new),
+            currency: mandate_currency,
+            profile_id: Some(business_profile.get_id().to_owned()),
+            mandate_metadata,
             status: mandate_status,
             payment_method_id: payment_method_id.to_string(),
             payment_method: payment_method_name,
@@ -3531,61 +3553,44 @@ pub fn get_connector_by_connector_name(
     Ok((connector, connector_name))
 }
 
-/// This function fetches the merchant connector account ( if the url used is /{merchant_connector_id})
-/// if merchant connector id is not passed in the request, then this will return None for mca
-async fn fetch_optional_mca_and_connector(
+/// Validates the merchant's connector account and returns it when the URL identifies it by ID.
+async fn validate_webhook_connector_account(
     state: &SessionState,
     platform: &domain::Platform,
     connector_name_or_mca_id: &str,
-) -> CustomResult<
-    (
-        Option<domain::MerchantConnectorAccount>,
-        ConnectorEnum,
-        String,
-    ),
-    errors::ApiErrorResponse,
-> {
-    let db = &state.store;
-    if connector_name_or_mca_id.starts_with("mca_") {
-        #[cfg(feature = "v1")]
-        let mca = db
+) -> CustomResult<Option<domain::MerchantConnectorAccount>, errors::ApiErrorResponse> {
+    if Connector::from_str(connector_name_or_mca_id).is_err() {
+        let merchant_connector_id = common_utils::id_type::MerchantConnectorAccountId::wrap(
+            connector_name_or_mca_id.to_owned(),
+        )
+        .change_context(errors::ApiErrorResponse::Unauthorized)?;
+        let mca = state
+            .accounts_store
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                 platform.get_processor().get_account().get_id(),
-                &common_utils::id_type::MerchantConnectorAccountId::wrap(
-                    connector_name_or_mca_id.to_owned(),
-                )
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Error while converting MerchanConnectorAccountId from string
-                    ",
-                )?,
+                &merchant_connector_id,
                 platform.get_processor().get_key_store(),
             )
             .await
-            .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: connector_name_or_mca_id.to_string(),
-            })
-            .attach_printable(
-                "error while fetching merchant_connector_account from connector_id",
-            )?;
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        #[cfg(feature = "v2")]
-        let mca: domain::MerchantConnectorAccount = {
-            let _ = merchant_account;
-            let _ = key_store;
-            let _ = db;
-            todo!()
-        };
-
-        let (connector, connector_name) =
-            get_connector_by_connector_name(state, &mca.connector_name, Some(mca.get_id()))?;
-
-        Ok((Some(mca), connector, connector_name))
+        Ok(Some(mca))
     } else {
-        // Merchant connector account is already being queried, it is safe to set connector id as None
-        let (connector, connector_name) =
-            get_connector_by_connector_name(state, connector_name_or_mca_id, None)?;
-        Ok((None, connector, connector_name))
+        let accounts = state
+            .accounts_store
+            .find_merchant_connector_account_by_merchant_id_connector_name(
+                platform.get_processor().get_account().get_id(),
+                connector_name_or_mca_id,
+                platform.get_processor().get_key_store(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
+        if accounts.is_empty() {
+            return Err(report!(errors::ApiErrorResponse::Unauthorized));
+        }
+
+        // The webhook resource determines which matching account to use.
+        Ok(None)
     }
 }
 

@@ -16,7 +16,7 @@ use api_models::payment_methods::{
 };
 use common_utils::{consts, ext_traits::AsyncExt, generate_id, id_type};
 use error_stack::ResultExt;
-use router_env::{instrument, logger, tracing, Flow};
+use router_env::{instrument, logger, Flow};
 
 use crate::{
     configs::settings::CustomerAcceptanceSupportConfig,
@@ -288,7 +288,7 @@ impl CustomerPaymentMethodsFetcher for ModularCustomerPaymentMethodsFetcher {
         // issued a mandate token is still enabled for this profile — mirroring the
         // `get_mca_status` check performed in the legacy DB flow.
         let merchant_connector_accounts = state
-            .store
+            .accounts_store
             .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
                 &merchant_id,
                 &self.profile_id,
@@ -430,7 +430,8 @@ async fn load_payment_intent_context(
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("'profile_id' not set in payment intent")?;
 
-    let business_profile = db
+    let business_profile = state
+        .accounts_store
         .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {

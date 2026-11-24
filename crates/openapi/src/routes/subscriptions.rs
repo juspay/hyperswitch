@@ -302,7 +302,8 @@ pub async fn get_subscription_items() {}
         ("plan_id" = String, Query, description = "Plan ID for estimation"),
         ("customer_id" = Option<String>, Query, description = "Customer ID for personalized pricing"),
         ("coupon_id" = Option<String>, Query, description = "Coupon ID to apply discount"),
-        ("trial_days" = Option<u32>, Query, description = "Number of trial days")
+        ("trial_days" = Option<u32>, Query, description = "Number of trial days"),
+        ("client_secret" = Option<String>, Query, description = "Subscription client secret; required when authenticating with a publishable key")
     ),
     responses(
         (status = 200, description = "Estimate retrieved successfully", body = EstimateSubscriptionResponse),
@@ -311,7 +312,7 @@ pub async fn get_subscription_items() {}
     ),
     tag = "Subscriptions",
     operation_id = "Get Subscription Estimate",
-    security(("api_key" = []))
+    security(("api_key" = []), ("client_secret" = []))
 )]
 pub async fn get_estimate() {}
 

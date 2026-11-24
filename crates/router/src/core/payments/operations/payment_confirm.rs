@@ -27,12 +27,9 @@ use tracing_futures::Instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 #[cfg(feature = "v1")]
+use crate::routes::payments::callback_routes::ConnectorCallbackPath;
 use crate::{
     consts,
-    core::utils::create_encrypted_data,
-    events::audit_events::{AuditEvent, AuditEventType},
-};
-use crate::{
     core::{
         authentication,
         blocklist::utils as blocklist_utils,
@@ -53,8 +50,10 @@ use crate::{
             types::{ClickToPay, UnifiedAuthenticationService},
         },
         utils as core_utils,
+        utils::create_encrypted_data,
     },
-    routes::{app::ReqState, SessionState},
+    events::audit_events::{AuditEvent, AuditEventType},
+    routes::{app::ReqState, payments::callback_routes::PaymentCallbackRoute, SessionState},
     services,
     types::{
         api::{self, ConnectorCallType, PaymentIdTypeExt},
@@ -215,7 +214,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("'profile_id' not set in payment intent")?;
 
-        let store = state.store.clone();
+        let profile_state = state.clone();
         let key_store_clone = platform.get_processor().get_key_store().clone();
 
         // Each fork below gets its own span rather than the caller's. These are
@@ -226,7 +225,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         // naming each fork writes it down.
         let business_profile_fut = tokio::spawn(
             async move {
-                store
+                profile_state
+                    .accounts_store
                     .find_business_profile_by_profile_id(&key_store_clone, &profile_id)
                     .map(|business_profile_result| {
                         business_profile_result.to_not_found_response(
@@ -562,6 +562,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .unwrap_or(Ok(payment_intent.request_incremental_authorization))?;
         payment_intent.enable_avs_check =
             request.enable_avs_check.or(payment_intent.enable_avs_check);
+        payment_intent.enable_account_name_verification = request
+            .enable_account_name_verification
+            .or(payment_intent.enable_account_name_verification);
         payment_intent.enable_partial_authorization = request
             .enable_partial_authorization
             .or(payment_intent.enable_partial_authorization);
@@ -612,24 +615,49 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .instrument(tracing::debug_span!("additional_pm_data")),
         );
 
+        let use_saved_pm_billing = helpers::should_use_saved_payment_method_billing(
+            state,
+            dimensions,
+            platform.get_processor().get_account().get_id(),
+            billing_address
+                .as_ref()
+                .map(hyperswitch_domain_models::address::Address::from)
+                .is_some_and(|billing| billing.has_location_details()),
+        )
+        .await;
+
         let n_payment_method_billing_address_id =
             payment_attempt.payment_method_billing_address_id.clone();
+
+        // A payment created with a saved payment method and no billing already has the saved
+        // billing persisted on the attempt, so overwrite it with the request billing when that is preferred.
+        let should_replace_persisted_saved_billing = !use_saved_pm_billing
+            && n_payment_method_billing_address_id.is_some()
+            && (request.payment_token.is_some() || payment_attempt.payment_token.is_some());
 
         let n_request_payment_method_billing_address = request
             .payment_method_data
             .as_ref()
             .and_then(|pmd| pmd.billing.clone())
-            .or(payment_method_with_raw_data.clone().and_then(|pm| {
-                pm.payment_method
-                    .payment_method_billing_address
-                    .clone()
-                    .map(|decrypted_data| decrypted_data.into_inner().expose())
-                    .and_then(|decrypted_value| {
-                        decrypted_value
-                            .parse_value("payment method billing address")
-                            .ok()
-                    })
-            }));
+            .or(payment_method_with_raw_data
+                .clone()
+                .filter(|_| use_saved_pm_billing)
+                .and_then(|pm| {
+                    pm.payment_method
+                        .payment_method_billing_address
+                        .clone()
+                        .map(|decrypted_data| decrypted_data.into_inner().expose())
+                        .and_then(|decrypted_value| {
+                            decrypted_value
+                                .parse_value("payment method billing address")
+                                .ok()
+                        })
+                }))
+            .or(billing_address
+                .as_ref()
+                .filter(|_| should_replace_persisted_saved_billing)
+                .map(hyperswitch_domain_models::address::Address::from)
+                .map(api_models::payments::Address::from));
         let m_payment_intent_customer_id = payment_intent.customer_id.clone();
         let m_payment_intent_payment_id = payment_intent.payment_id.clone();
         let m_key_store = platform.get_processor().get_key_store().clone();
@@ -714,13 +742,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         helpers::validate_pm_or_token_given(
-            &request.payment_method,
+            request.payment_method,
             &request
                 .payment_method_data
                 .as_ref()
                 .and_then(|pmd| pmd.payment_method_data.clone()),
-            &request.payment_method_type,
-            &mandate_type,
+            request.payment_method_type,
+            mandate_type,
             &token,
             &request.ctp_service_details,
         )?;
@@ -871,18 +899,21 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 payment_method_data_billing.get_billing_address()
             })
             .map(From::from);
-        let pm_pmd_billing = payment_method_info.as_ref().and_then(|pm| {
-            pm.payment_method_billing_address
-                .clone()
-                .map(|decrypted_data| decrypted_data.into_inner().expose())
-                .and_then(|decrypted_value| {
-                    decrypted_value
-                        .parse_value::<hyperswitch_domain_models::address::Address>(
-                            "payment method billing address",
-                        )
-                        .ok()
-                })
-        });
+        let pm_pmd_billing = payment_method_info
+            .as_ref()
+            .filter(|_| use_saved_pm_billing)
+            .and_then(|pm| {
+                pm.payment_method_billing_address
+                    .clone()
+                    .map(|decrypted_data| decrypted_data.into_inner().expose())
+                    .and_then(|decrypted_value| {
+                        decrypted_value
+                            .parse_value::<hyperswitch_domain_models::address::Address>(
+                                "payment method billing address",
+                            )
+                            .ok()
+                    })
+            });
 
         // billing address from request body has the highest priority followed by billing address from raw pm data and then billing address from payment_attempt
         let pmd_address = payment_method_data_billing.or(pm_pmd_billing);
@@ -900,14 +931,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         mandate_id: None,
                         mandate_reference_id: Some(
                             mandates::MandateReferenceId::ConnectorMandateId(
-                                ConnectorMandateReferenceId::new(
-                                    Some(token.processor_payment_token.clone()), // connector_mandate_id
-                                    None, // payment_method_id
-                                    None, // update_history
-                                    None, // mandate_metadata
-                                    None, // connector_mandate_request_reference_id
-                                    None,
-                                ),
+                                ConnectorMandateReferenceId::from(token),
                             ),
                         ),
                     })
@@ -1055,6 +1079,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         request: &api::PaymentsRequest,
         payment_data: &mut PaymentData<F>,
         business_profile: &domain::Profile,
+        dimensions: &dimension_state::DimensionsWithProcessorMerchantIdAndOrgIdAndProfileId,
     ) -> RouterResult<()> {
         let payment_method_data: Option<&api_models::payments::PaymentMethodData> = request
             .payment_method_data
@@ -1074,6 +1099,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         card.card_number.clone(),
                         customer_id,
                         business_profile,
+                        dimensions,
                     )
                     .await?;
                 Ok(())
@@ -1086,6 +1112,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         card.card_number.clone(),
                         customer_id,
                         business_profile,
+                        dimensions,
                     )
                     .await?;
                 Ok(())
@@ -2032,13 +2059,11 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         field_name: "authentication_product_ids".into(),
                     })?;
                     let merchant_id = &business_profile.merchant_id;
-                    let connector_mca = state
-                        .store
-                        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                            merchant_id,
-                            &click_to_pay_mca_id,
-                            platform.get_processor().get_key_store(),
-                        )
+                    let connector_mca = state.accounts_store.find_by_merchant_connector_account_merchant_id_merchant_connector_id(
+                                merchant_id,
+                                &click_to_pay_mca_id,
+                                platform.get_processor().get_key_store(),
+                            )
                         .await
                         .to_not_found_response(
                             errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -2181,11 +2206,16 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     authentication::utils::get_authentication_connector_data(state, platform.get_processor(), business_profile, None).await?;
 
 
-            let return_url = helpers::create_authorize_url(
+            let return_url = PaymentCallbackRoute::authorize_url(
                 &state.base_url,
-                &payment_data.payment_attempt.clone(),
-                payment_data.payment_attempt.connector.as_ref().get_required_value("connector")?,
-            );
+                state.payment_callback_config().await?.mode,
+                &ConnectorCallbackPath {
+                    payment_id: payment_data.payment_attempt.payment_id.clone(),
+                    merchant_id: payment_data.payment_attempt.processor_merchant_id.clone(),
+                    connector: payment_data.payment_attempt.connector.as_ref()
+                        .get_required_value("connector")?.to_string(),
+                },
+            ).persist(state).await?;
 
             let domain_address  = payment_data.address.get_payment_method_billing().map(|address| address.clone().foreign_into());
             let shipping = payment_data.address.get_shipping().map(|address| address.clone().foreign_into());
@@ -2321,6 +2351,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     let auth_create_resp = crate::core::unified_authentication_service::authentication_create_core(
                         state.clone(),
                         platform.clone(),
+                        Some(business_profile.get_id().clone()),
                         auth_req
                     ).await?
                     .get_json_body()
@@ -2332,6 +2363,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     let elig_resp = Box::pin(crate::core::unified_authentication_service::authentication_eligibility_core(
                         state.clone(),
                         platform.clone(),
+                        Some(business_profile.get_id().clone()),
                         eligibility_req,
                         auth_create_resp.authentication_id.clone(),
                     )).await?
@@ -2432,6 +2464,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         let resp = Box::pin(crate::core::unified_authentication_service::authentication_sync_core(
                             state.clone(),
                             platform.clone(),
+                            Some(business_profile.get_id().clone()),
                             services::api::AuthFlow::Merchant,
                             sync_req,
                         ))
@@ -3201,12 +3234,25 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_intent
                             .is_account_funded_transaction,
                         recipient_details: payment_data.payment_intent.recipient_details.clone(),
+                        sender_details: payment_data.payment_intent.sender_details.clone(),
                         payment_channel: payment_data.payment_intent.payment_channel,
                         feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
                         tax_status: payment_data.payment_intent.tax_status,
                         discount_amount: payment_data.payment_intent.discount_amount,
                         order_date: payment_data.payment_intent.order_date,
                         shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
+                        value_added_tax_amount: payment_data.payment_intent.value_added_tax_amount,
+                        value_added_tax_percent: payment_data
+                            .payment_intent
+                            .value_added_tax_percent,
+                        vat_invoice_reference_number: payment_data
+                            .payment_intent
+                            .vat_invoice_reference_number
+                            .clone(),
+                        order_commodity_code: payment_data
+                            .payment_intent
+                            .order_commodity_code
+                            .clone(),
                         duty_amount: payment_data.payment_intent.duty_amount,
                         enable_partial_authorization: payment_data
                             .payment_intent
@@ -3228,6 +3274,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_intent
                             .external_surcharge_applicable,
                         enable_avs_check: payment_data.payment_intent.enable_avs_check,
+                        enable_account_name_verification: payment_data
+                            .payment_intent
+                            .enable_account_name_verification,
                         settlement_conclusion_applied: payment_data
                             .payment_intent
                             .settlement_conclusion_applied,

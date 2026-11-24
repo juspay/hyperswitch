@@ -3,11 +3,12 @@ use common_types::primitive_wrappers;
 #[cfg(feature = "v2")]
 use common_utils::errors::ParsingError;
 #[cfg(feature = "v2")]
-use common_utils::ext_traits::{Encode, ValueExt};
+use common_utils::ext_traits::Encode;
 use common_utils::{
     crypto::Encryptable,
     encryption::Encryption,
     errors::{CustomResult, ValidationError},
+    ext_traits::ValueExt,
     id_type,
     pii::{self, Email},
     type_name,
@@ -18,6 +19,7 @@ use common_utils::{
 };
 use diesel_models::{
     PaymentIntent as DieselPaymentIntent, PaymentIntentNew as DieselPaymentIntentNew,
+    ValueAddedTaxDetails,
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
@@ -43,6 +45,7 @@ use crate::{
 #[cfg(feature = "v1")]
 use crate::{errors, RemoteStorageObject};
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait PaymentIntentInterface {
     type Error;
@@ -275,7 +278,9 @@ pub struct PaymentIntentUpdateFields {
     pub external_surcharge_strategy: Option<common_enums::SurchargeStrategy>,
     pub external_surcharge_applicable: Option<bool>,
     pub enable_avs_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
     pub settlement_conclusion_applied: Option<bool>,
+    pub sender_details: Option<Encryptable<api_models::sender::SenderDetails>>,
 }
 
 #[cfg(feature = "v1")]
@@ -316,7 +321,11 @@ pub struct PaymentIntentUpdateFields {
     pub discount_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
     pub shipping_amount_tax: Option<MinorUnit>,
+    pub value_added_tax_amount: Option<MinorUnit>,
+    pub value_added_tax_percent: Option<f64>,
     pub duty_amount: Option<MinorUnit>,
+    pub order_commodity_code: Option<String>,
+    pub vat_invoice_reference_number: Option<String>,
     pub is_confirm_operation: bool,
     pub payment_channel: Option<common_enums::PaymentChannel>,
     pub feature_metadata: Option<Secret<serde_json::Value>>,
@@ -329,7 +338,9 @@ pub struct PaymentIntentUpdateFields {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub sender_details: Option<Encryptable<api_models::sender::SenderDetails>>,
     pub enable_avs_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
     pub settlement_conclusion_applied: Option<bool>,
 }
 
@@ -555,7 +566,11 @@ pub struct PaymentIntentUpdateInternal {
     pub discount_amount: Option<MinorUnit>,
     pub order_date: Option<PrimitiveDateTime>,
     pub shipping_amount_tax: Option<MinorUnit>,
+    pub value_added_tax_amount: Option<MinorUnit>,
+    pub value_added_tax_percent: Option<f64>,
     pub duty_amount: Option<MinorUnit>,
+    pub order_commodity_code: Option<String>,
+    pub vat_invoice_reference_number: Option<String>,
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
     pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
     pub shipping_cost: Option<MinorUnit>,
@@ -566,7 +581,9 @@ pub struct PaymentIntentUpdateInternal {
     pub external_surcharge_applicable: Option<bool>,
     pub is_account_funded_transaction: Option<bool>,
     pub recipient_details: Option<Encryptable<Secret<serde_json::Value>>>,
+    pub sender_details: Option<Encryptable<api_models::sender::SenderDetails>>,
     pub enable_avs_check: Option<bool>,
+    pub enable_account_name_verification: Option<bool>,
     pub settlement_conclusion_applied: Option<bool>,
 }
 
@@ -626,7 +643,9 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
                 enable_avs_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
+                sender_details: None,
             }),
 
             PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -680,7 +699,9 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
                 enable_avs_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
+                sender_details: None,
             }),
             PaymentIntentUpdate::SyncUpdate {
                 status,
@@ -732,7 +753,9 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
                 enable_avs_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
+                sender_details: None,
             }),
             PaymentIntentUpdate::CaptureUpdate {
                 status,
@@ -784,7 +807,9 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
                 enable_avs_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
+                sender_details: None,
             }),
             PaymentIntentUpdate::SessionIntentUpdate {
                 prerouting_algorithm,
@@ -839,7 +864,9 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
                 enable_avs_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
+                sender_details: None,
             }),
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
                 let PaymentIntentUpdateFields {
@@ -884,7 +911,9 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     external_surcharge_strategy,
                     external_surcharge_applicable,
                     enable_avs_check,
+                    enable_account_name_verification,
                     settlement_conclusion_applied,
+                    sender_details,
                 } = *boxed_intent;
                 Ok(Self {
                     status: None,
@@ -938,7 +967,9 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     external_surcharge_strategy,
                     external_surcharge_applicable,
                     enable_avs_check,
+                    enable_account_name_verification,
                     settlement_conclusion_applied,
+                    sender_details: sender_details.map(Encryption::from),
                 })
             }
             PaymentIntentUpdate::RecordUpdate {
@@ -993,7 +1024,9 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
                 enable_avs_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
+                sender_details: None,
             }),
             PaymentIntentUpdate::VoidUpdate { status, updated_by } => Ok(Self {
                 status: Some(status),
@@ -1042,7 +1075,9 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
                 enable_avs_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
+                sender_details: None,
             }),
             PaymentIntentUpdate::AttemptGroupUpdate {
                 updated_by,
@@ -1094,7 +1129,9 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
                 enable_avs_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
+                sender_details: None,
             }),
             PaymentIntentUpdate::SplitPaymentStatusUpdate { status, updated_by } => Ok(Self {
                 status: Some(status),
@@ -1142,7 +1179,9 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
                 enable_avs_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
+                sender_details: None,
             }),
         }
     }
@@ -1195,7 +1234,10 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: value.discount_amount,
                 order_date: value.order_date,
                 shipping_amount_tax: value.shipping_amount_tax,
+                value_added_tax_amount: value.value_added_tax_amount,
+                value_added_tax_percent: value.value_added_tax_percent,
                 duty_amount: value.duty_amount,
+                order_commodity_code: value.order_commodity_code.clone(),
                 installment_options: value.installment_options,
                 external_surcharge_strategy: None,
                 external_surcharge_applicable: None,
@@ -1417,7 +1459,11 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: None,
                 order_date: None,
                 shipping_amount_tax: None,
+                value_added_tax_amount: None,
+                value_added_tax_percent: None,
                 duty_amount: None,
+                order_commodity_code: None,
+                vat_invoice_reference_number: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
@@ -1427,7 +1473,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                sender_details: None,
                 enable_avs_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
             },
             PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => Self {
@@ -1478,7 +1526,11 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 discount_amount: None,
                 order_date: None,
                 shipping_amount_tax: None,
+                value_added_tax_amount: None,
+                value_added_tax_percent: None,
                 duty_amount: None,
+                order_commodity_code: None,
+                vat_invoice_reference_number: None,
                 enable_partial_authorization: None,
                 enable_overcapture: None,
                 shipping_cost: None,
@@ -1488,7 +1540,9 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 external_surcharge_applicable: None,
                 is_account_funded_transaction: None,
                 recipient_details: None,
+                sender_details: None,
                 enable_avs_check: None,
+                enable_account_name_verification: None,
                 settlement_conclusion_applied: None,
             },
         }
@@ -1589,7 +1643,16 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     discount_amount: value.discount_amount,
                     order_date: value.order_date,
                     shipping_amount_tax: value.shipping_amount_tax,
+                    value_added_tax_details: (value.value_added_tax_amount.is_some()
+                        || value.value_added_tax_percent.is_some()
+                        || value.vat_invoice_reference_number.is_some())
+                    .then(|| ValueAddedTaxDetails {
+                        value_added_tax_amount: value.value_added_tax_amount,
+                        value_added_tax_percent: value.value_added_tax_percent,
+                        vat_invoice_reference_number: value.vat_invoice_reference_number.clone(),
+                    }),
                     duty_amount: value.duty_amount,
+                    order_commodity_code: value.order_commodity_code.clone(),
                     enable_partial_authorization: value.enable_partial_authorization,
                     enable_overcapture: value.enable_overcapture,
                     shipping_cost: value.shipping_cost,
@@ -1601,7 +1664,9 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     external_surcharge_applicable: None,
                     is_account_funded_transaction: value.is_account_funded_transaction,
                     recipient_details: value.recipient_details.map(Encryption::from),
+                    sender_details: value.sender_details.map(Encryption::from),
                     enable_avs_check: value.enable_avs_check,
+                    enable_account_name_verification: value.enable_account_name_verification,
                     settlement_conclusion_applied: value.settlement_conclusion_applied,
                 }))
             }
@@ -1787,7 +1852,11 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             discount_amount,
             order_date,
             shipping_amount_tax,
+            value_added_tax_amount,
+            value_added_tax_percent,
+            vat_invoice_reference_number,
             duty_amount,
+            order_commodity_code,
             enable_partial_authorization,
             enable_overcapture,
             shipping_cost,
@@ -1798,7 +1867,9 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             external_surcharge_applicable,
             is_account_funded_transaction,
             recipient_details,
+            sender_details,
             enable_avs_check,
+            enable_account_name_verification,
             settlement_conclusion_applied,
         } = value;
         Self {
@@ -1849,7 +1920,16 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             discount_amount,
             order_date,
             shipping_amount_tax,
+            value_added_tax_details: (value_added_tax_amount.is_some()
+                || value_added_tax_percent.is_some()
+                || vat_invoice_reference_number.is_some())
+            .then(|| ValueAddedTaxDetails {
+                value_added_tax_amount,
+                value_added_tax_percent,
+                vat_invoice_reference_number: vat_invoice_reference_number.clone(),
+            }),
             duty_amount,
+            order_commodity_code,
             enable_partial_authorization,
             enable_overcapture,
             shipping_cost,
@@ -1861,7 +1941,9 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             external_surcharge_applicable,
             is_account_funded_transaction,
             recipient_details: recipient_details.map(Encryption::from),
+            sender_details: sender_details.map(Encryption::from),
             enable_avs_check,
+            enable_account_name_verification,
             settlement_conclusion_applied,
         }
     }
@@ -2319,7 +2401,9 @@ impl behaviour::Conversion for PaymentIntent {
             external_surcharge_applicable,
             is_account_funded_transaction,
             recipient_details,
+            sender_details,
             enable_avs_check,
+            enable_account_name_verification,
             mit_category,
             settlement_conclusion_applied,
         } = self;
@@ -2423,7 +2507,9 @@ impl behaviour::Conversion for PaymentIntent {
             tax_status: None,
             discount_amount: None,
             shipping_amount_tax: None,
+            value_added_tax_details: None,
             duty_amount: None,
+            order_commodity_code: None,
             order_date: None,
             enable_partial_authorization: Some(enable_partial_authorization),
             enable_overcapture: None,
@@ -2438,7 +2524,9 @@ impl behaviour::Conversion for PaymentIntent {
             external_surcharge_applicable,
             is_account_funded_transaction,
             recipient_details: recipient_details.map(Encryption::from),
+            sender_details: sender_details.map(Encryption::from),
             enable_avs_check,
+            enable_account_name_verification,
             settlement_conclusion_applied,
         })
     }
@@ -2461,6 +2549,7 @@ impl behaviour::Conversion for PaymentIntent {
                         shipping_address: storage_model.shipping_address,
                         customer_details: storage_model.customer_details,
                         recipient_details: storage_model.recipient_details,
+                        sender_details: storage_model.sender_details,
                     },
                 )),
                 key_manager_identifier,
@@ -2599,7 +2688,16 @@ impl behaviour::Conversion for PaymentIntent {
                 external_surcharge_applicable: storage_model.external_surcharge_applicable,
                 is_account_funded_transaction: storage_model.is_account_funded_transaction,
                 recipient_details: data.recipient_details,
+                sender_details: data
+                    .sender_details
+                    .map(|sender| {
+                        sender.deserialize_inner_value(|value| value.parse_value("SenderDetails"))
+                    })
+                    .transpose()
+                    .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                    .attach_printable("Error while deserializing SenderDetails")?,
                 enable_avs_check: storage_model.enable_avs_check,
+                enable_account_name_verification: storage_model.enable_account_name_verification,
                 mit_category: storage_model.mit_category,
                 settlement_conclusion_applied: storage_model.settlement_conclusion_applied,
             })
@@ -2705,7 +2803,9 @@ impl behaviour::Conversion for PaymentIntent {
             discount_amount: None,
             mit_category: self.mit_category,
             shipping_amount_tax: None,
+            value_added_tax_details: None,
             duty_amount: None,
+            order_commodity_code: None,
             order_date: None,
             enable_partial_authorization: Some(self.enable_partial_authorization),
             tokenization: None,
@@ -2718,7 +2818,9 @@ impl behaviour::Conversion for PaymentIntent {
             external_surcharge_applicable: self.external_surcharge_applicable,
             is_account_funded_transaction: self.is_account_funded_transaction,
             recipient_details: self.recipient_details.map(Encryption::from),
+            sender_details: self.sender_details.map(Encryption::from),
             enable_avs_check: self.enable_avs_check,
+            enable_account_name_verification: self.enable_account_name_verification,
             settlement_conclusion_applied: self.settlement_conclusion_applied,
         })
     }
@@ -2800,7 +2902,16 @@ impl behaviour::Conversion for PaymentIntent {
             discount_amount: self.discount_amount,
             order_date: self.order_date,
             shipping_amount_tax: self.shipping_amount_tax,
+            value_added_tax_details: (self.value_added_tax_amount.is_some()
+                || self.value_added_tax_percent.is_some()
+                || self.vat_invoice_reference_number.is_some())
+            .then(|| ValueAddedTaxDetails {
+                value_added_tax_amount: self.value_added_tax_amount,
+                value_added_tax_percent: self.value_added_tax_percent,
+                vat_invoice_reference_number: self.vat_invoice_reference_number.clone(),
+            }),
             duty_amount: self.duty_amount,
+            order_commodity_code: self.order_commodity_code.clone(),
             enable_partial_authorization: self.enable_partial_authorization,
             enable_overcapture: self.enable_overcapture,
             mit_category: self.mit_category,
@@ -2816,7 +2927,9 @@ impl behaviour::Conversion for PaymentIntent {
             external_surcharge_applicable: self.external_surcharge_applicable,
             is_account_funded_transaction: self.is_account_funded_transaction,
             recipient_details: self.recipient_details.map(Encryption::from),
+            sender_details: self.sender_details.map(Encryption::from),
             enable_avs_check: self.enable_avs_check,
+            enable_account_name_verification: self.enable_account_name_verification,
             settlement_conclusion_applied: self.settlement_conclusion_applied,
         })
     }
@@ -2840,6 +2953,7 @@ impl behaviour::Conversion for PaymentIntent {
                         shipping_details: storage_model.shipping_details,
                         customer_details: storage_model.customer_details,
                         recipient_details: storage_model.recipient_details,
+                        sender_details: storage_model.sender_details,
                     },
                 )),
                 key_manager_identifier,
@@ -2924,7 +3038,20 @@ impl behaviour::Conversion for PaymentIntent {
                 tax_status: storage_model.tax_status,
                 discount_amount: storage_model.discount_amount,
                 shipping_amount_tax: storage_model.shipping_amount_tax,
+                value_added_tax_amount: storage_model
+                    .value_added_tax_details
+                    .as_ref()
+                    .and_then(|vat| vat.value_added_tax_amount),
+                value_added_tax_percent: storage_model
+                    .value_added_tax_details
+                    .as_ref()
+                    .and_then(|vat| vat.value_added_tax_percent),
                 duty_amount: storage_model.duty_amount,
+                order_commodity_code: storage_model.order_commodity_code.clone(),
+                vat_invoice_reference_number: storage_model
+                    .value_added_tax_details
+                    .as_ref()
+                    .and_then(|vat| vat.vat_invoice_reference_number.clone()),
                 order_date: storage_model.order_date,
                 enable_partial_authorization: storage_model.enable_partial_authorization,
                 enable_overcapture: storage_model.enable_overcapture,
@@ -2940,7 +3067,16 @@ impl behaviour::Conversion for PaymentIntent {
                 external_surcharge_applicable: storage_model.external_surcharge_applicable,
                 is_account_funded_transaction: storage_model.is_account_funded_transaction,
                 recipient_details: data.recipient_details,
+                sender_details: data
+                    .sender_details
+                    .map(|sender| {
+                        sender.deserialize_inner_value(|value| value.parse_value("SenderDetails"))
+                    })
+                    .transpose()
+                    .change_context(common_utils::errors::CryptoError::DecodingFailed)
+                    .attach_printable("Error while deserializing SenderDetails")?,
                 enable_avs_check: storage_model.enable_avs_check,
+                enable_account_name_verification: storage_model.enable_account_name_verification,
                 settlement_conclusion_applied: storage_model.settlement_conclusion_applied,
             })
         }
@@ -3020,7 +3156,16 @@ impl behaviour::Conversion for PaymentIntent {
             discount_amount: self.discount_amount,
             order_date: self.order_date,
             shipping_amount_tax: self.shipping_amount_tax,
+            value_added_tax_details: (self.value_added_tax_amount.is_some()
+                || self.value_added_tax_percent.is_some()
+                || self.vat_invoice_reference_number.is_some())
+            .then(|| ValueAddedTaxDetails {
+                value_added_tax_amount: self.value_added_tax_amount,
+                value_added_tax_percent: self.value_added_tax_percent,
+                vat_invoice_reference_number: self.vat_invoice_reference_number.clone(),
+            }),
             duty_amount: self.duty_amount,
+            order_commodity_code: self.order_commodity_code.clone(),
             enable_partial_authorization: self.enable_partial_authorization,
             enable_overcapture: self.enable_overcapture,
             mit_category: self.mit_category,
@@ -3036,7 +3181,9 @@ impl behaviour::Conversion for PaymentIntent {
             external_surcharge_applicable: self.external_surcharge_applicable,
             is_account_funded_transaction: self.is_account_funded_transaction,
             recipient_details: self.recipient_details.map(Encryption::from),
+            sender_details: self.sender_details.map(Encryption::from),
             enable_avs_check: self.enable_avs_check,
+            enable_account_name_verification: self.enable_account_name_verification,
             settlement_conclusion_applied: self.settlement_conclusion_applied,
         })
     }
