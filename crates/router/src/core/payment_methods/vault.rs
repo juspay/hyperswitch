@@ -2869,6 +2869,7 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
         storage::PaymentTokenData::BankDebit(bank_debit_token_data) => {
             bank_debit_token_data.payment_method_id
         }
+        storage::PaymentTokenData::WalletToken(wallet) => wallet.payment_method_id,
         storage::PaymentTokenData::TemporaryGeneric(_) => {
             Err(errors::ApiErrorResponse::NotImplemented {
                 message: errors::NotImplementedMessage::Reason(
@@ -2993,6 +2994,138 @@ pub async fn insert_cvc_using_payment_token(
         );
 
     Ok(card_token_cvc_storage)
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize)]
+struct GooglePayCryptogramRef<'a> {
+    cryptogram: &'a hyperswitch_masking::Secret<String>,
+    eci_indicator: Option<&'a str>,
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn store_google_pay_cryptogram(
+    state: &routes::SessionState,
+    payment_reference: hyperswitch_masking::Secret<&str>,
+    cryptogram: Option<&hyperswitch_masking::Secret<String>>,
+    eci_indicator: Option<&str>,
+    fulfillment_time: i64,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<()> {
+    match cryptogram {
+        Some(cryptogram) => {
+            let cryptogram = GooglePayCryptogramRef {
+                cryptogram,
+                eci_indicator,
+            };
+            store_wallet_cryptogram(
+                state,
+                payment_reference,
+                &cryptogram,
+                fulfillment_time,
+                key_store,
+                PaymentMethodType::GooglePay,
+            )
+            .await
+        }
+        None => Ok(()),
+    }
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub async fn consume_google_pay_cryptogram(
+    state: &routes::SessionState,
+    payment_reference: &str,
+    key_store: &domain::MerchantKeyStore,
+) -> RouterResult<Option<api_models::payment_methods::GooglePayCryptogramData>> {
+    consume_wallet_cryptogram(
+        state,
+        payment_reference,
+        key_store,
+        PaymentMethodType::GooglePay,
+    )
+    .await
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+async fn store_wallet_cryptogram<T>(
+    state: &routes::SessionState,
+    payment_reference: hyperswitch_masking::Secret<&str>,
+    data: &T,
+    fulfillment_time: i64,
+    key_store: &domain::MerchantKeyStore,
+    wallet_type: PaymentMethodType,
+) -> RouterResult<()>
+where
+    T: std::fmt::Debug + serde::Serialize + Sync,
+{
+    let connection = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get Redis connection to store wallet cryptogram")?;
+    let encrypted: Encryption = core_utils::create_encrypted_data(
+        &state.into(),
+        key_store,
+        data,
+        common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to encrypt wallet cryptogram")?
+    .into();
+    let key = format!(
+        "pm_token_{}_hyperswitch_{wallet_type}_cryptogram",
+        payment_reference.peek(),
+    );
+    connection
+        .serialize_and_set_key_with_expiry(&key.into(), encrypted, fulfillment_time)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to store wallet cryptogram")
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+async fn consume_wallet_cryptogram<T>(
+    state: &routes::SessionState,
+    payment_reference: &str,
+    key_store: &domain::MerchantKeyStore,
+    wallet_type: PaymentMethodType,
+) -> RouterResult<Option<T>>
+where
+    T: serde::de::DeserializeOwned,
+{
+    let connection = state
+        .store
+        .get_redis_conn()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get Redis connection to consume wallet cryptogram")?;
+    let key = format!("pm_token_{payment_reference}_hyperswitch_{wallet_type}_cryptogram");
+    let payload = connection
+        .consume_key(&key.into())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to consume wallet cryptogram")?;
+    match payload {
+        Some(payload) => {
+            let encrypted: Encryption = serde_json::from_str(&payload)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Invalid encrypted wallet cryptogram")?;
+            pm_cards::decrypt_generic_data(state, Some(encrypted), key_store)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to decrypt wallet cryptogram")?
+                .get_required_value("wallet cryptogram")
+                .map(Some)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Decrypted wallet cryptogram is missing")
+        }
+        None => Ok(None),
+    }
 }
 
 #[instrument(skip_all)]
