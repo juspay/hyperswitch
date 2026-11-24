@@ -38,9 +38,10 @@ use hyperswitch_masking::{Maskable, PeekInterface, Secret};
 pub use payment_methods::configs::{
     settings::{
         BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields,
-        EligiblePaymentMethods, InstallmentConfig, Installments, Mandates, PaymentMethodAuth,
-        PaymentMethodType, RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
-        SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
+        CrossCurrencyMitSupportedConnectors, EligiblePaymentMethods, InstallmentConfig,
+        Installments, Mandates, PaymentMethodAuth, PaymentMethodType, RequiredFieldFinal,
+        RequiredFields, SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
+        SupportedPaymentMethodsForMandate, ZeroMandates,
     },
     AuthenticationServiceConfig, MicroServicesConfig,
 };
@@ -1030,6 +1031,7 @@ pub struct UserSettings {
     pub forgot_password_max_attempts: u16,
     pub forgot_password_attempts_window_in_secs: i64,
     pub signup_disabled: bool,
+    pub signup_contact_email: String,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -1575,6 +1577,7 @@ impl Settings<SecuredSecret> {
             .with_list_parse_key("redis.cluster_urls")
             .with_list_parse_key("events.kafka.brokers")
             .with_list_parse_key("connectors.supported.wallets")
+            .with_list_parse_key("mandates.cross_currency_mit_supported_connectors.connector_list")
             .with_list_parse_key("report_download_config.process_tracker.email_bcc")
             .with_list_parse_key("report_download_config.process_tracker_reports")
             .with_list_parse_key("connector_request_reference_id_config.merchant_ids_send_payment_id_as_connector_request_id");
