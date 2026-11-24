@@ -78,12 +78,16 @@ impl CardsInfoInterface for MockDb {
     type Error = StorageError;
     #[instrument(skip_all)]
     async fn get_card_info(&self, card_iin: &str) -> CustomResult<Option<CardInfo>, StorageError> {
-        Ok(self
-            .cards_info
-            .lock()
-            .await
+        let cards_info = self.cards_info.lock().await;
+        Ok(cards_info
             .iter()
             .find(|ci| ci.card_iin == card_iin)
+            .or_else(|| {
+                card_iin
+                    .get(..6)
+                    .filter(|_| card_iin.len() == 8)
+                    .and_then(|card_iin| cards_info.iter().find(|ci| ci.card_iin == card_iin))
+            })
             .cloned())
     }
 
