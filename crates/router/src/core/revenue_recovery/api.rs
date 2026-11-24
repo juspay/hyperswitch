@@ -223,15 +223,20 @@ pub async fn record_internal_attempt_api(
         })?;
 
     let connector_accounts = get_connector_accounts_for_retry(revenue_recovery_metadata)?;
+    let connector_details = RecoveryConnectorDetails::ConnectorAccounts(connector_accounts);
+    let gsm_record = revenue_recovery_attempt_data
+        .get_recovery_gsm_record(state, connector_details.get_connector())
+        .await;
 
     let request_payload = revenue_recovery_attempt_data
         .create_payment_record_request(
             state,
-            &RecoveryConnectorDetails::ConnectorAccounts(connector_accounts),
+            &connector_details,
             common_enums::TriggeredBy::Internal,
             None,
             None,
             None,
+            gsm_record.as_ref(),
         )
         .await
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {

@@ -1,5 +1,6 @@
 use common_enums::{CardNetwork, CardType, StandardisedCode};
 use hyperswitch_domain_models::{
+    gsm::GatewayStatusMap,
     payments::payment_attempt::PaymentAttempt,
     revenue_recovery::{
         retry_stats_cluster_key::{Dim, RetryStatsClusterKey},
@@ -9,7 +10,11 @@ use hyperswitch_domain_models::{
 use router_env::logger;
 use time::PrimitiveDateTime;
 
-use crate::{consts, core::payments::helpers, routes::SessionState};
+use crate::{
+    consts,
+    core::{payments::helpers, revenue_recovery::types::REVENUE_RECOVERY},
+    routes::SessionState,
+};
 
 pub struct RetryOutcomeEvent {
     pub key: RetryStatsClusterKey,
@@ -98,8 +103,8 @@ pub async fn resolve_standardised_error_code_from_attempt(
 
 /// Resolve the standardised error code from an attempt's connector + error fields.
 ///
-/// The code is resolved from the GSM table using the connector + error code, keyed on
-/// the Payment/Authorize flow. Returns `None` when no GSM record matches or the
+/// The code is read from the revenue recovery GSM row of the connector + error code, the row
+/// that also says whether the decline is hard. Returns `None` when no GSM record matches or the
 /// connector/error code is absent; the recorder maps that to the `Unknown` dimension.
 ///
 /// Called at ingestion time (the revenue-recovery webhook) where these fields are in
@@ -118,24 +123,15 @@ pub async fn resolve_standardised_error_code(
             let gsm_record = helpers::get_gsm_record(
                 state,
                 connector,
-                consts::PAYMENT_FLOW_STR,
-                consts::AUTHORIZE_FLOW_STR,
+                REVENUE_RECOVERY,
+                consts::DEFAULT_SUBFLOW_STR,
                 Some(error_code.clone()),
                 error_message,
                 network_decline_code,
                 card_network,
             )
             .await;
-
-            let standardised_code = gsm_record.and_then(|record| record.standardised_code);
-            if standardised_code.is_none() {
-                logger::warn!(
-                    connector_error_code = error_code,
-                    "revenue_recovery_retry_stats: no standardised code resolved from GSM for \
-                     the attempt's error; recording error_code dimension as Unknown"
-                );
-            }
-            standardised_code
+            get_standardised_code(gsm_record.as_ref(), &error_code)
         }
         (error_code, connector) => {
             logger::warn!(
@@ -147,4 +143,20 @@ pub async fn resolve_standardised_error_code(
             None
         }
     }
+}
+
+/// The standardised error code on the revenue recovery GSM row of an error, if the row has one.
+pub fn get_standardised_code(
+    gsm_record: Option<&GatewayStatusMap>,
+    error_code: &str,
+) -> Option<StandardisedCode> {
+    let standardised_code = gsm_record.and_then(|record| record.standardised_code);
+    if standardised_code.is_none() {
+        logger::warn!(
+            connector_error_code = error_code,
+            "revenue_recovery_retry_stats: no standardised code resolved from GSM for \
+             the attempt's error; recording error_code dimension as Unknown"
+        );
+    }
+    standardised_code
 }

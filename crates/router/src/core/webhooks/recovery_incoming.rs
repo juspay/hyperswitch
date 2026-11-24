@@ -9,6 +9,7 @@ use diesel_models::process_tracker as storage;
 use error_stack::{report, ResultExt};
 use futures::stream::SelectNextSome;
 use hyperswitch_domain_models::{
+    gsm::GatewayStatusMap,
     payments as domain_payments,
     revenue_recovery::{self, RecoveryPaymentIntent},
     router_data_v2::flow_common_types,
@@ -887,6 +888,11 @@ impl RevenueRecoveryAttempt {
         ),
         errors::RevenueRecoveryError,
     > {
+        // One GSM row gives both the error's standardised code and whether the card is hard
+        // declined.
+        let gsm_record = self
+            .get_recovery_gsm_record(state, connector_details.get_connector())
+            .await;
         let request_payload: api_payments::PaymentsAttemptRecordRequest = self
             .create_payment_record_request(
                 state,
@@ -895,8 +901,11 @@ impl RevenueRecoveryAttempt {
                 customer_present,
                 setup_future_usage,
                 recovery_request_id,
+                gsm_record.as_ref(),
             )
             .await?;
+        // The response carries back the error the request was built with.
+        let standardised_error_code = request_payload.standardised_error_code;
         let attempt_response = Box::pin(payments::record_attempt_core(
             state.clone(),
             req_state.clone(),
@@ -910,24 +919,6 @@ impl RevenueRecoveryAttempt {
 
         let (recovery_attempt, updated_recovery_intent) = match attempt_response {
             Ok(services::ApplicationResponse::JsonWithHeaders((attempt_response, _))) => {
-                let standardised_error_code = retry_stats::events::resolve_standardised_error_code(
-                    state,
-                    Some(connector_details.get_connector().to_string()),
-                    attempt_response
-                        .error_details
-                        .as_ref()
-                        .map(|error| error.code.clone()),
-                    attempt_response
-                        .error_details
-                        .as_ref()
-                        .map(|error| error.message.clone()),
-                    attempt_response
-                        .error_details
-                        .as_ref()
-                        .and_then(|error| error.network_decline_code.clone()),
-                    self.0.card_info.card_network.clone(),
-                )
-                .await;
                 Ok((
                     revenue_recovery::RecoveryPaymentAttempt {
                         attempt_id: attempt_response.id.clone(),
@@ -1017,11 +1008,7 @@ impl RevenueRecoveryAttempt {
         let response = (recovery_attempt, updated_recovery_intent);
 
         if let Err(error) = self
-            .store_payment_processor_tokens_in_redis(
-                state,
-                &response.0,
-                connector_details.get_connector(),
-            )
+            .store_payment_processor_tokens_in_redis(state, &response.0, gsm_record.as_ref())
             .await
         {
             router_env::logger::error!(
@@ -1038,6 +1025,30 @@ impl RevenueRecoveryAttempt {
         Ok(response)
     }
 
+    /// The revenue recovery GSM row of the transaction's error, which gives both whether the
+    /// card is hard declined and the error's standardised code. A transaction without an error
+    /// code has none.
+    pub(crate) async fn get_recovery_gsm_record(
+        &self,
+        state: &SessionState,
+        connector: common_enums::connector_enums::Connector,
+    ) -> Option<GatewayStatusMap> {
+        let attempt_data = &self.0;
+        let error_code = attempt_data.error_code.clone()?;
+        helpers::get_gsm_record(
+            state,
+            connector.to_string(),
+            REVENUE_RECOVERY,
+            consts::DEFAULT_SUBFLOW_STR,
+            Some(error_code),
+            attempt_data.error_message.clone(),
+            attempt_data.network_decline_code.clone(),
+            attempt_data.card_info.card_network.clone(),
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_payment_record_request(
         &self,
         state: &SessionState,
@@ -1046,6 +1057,7 @@ impl RevenueRecoveryAttempt {
         customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
         setup_future_usage: Option<common_enums::FutureUsage>,
         recovery_request_id: Option<String>,
+        gsm_record: Option<&GatewayStatusMap>,
     ) -> CustomResult<api_payments::PaymentsAttemptRecordRequest, errors::RevenueRecoveryError>
     {
         let revenue_recovery_attempt_data = &self.0;
@@ -1093,17 +1105,12 @@ impl RevenueRecoveryAttempt {
             common_enums::AttemptStatus::Charged | common_enums::AttemptStatus::PartialCharged => {
                 None
             }
-            _ => {
-                retry_stats::events::resolve_standardised_error_code(
-                    state,
-                    Some(connector_details.get_connector().to_string()),
-                    revenue_recovery_attempt_data.error_code.clone(),
-                    revenue_recovery_attempt_data.error_message.clone(),
-                    revenue_recovery_attempt_data.network_decline_code.clone(),
-                    revenue_recovery_attempt_data.card_info.card_network.clone(),
-                )
-                .await
-            }
+            _ => revenue_recovery_attempt_data
+                .error_code
+                .as_deref()
+                .and_then(|error_code| {
+                    retry_stats::events::get_standardised_code(gsm_record, error_code)
+                }),
         };
 
         Ok(api_payments::PaymentsAttemptRecordRequest {
@@ -1259,7 +1266,7 @@ impl RevenueRecoveryAttempt {
         &self,
         state: &SessionState,
         recovery_attempt: &revenue_recovery::RecoveryPaymentAttempt,
-        payment_connector: common_enums::connector_enums::Connector,
+        gsm_record: Option<&GatewayStatusMap>,
     ) -> CustomResult<(), errors::RevenueRecoveryError> {
         let revenue_recovery_attempt_data = &self.0;
         let Some(payment_processor_token) = revenue_recovery_attempt_data
@@ -1270,26 +1277,6 @@ impl RevenueRecoveryAttempt {
         };
 
         let error_code = revenue_recovery_attempt_data.error_code.clone();
-        let error_message = revenue_recovery_attempt_data.error_message.clone();
-
-        // The recorded attempt is synced with the payment connector, so prefer the decline code
-        // it carries and fall back to the one the caller sent.
-        let network_decline_code = recovery_attempt
-            .network_decline_code
-            .clone()
-            .or_else(|| revenue_recovery_attempt_data.network_decline_code.clone());
-
-        let gsm_record = helpers::get_gsm_record(
-            state,
-            payment_connector.to_string(),
-            REVENUE_RECOVERY,
-            consts::DEFAULT_SUBFLOW_STR,
-            error_code.clone(),
-            error_message,
-            network_decline_code,
-            revenue_recovery_attempt_data.card_info.card_network.clone(),
-        )
-        .await;
 
         let is_hard_decline = gsm_record
             .and_then(|record| record.error_category)
