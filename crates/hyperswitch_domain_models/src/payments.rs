@@ -1479,8 +1479,6 @@ pub struct HeaderPayload {
     pub client_version: Option<String>,
     pub x_hs_latency: Option<bool>,
     pub browser_name: Option<common_enums::BrowserName>,
-    /// Whether the SDK allows Apple Pay in the browser; an absent value defaults to allowed.
-    pub x_browser_applepay_payment_allowed: Option<bool>,
     pub x_client_platform: Option<common_enums::ClientPlatform>,
     pub x_merchant_domain: Option<String>,
     pub locale: Option<String>,
@@ -1511,8 +1509,6 @@ pub struct HeaderPayload {
     // pub client_version: Option<String>,
     pub x_hs_latency: Option<bool>,
     pub browser_name: Option<common_enums::BrowserName>,
-    /// Whether the SDK allows Apple Pay in the browser; an absent value defaults to allowed.
-    pub x_browser_applepay_payment_allowed: Option<bool>,
     pub x_client_platform: Option<common_enums::ClientPlatform>,
     pub x_merchant_domain: Option<String>,
     pub locale: Option<String>,
@@ -1522,11 +1518,6 @@ pub struct HeaderPayload {
 }
 
 impl HeaderPayload {
-    /// Allow Apple Pay when older SDKs omit the browser permission header.
-    pub fn is_browser_applepay_payment_allowed(&self) -> bool {
-        self.x_browser_applepay_payment_allowed.unwrap_or(true)
-    }
-
     pub fn with_source(payment_confirm_source: common_enums::PaymentSource) -> Self {
         Self {
             payment_confirm_source: Some(payment_confirm_source),

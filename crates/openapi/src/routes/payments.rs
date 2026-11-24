@@ -945,9 +945,6 @@ pub fn payments_capture() {}
 #[utoipa::path(
   post,
   path = "/payments/session_tokens",
-  params(
-      ("x-browser-applepay-payment-allowed" = Option<bool>, Header, description = "Whether the SDK allows Apple Pay in the browser. false skips Apple Pay merchant validation; true or an omitted header attempts validation using the merchant's configuration. Send true or false.")
-  ),
   request_body=PaymentsSessionRequest,
   responses(
       (status = 200, description = "Payment session object created or session token was retrieved from wallets", body = PaymentsSessionResponse),
@@ -967,8 +964,7 @@ pub fn payments_connector_session() {}
     post,
     path = "/v2/payments/{payment_id}/create-external-sdk-tokens",
     params(
-        ("payment_id" = String, Path, description = "The identifier for payment"),
-        ("x-browser-applepay-payment-allowed" = Option<bool>, Header, description = "Whether the SDK allows Apple Pay in the browser. false skips Apple Pay merchant validation; true or an omitted header attempts validation using the merchant's configuration. Send true or false.")
+        ("payment_id" = String, Path, description = "The identifier for payment")
     ),
     request_body=PaymentsSessionRequest,
     responses(
