@@ -1766,6 +1766,9 @@ pub struct PayoutsData {
     /// Payout party details converted from explicit sender input or parsed from legacy
     /// vendor metadata. Never persisted; only `sender_details` is stored on the payout row.
     pub vendor_details: Option<api_models::payouts::PayoutVendorAccountDetails>,
+    /// The funding party supplied on the payout, forwarded to prism so connectors can consume
+    /// the original sender identity.
+    pub sender_details: Option<api_models::sender::SenderDetails>,
 
     // New minor amount for amount framework
     pub minor_amount: MinorUnit,

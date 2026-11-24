@@ -4,7 +4,7 @@ pub mod refunds_validator;
 use std::{collections::HashSet, marker::PhantomData, str::FromStr};
 
 #[cfg(feature = "payouts")]
-use api_models::payouts::{PayoutIndividualDetails, PayoutVendorAccountDetails};
+use api_models::payouts::PayoutVendorAccountDetails;
 use api_models::{
     customers::CustomerDocumentDetails,
     enums::{Connector, DisputeStage, DisputeStatus},
@@ -393,6 +393,7 @@ pub(super) async fn construct_payout_router_data_common<F>(
             entity_type: payouts.entity_type.to_owned(),
             payout_type: payouts.payout_type,
             vendor_details,
+            sender_details: payouts.get_optional_sender_details().cloned(),
             priority: payouts.priority,
             customer_details: customer_details
                 .to_owned()

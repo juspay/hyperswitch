@@ -483,6 +483,7 @@ pub trait ConnectorActions: Connector {
                     date_of_birth: None,
                 }),
                 vendor_details: None,
+                sender_details: None,
                 priority: None,
                 connector_transfer_method_id: None,
                 webhook_url: None,

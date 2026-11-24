@@ -354,6 +354,9 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
                 .map(|data| payments_grpc::StripeAdditionalInformation {
                     error_on_requires_action: data.error_on_requires_action,
                 }),
+            user_data1: None,
+            user_data2: None,
+            user_data3: None,
         }
     }
 }
@@ -5596,7 +5599,8 @@ impl transformers::ForeignTryFrom<payments_grpc::CardNetwork> for common_enums::
             payments_grpc::CardNetwork::EftposAustralia => Ok(Self::EftposAustralia),
             payments_grpc::CardNetwork::GeCapital => Ok(Self::GeCapital),
             payments_grpc::CardNetwork::Uatp => Ok(Self::Uatp),
-            payments_grpc::CardNetwork::Unspecified => {
+            payments_grpc::CardNetwork::Mydebit  // should be fixed with proto version bump of https://github.com/juspay/hyperswitch-prism/pull/2593
+            | payments_grpc::CardNetwork::Unspecified => {
                 Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)?
             }
         }
@@ -9730,6 +9734,7 @@ impl
             amount,
             payment_method,
             capture_method: capture_method.map(Into::into),
+            state: None,
         })
     }
 }
@@ -10681,6 +10686,13 @@ impl
             })
             .transpose()?;
 
+        let sender_details = router_data
+            .request
+            .sender_details
+            .as_ref()
+            .map(payments_grpc::SenderDetails::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             merchant_payout_id: router_data.payout_id.clone(),
             address,
@@ -10694,6 +10706,7 @@ impl
                 ),
             ),
             vendor_account_details,
+            sender_details,
             merchant_request_id: Some(router_data.connector_request_reference_id.clone()),
         })
     }
