@@ -215,7 +215,8 @@ impl<'a> CardInfoMigrateExecutor<'a> {
             .get_card_info(&self.record.card_iin)
             .await
             .change_context(errors::ApiErrorResponse::InvalidCardIin)?;
-        Ok(maybe_card_info)
+        // A six-digit fallback must not make an absent eight-digit import look like an update.
+        Ok(maybe_card_info.filter(|card_info| card_info.card_iin == self.record.card_iin))
     }
 
     async fn add_card_info(&self) -> RouterResult<card_info_models::CardInfo> {

@@ -4434,6 +4434,11 @@ pub fn build_webhook_secrets_from_merchant_connector_account(
                 .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
                 .attach_printable("Failed to parse MerchantConnectorWebhookDetails")?;
 
+            webhook_details
+                .validate()
+                .map_err(|_| UnifiedConnectorServiceError::FailedToObtainAuthType)
+                .attach_printable("MerchantConnectorWebhookDetails contains a blank secret")?;
+
             // Build gRPC WebhookSecrets from parsed details
             Ok(Some(payments_grpc::WebhookSecrets {
                 secret: webhook_details.merchant_secret.expose().to_string(),
