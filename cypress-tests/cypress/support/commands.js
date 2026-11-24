@@ -846,6 +846,8 @@ Cypress.Commands.add(
 
     const merchantId = RequestBodyUtils.generateRandomString();
     RequestBodyUtils.setMerchantId(merchantCreateBody, merchantId);
+    merchantCreateBody.payment_response_hash_key =
+      RequestBodyUtils.getPaymentResponseHashKey();
 
     cy.request({
       method: "POST",
@@ -12617,8 +12619,9 @@ Cypress.Commands.add("retrieveNonExistentPaymentLinkTest", (globalState) => {
 
 /**
  * Fetches merchant account config and stores payment response hash settings in globalState.
- * The full signing key must be supplied as CYPRESS_PAYMENT_RESPONSE_HASH_KEY;
- * account responses expose only its first four characters.
+ * Merchants are created with the key from getPaymentResponseHashKey (the test
+ * default, or CYPRESS_PAYMENT_RESPONSE_HASH_KEY); account responses expose only
+ * its first four characters.
  * Also skips the suite if enable_payment_response_hash is false/absent.
  *
  * The backend falls back to merchant-account-level settings when business profile
@@ -12666,15 +12669,7 @@ Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
     }
 
     // Signature verification requires the full configured key, not the API prefix.
-    const paymentResponseHashKey = Cypress.env("PAYMENT_RESPONSE_HASH_KEY");
-    if (
-      typeof paymentResponseHashKey !== "string" ||
-      paymentResponseHashKey.length === 0
-    ) {
-      throw new Error(
-        "Set CYPRESS_PAYMENT_RESPONSE_HASH_KEY to the merchant's full signing key for signature verification"
-      );
-    }
+    const paymentResponseHashKey = RequestBodyUtils.getPaymentResponseHashKey();
 
     expect(
       paymentResponseHashKeyPrefix,
