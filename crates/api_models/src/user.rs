@@ -16,7 +16,7 @@ pub mod theme;
 pub struct SignUpWithMerchantIdRequest {
     pub name: Secret<String>,
     pub email: pii::Email,
-    pub password: Secret<String>,
+    pub password: Option<Secret<String>>,
     pub company_name: String,
     pub organization_type: Option<common_enums::OrganizationType>,
 }
@@ -139,7 +139,6 @@ pub struct CloneConnectorRequest {
 pub struct CreateInternalUserRequest {
     pub name: Secret<String>,
     pub email: pii::Email,
-    pub password: Secret<String>,
     pub role_id: String,
 }
 
