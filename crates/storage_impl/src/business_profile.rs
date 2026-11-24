@@ -2551,8 +2551,10 @@ impl Conversion for domain::Profile {
             revenue_recovery_config: self.revenue_recovery_config,
             network_tokenization_credentials: None,
             payment_method_blocking: None,
-            apple_pay_certificates: None,
-            apple_pay_certificates_encrypted: None,
+            apple_pay_certificates: self.apple_pay_certificates,
+            apple_pay_certificates_encrypted: self
+                .apple_pay_certificates_encrypted
+                .map(Encryption::from),
         })
     }
 
@@ -2660,6 +2662,21 @@ impl Conversion for domain::Profile {
                     billing_processor_id: item.billing_processor_id,
                     surcharge_connector_details: item.surcharge_connector_details,
                     revenue_recovery_config: item.revenue_recovery_config,
+                    apple_pay_certificates: item.apple_pay_certificates,
+                    apple_pay_certificates_encrypted: item
+                        .apple_pay_certificates_encrypted
+                        .async_lift(|inner| async {
+                            crypto_operation(
+                                state,
+                                type_name!(Self::DstType),
+                                CryptoOperation::DecryptOptional(inner),
+                                key_manager_identifier.clone(),
+                                key.peek(),
+                            )
+                            .await
+                            .and_then(|value| value.try_into_optionaloperation())
+                        })
+                        .await?,
                 }
                 .into(),
             )
@@ -2739,6 +2756,10 @@ impl Conversion for domain::Profile {
             surcharge_connector_details: self.surcharge_connector_details,
             revenue_recovery_config: self.revenue_recovery_config,
             payment_method_blocking: None,
+            apple_pay_certificates: self.apple_pay_certificates,
+            apple_pay_certificates_encrypted: self
+                .apple_pay_certificates_encrypted
+                .map(Encryption::from),
         })
     }
 }

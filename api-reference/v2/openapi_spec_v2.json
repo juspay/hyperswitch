@@ -6641,6 +6641,32 @@
           "$ref": "#/components/schemas/ApplePayAddressParameters"
         }
       },
+      "ApplePayCreateData": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "payment_data": {
+                "type": "string",
+                "description": "Base64-encoded Apple Pay paymentData JSON; decrypted card data is not accepted.",
+                "nullable": true
+              },
+              "payment_method": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/ApplepayPaymentMethod"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          }
+        ],
+        "description": "Apple Pay create accepts existing wallet metadata or an encrypted token.\nFor decryption, supply payment_data, payment_method"
+      },
       "ApplePayCryptogramData": {
         "type": "object",
         "description": "This struct represents the cryptogram data for Apple Pay transactions",
@@ -25349,7 +25375,7 @@
             ],
             "properties": {
               "wallet": {
-                "$ref": "#/components/schemas/WalletPaymentMethodData"
+                "$ref": "#/components/schemas/WalletPaymentMethodResponseData"
               }
             }
           }
@@ -25558,7 +25584,7 @@
             ],
             "properties": {
               "wallet": {
-                "$ref": "#/components/schemas/WalletPaymentMethodData"
+                "$ref": "#/components/schemas/WalletPaymentMethodResponseData"
               }
             }
           }
@@ -25683,6 +25709,89 @@
           }
         }
       },
+      "PaymentMethodSessionApplePayData": {
+        "type": "object",
+        "required": [
+          "payment_data"
+        ],
+        "properties": {
+          "payment_data": {
+            "type": "string",
+            "description": "Encrypted Apple Pay payment token. Decrypted input is not accepted here."
+          },
+          "payment_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplepayPaymentMethod"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PaymentMethodSessionBankDebitData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach_bank_debit"
+            ],
+            "properties": {
+              "ach_bank_debit": {
+                "type": "object",
+                "required": [
+                  "account_number",
+                  "routing_number"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankDebitBilling"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "account_number": {
+                    "type": "string"
+                  },
+                  "routing_number": {
+                    "type": "string"
+                  },
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "bank_name": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "bank_type": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankType"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "bank_holder_type": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankHolderType"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
       "PaymentMethodSessionConfirmRequest": {
         "type": "object",
         "required": [
@@ -25702,7 +25811,7 @@
             "nullable": true
           },
           "payment_method_data": {
-            "$ref": "#/components/schemas/PaymentMethodDataRequest"
+            "$ref": "#/components/schemas/PaymentMethodSessionDataRequest"
           },
           "return_url": {
             "type": "string",
@@ -25718,6 +25827,64 @@
             "nullable": true
           }
         }
+      },
+      "PaymentMethodSessionData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "card"
+            ],
+            "properties": {
+              "card": {
+                "$ref": "#/components/schemas/Card"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_debit"
+            ],
+            "properties": {
+              "bank_debit": {
+                "$ref": "#/components/schemas/PaymentMethodSessionBankDebitData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/PaymentMethodSessionWalletData"
+              }
+            }
+          }
+        ]
+      },
+      "PaymentMethodSessionDataRequest": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PaymentMethodSessionData"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "billing": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Address"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          }
+        ],
+        "description": "Instrument data accepted by the modular payment-method session."
       },
       "PaymentMethodSessionDeleteSavedPaymentMethod": {
         "type": "object",
@@ -25935,6 +26102,21 @@
                 "description": "The payment method token associated with the payment method session.\nIf not provided, a new token will be generated.",
                 "example": "token_9wcXDRVkfEtLEsSnYKgQ",
                 "nullable": true
+              }
+            }
+          }
+        ]
+      },
+      "PaymentMethodSessionWalletData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "apple_pay"
+            ],
+            "properties": {
+              "apple_pay": {
+                "$ref": "#/components/schemas/PaymentMethodSessionApplePayData"
               }
             }
           }
@@ -31897,7 +32079,7 @@
             ],
             "properties": {
               "wallet": {
-                "$ref": "#/components/schemas/WalletDetail"
+                "$ref": "#/components/schemas/RawWalletDetail"
               }
             }
           },
@@ -31935,6 +32117,75 @@
             "nullable": true
           }
         }
+      },
+      "RawWalletDetail": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "apple_pay_decrypted_data"
+            ],
+            "properties": {
+              "apple_pay_decrypted_data": {
+                "type": "object",
+                "required": [
+                  "application_primary_account_number",
+                  "expiry_month",
+                  "expiry_year"
+                ],
+                "properties": {
+                  "application_primary_account_number": {
+                    "type": "string"
+                  },
+                  "expiry_month": {
+                    "type": "string"
+                  },
+                  "expiry_year": {
+                    "type": "string"
+                  },
+                  "cryptogram": {
+                    "type": "string",
+                    "description": "Transaction cryptogram; null after one-time consumption or expiry.",
+                    "nullable": true
+                  },
+                  "eci": {
+                    "type": "string",
+                    "description": "ECI associated with the one-time transaction cryptogram.",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "google_pay_decrypted_data"
+            ],
+            "properties": {
+              "google_pay_decrypted_data": {
+                "type": "object",
+                "required": [
+                  "application_primary_account_number",
+                  "expiry_month",
+                  "expiry_year"
+                ],
+                "properties": {
+                  "application_primary_account_number": {
+                    "type": "string"
+                  },
+                  "expiry_month": {
+                    "type": "string"
+                  },
+                  "expiry_year": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "description": "Raw wallet output. Transaction secrets are attached only during authorized retrieval,\nnever included in the persistent wallet payload."
       },
       "RealTimePaymentData": {
         "oneOf": [
@@ -38552,7 +38803,7 @@
             ],
             "properties": {
               "apple_pay": {
-                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+                "$ref": "#/components/schemas/ApplePayCreateData"
               }
             }
           },
@@ -38601,6 +38852,44 @@
             }
           }
         ]
+      },
+      "WalletPaymentMethodResponseData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "apple_pay"
+            ],
+            "properties": {
+              "apple_pay": {
+                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "google_pay"
+            ],
+            "properties": {
+              "google_pay": {
+                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_pal"
+            ],
+            "properties": {
+              "pay_pal": {
+                "$ref": "#/components/schemas/PaypalRedirection"
+              }
+            }
+          }
+        ],
+        "description": "Wallet metadata returned by payment-method APIs, without decrypted credentials."
       },
       "WalletProviderDetails": {
         "oneOf": [

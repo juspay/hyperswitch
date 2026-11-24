@@ -3,7 +3,7 @@ use api_models::payment_methods::Card;
 #[cfg(feature = "v2")]
 use api_models::{
     enums as api_enums,
-    payment_methods::{PaymentMethodResponseItem, WalletPaymentMethodData},
+    payment_methods::{PaymentMethodResponseItem, WalletPaymentMethodResponseData},
 };
 use common_enums::CardNetwork;
 #[cfg(feature = "v1")]
@@ -714,19 +714,21 @@ pub fn generate_payment_method_response(
                 match payment_method.payment_method_subtype {
                     Some(common_enums::PaymentMethodType::ApplePay) => {
                         Some(api::PaymentMethodResponseData::Wallet(
-                            WalletPaymentMethodData::ApplePay(Box::new(info)),
+                            WalletPaymentMethodResponseData::ApplePay(Box::new(info)),
                         ))
                     }
                     Some(common_enums::PaymentMethodType::GooglePay) => {
                         Some(api::PaymentMethodResponseData::Wallet(
-                            WalletPaymentMethodData::GooglePay(Box::new(info)),
+                            WalletPaymentMethodResponseData::GooglePay(Box::new(info)),
                         ))
                     }
-                    Some(common_enums::PaymentMethodType::Paypal) => Some(
-                        api::PaymentMethodResponseData::Wallet(WalletPaymentMethodData::PayPal(
-                            Box::new(api_models::payments::PaypalRedirection::from(info)),
-                        )),
-                    ),
+                    Some(common_enums::PaymentMethodType::Paypal) => {
+                        Some(api::PaymentMethodResponseData::Wallet(
+                            WalletPaymentMethodResponseData::PayPal(Box::new(
+                                api_models::payments::PaypalRedirection::from(info),
+                            )),
+                        ))
+                    }
                     _ => None,
                 }
             }
@@ -1030,17 +1032,17 @@ impl
                     match payment_method_subtype {
                         Some(api_enums::PaymentMethodType::ApplePay) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
-                                WalletPaymentMethodData::ApplePay(Box::new(info)),
+                                WalletPaymentMethodResponseData::ApplePay(Box::new(info)),
                             ))
                         }
                         Some(api_enums::PaymentMethodType::GooglePay) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
-                                WalletPaymentMethodData::GooglePay(Box::new(info)),
+                                WalletPaymentMethodResponseData::GooglePay(Box::new(info)),
                             ))
                         }
                         Some(api_enums::PaymentMethodType::Paypal) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
-                                WalletPaymentMethodData::PayPal(Box::new(
+                                WalletPaymentMethodResponseData::PayPal(Box::new(
                                     api_models::payments::PaypalRedirection::from(info),
                                 )),
                             ))
@@ -1136,17 +1138,17 @@ impl
                     match payment_method_subtype {
                         Some(api_enums::PaymentMethodType::ApplePay) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
-                                WalletPaymentMethodData::ApplePay(Box::new(info)),
+                                WalletPaymentMethodResponseData::ApplePay(Box::new(info)),
                             ))
                         }
                         Some(api_enums::PaymentMethodType::GooglePay) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
-                                WalletPaymentMethodData::GooglePay(Box::new(info)),
+                                WalletPaymentMethodResponseData::GooglePay(Box::new(info)),
                             ))
                         }
                         Some(api_enums::PaymentMethodType::Paypal) => {
                             Some(api_models::payment_methods::PaymentMethodListData::Wallet(
-                                WalletPaymentMethodData::PayPal(Box::new(
+                                WalletPaymentMethodResponseData::PayPal(Box::new(
                                     api_models::payments::PaypalRedirection::from(info),
                                 )),
                             ))
@@ -1843,10 +1845,8 @@ impl
                 }
             }
             payment_methods::types::RawPaymentMethodData::Wallet(wallet_detail) => {
-                // The vault holds only the decrypted device PAN and its expiry. The wallet payload
-                // is rebuilt around it: display metadata comes from the wallet info stored with
-                // the payment method, and whatever the vault never had (the one-time cryptogram,
-                // the transaction identifier) is left empty.
+                // Persistent vault data holds only the device PAN and expiry.
+                // Raw retrieval can additionally supply a one-time cryptogram.
                 let (last4, card_network, card_type) = stored_wallet_info
                     .map(|wallet_info| {
                         (
@@ -1861,10 +1861,12 @@ impl
                 let card_type = card_type.unwrap_or_default();
 
                 let wallet_data = match wallet_detail {
-                    api_models::payment_methods::WalletDetail::ApplePayDecryptedData {
+                    api_models::payment_methods::RawWalletDetail::ApplePayDecryptedData {
                         application_primary_account_number,
                         expiry_month,
                         expiry_year,
+                        cryptogram,
+                        eci,
                     } => domain::WalletData::ApplePay(domain::ApplePayWalletData {
                         payment_data: common_types::payments::ApplePayPaymentData::Decrypted(
                             common_types::payments::ApplePayPredecryptData {
@@ -1872,8 +1874,10 @@ impl
                                 application_expiration_month: expiry_month,
                                 application_expiration_year: expiry_year,
                                 payment_data: common_types::payments::ApplePayCryptogramData {
-                                    online_payment_cryptogram: Secret::new(String::new()),
-                                    eci_indicator: None,
+                                    online_payment_cryptogram: cryptogram
+                                        .filter(|value| !value.peek().trim().is_empty())
+                                        .get_required_value("Apple Pay cryptogram")?,
+                                    eci_indicator: eci,
                                 },
                                 device_manufacturer_identifier: None,
                             },
@@ -1885,7 +1889,7 @@ impl
                         },
                         transaction_identifier: String::new(),
                     }),
-                    api_models::payment_methods::WalletDetail::GooglePayDecryptedData {
+                    api_models::payment_methods::RawWalletDetail::GooglePayDecryptedData {
                         application_primary_account_number,
                         expiry_month,
                         expiry_year,

@@ -204,8 +204,8 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             network_tokenization_credentials: None, // need to check if we can have this column in v2
             fingerprint_secret: item.fingerprint_secret,
             offer_engine_config: None,
-            apple_pay_certificates: None,
-            apple_pay_certificates_encrypted: None,
+            apple_pay_certificates: item.apple_pay_certificates,
+            apple_pay_certificates_encrypted: item.apple_pay_certificates_encrypted,
         }
     }
 }
@@ -227,6 +227,8 @@ pub struct MerchantAccountSetter {
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: common_enums::MerchantAccountType,
     pub fingerprint_secret: Option<Secret<String>>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
 }
 
 impl MerchantAccount {
@@ -302,6 +304,8 @@ pub struct MerchantAccountNew {
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: common_enums::MerchantAccountType,
     pub fingerprint_secret: Option<Secret<String>>,
+    pub apple_pay_certificates: Option<serde_json::Value>,
+    pub apple_pay_certificates_encrypted: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]

@@ -1329,17 +1329,96 @@ pub async fn retrieve_payment_method_with_token(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
-pub(crate) fn get_payment_method_create_request(
-    payment_method_data: &api_models::payments::PaymentMethodData,
-    payment_method_type: storage_enums::PaymentMethod,
-    payment_method_subtype: Option<storage_enums::PaymentMethodType>,
-    customer_id: Option<id_type::GlobalCustomerId>,
+async fn decrypt_apple_pay_for_vault(
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    payment_data: &Secret<String>,
+    mut wallet_info: payment_methods::PaymentMethodDataWalletInfo,
+) -> RouterResult<payment_methods::ApplePayDecryptedInfo> {
+    let merchant = platform.get_provider().get_account();
+    // Keep the certificate and key at the same scope. Invalid profile configuration
+    // must not silently fall back to a different merchant certificate.
+    let (resource_data, resource_key) = profile
+        .apple_pay_certificates
+        .as_ref()
+        .map(|data| (data, profile.apple_pay_certificates_encrypted.as_ref()))
+        .or_else(|| {
+            merchant
+                .apple_pay_certificates
+                .as_ref()
+                .map(|data| (data, merchant.apple_pay_certificates_encrypted.as_ref()))
+        })
+        .ok_or(errors::ApiErrorResponse::InvalidRequestData {
+            message: "No Apple Pay certificate is configured for the profile or merchant"
+                .to_string(),
+        })?;
+    let resource_key = resource_key.ok_or(errors::ApiErrorResponse::InvalidRequestData {
+        message: "The linked Apple Pay resource has no private key".to_string(),
+    })?;
+    let decrypted_data = payments_core::decrypt_apple_pay_resource(
+        resource_data,
+        resource_key.get_inner(),
+        payment_data,
+    )
+    .await?;
+    wallet_info.card_exp_month = Some(decrypted_data.application_expiration_month.clone());
+    wallet_info.card_exp_year = Some(decrypted_data.application_expiration_year.clone());
+    Ok(payment_methods::ApplePayDecryptedInfo {
+        decrypted_data,
+        wallet_info,
+    })
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+async fn create_payment_method_retrieval_token(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    payment_method: &domain::PaymentMethod,
+    payment_method_type: common_enums::PaymentMethod,
+    storage_type: common_enums::StorageType,
+    apple_pay_cryptogram: Option<&common_types::payments::ApplePayCryptogramData>,
+) -> RouterResult<String> {
+    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+    let token_data = get_pm_list_token_data(payment_method_type, payment_method, storage_type)?;
+    if let Some(token_data) = token_data {
+        pm_routes::ParentPaymentMethodToken::create_key_for_token(&parent_payment_method_token)
+            .insert(
+                profile.get_order_fulfillment_time_or_default(),
+                token_data,
+                state,
+            )
+            .await?;
+    }
+    if let Some(cryptogram) = apple_pay_cryptogram {
+        vault::store_apple_pay_cryptogram(
+            state,
+            Secret::new(parent_payment_method_token.as_str()),
+            cryptogram,
+            profile.get_order_fulfillment_time_or_default(),
+            platform.get_provider().get_key_store(),
+        )
+        .await?;
+    }
+    Ok(parent_payment_method_token)
+}
+
+#[cfg(feature = "v2")]
+#[instrument(skip_all)]
+pub(crate) async fn get_payment_method_create_request(
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    request: &payment_methods::PaymentMethodSessionConfirmRequest,
     billing_address: Option<&api_models::payments::Address>,
-    payment_method_session: Option<&domain::payment_methods::PaymentMethodSession>,
+    payment_method_session: &domain::payment_methods::PaymentMethodSession,
     storage_type: common_enums::StorageType,
 ) -> RouterResult<payment_methods::PaymentMethodCreate> {
-    match payment_method_data {
-        api_models::payments::PaymentMethodData::Card(card) => {
+    let payment_method_type = request.payment_method_type;
+    let payment_method_subtype = request.payment_method_subtype;
+    let customer_id = payment_method_session.customer_id.clone();
+    match &request.payment_method_data.payment_method_data {
+        payment_methods::PaymentMethodSessionData::Card(card) => {
             payments_core::helpers::validate_card_expiry(
                 &card.card_exp_month,
                 &card.card_exp_year,
@@ -1379,15 +1458,14 @@ pub(crate) fn get_payment_method_create_request(
                 customer_id,
                 payment_method_data: payment_methods::PaymentMethodCreateData::Card(card_detail),
                 billing: billing_address.map(ToOwned::to_owned),
-                network_tokenization: payment_method_session
-                    .and_then(|pm_session| pm_session.network_tokenization.clone()),
+                network_tokenization: payment_method_session.network_tokenization.clone(),
                 storage_type,
             };
             Ok(payment_method_request)
         }
-        api_models::payments::PaymentMethodData::BankDebit(bank_debit) => {
+        payment_methods::PaymentMethodSessionData::BankDebit(bank_debit) => {
             let bank_debit_detail = match bank_debit {
-                api_models::payments::BankDebitData::AchBankDebit {
+                payment_methods::PaymentMethodSessionBankDebitData::AchBankDebit {
                     account_number,
                     routing_number,
                     bank_account_holder_name,
@@ -1403,15 +1481,6 @@ pub(crate) fn get_payment_method_create_request(
                     bank_type: *bank_type,
                     bank_holder_type: *bank_holder_type,
                 },
-                _ => {
-                    return Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
-                        message: "unsupported bank debit type in payment method session"
-                            .to_string()
-                    })
-                    .attach_printable(
-                        "Only ACH bank debit is supported in payment method sessions",
-                    ))
-                }
             };
 
             let payment_method_request = payment_methods::PaymentMethodCreate {
@@ -1428,10 +1497,37 @@ pub(crate) fn get_payment_method_create_request(
             };
             Ok(payment_method_request)
         }
-        _ => Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
-            message: "payment method type is not supported in payment method session".to_string()
-        })
-        .attach_printable("Payment method data is incorrect")),
+        payment_methods::PaymentMethodSessionData::Wallet(
+            payment_methods::PaymentMethodSessionWalletData::ApplePay(apple_pay),
+        ) => {
+            let wallet_info = apple_pay
+                .payment_method
+                .as_ref()
+                .cloned()
+                .map(payment_methods::PaymentMethodDataWalletInfo::from)
+                .unwrap_or_default();
+            let apple_pay = decrypt_apple_pay_for_vault(
+                platform,
+                profile,
+                &apple_pay.payment_data,
+                wallet_info,
+            )
+            .await?;
+            Ok(payment_methods::PaymentMethodCreate {
+                payment_method_type,
+                payment_method_subtype,
+                metadata: None,
+                customer_id,
+                payment_method_data: payment_methods::PaymentMethodCreateData::Wallet(
+                    payment_methods::WalletPaymentMethodData::ApplePayDecrypted(Box::new(
+                        apple_pay,
+                    )),
+                ),
+                billing: billing_address.cloned(),
+                network_tokenization: None,
+                storage_type,
+            })
+        }
     }
 }
 
@@ -1819,12 +1915,50 @@ pub async fn create_payment_method(
 pub async fn create_payment_method_core(
     state: &SessionState,
     _request_state: &routes::app::ReqState,
-    req: api::PaymentMethodCreate,
+    mut req: api::PaymentMethodCreate,
     platform: &domain::Platform,
     profile: &domain::Profile,
     customer_acceptance: Option<common_utils::pii::SecretSerdeValue>,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
-    match req.storage_type {
+    req.validate()?;
+    let (payment_method_data, apple_pay_cryptogram) = match req.payment_method_data {
+        payment_methods::PaymentMethodCreateData::Wallet(
+            payment_methods::WalletPaymentMethodData::ApplePay(apple_pay),
+        ) if apple_pay.payment_data.is_some() => {
+            when(
+                req.payment_method_subtype != Some(common_enums::PaymentMethodType::ApplePay),
+                || {
+                    Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                        message:
+                            "Encrypted Apple Pay data requires the apple_pay payment method subtype"
+                                .to_string(),
+                    }))
+                },
+            )?;
+            let payment_data = apple_pay
+                .payment_data
+                .get_required_value("payment_method_data.wallet.apple_pay.payment_data")?;
+            let wallet_info = apple_pay
+                .payment_method
+                .map(payment_methods::PaymentMethodDataWalletInfo::from)
+                .unwrap_or(apple_pay.wallet_info);
+            let apple_pay =
+                decrypt_apple_pay_for_vault(platform, profile, &payment_data, wallet_info).await?;
+            let cryptogram = apple_pay.decrypted_data.payment_data.clone();
+            (
+                payment_methods::PaymentMethodCreateData::Wallet(
+                    payment_methods::WalletPaymentMethodData::ApplePayDecrypted(Box::new(
+                        apple_pay,
+                    )),
+                ),
+                Some(cryptogram),
+            )
+        }
+        payment_method_data => (payment_method_data, None),
+    };
+    req.payment_method_data = payment_method_data;
+    let storage_type = req.storage_type;
+    let (response, payment_method) = match storage_type {
         common_enums::StorageType::Volatile => {
             create_volatile_payment_method_core(
                 state,
@@ -1840,7 +1974,18 @@ pub async fn create_payment_method_core(
             create_persistent_payment_method_core(state, _request_state, req, platform, profile)
                 .await
         }
+    }?;
+    if let Some(cryptogram) = apple_pay_cryptogram.as_ref() {
+        vault::store_apple_pay_cryptogram(
+            state,
+            Secret::new(response.id.get_string_repr()),
+            cryptogram,
+            profile.get_order_fulfillment_time_or_default(),
+            platform.get_provider().get_key_store(),
+        )
+        .await?;
     }
+    Ok((response, payment_method))
 }
 
 #[cfg(feature = "v2")]
@@ -1852,8 +1997,6 @@ pub async fn create_persistent_payment_method_core(
     platform: &domain::Platform,
     profile: &domain::Profile,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
-    req.validate()?;
-
     let db = &*state.store;
     let merchant_id = platform.get_provider().get_account().get_id();
     let customer_id = req
@@ -1969,8 +2112,6 @@ pub async fn create_volatile_payment_method_core(
     profile: &domain::Profile,
     customer_acceptance: Option<common_utils::pii::SecretSerdeValue>,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
-    req.validate()?;
-
     let db = &*state.store;
     let merchant_id = platform.get_provider().get_account().get_id();
     let customer_id = req.customer_id.to_owned();
@@ -2013,7 +2154,11 @@ pub async fn create_volatile_payment_method_core(
         id_type::GlobalPaymentMethodId::generate(&state.conf.cell_information.id);
 
     match &req.payment_method_data {
-        api::PaymentMethodCreateData::Card(_) | api::PaymentMethodCreateData::BankDebit(_) => {
+        api::PaymentMethodCreateData::Card(_)
+        | api::PaymentMethodCreateData::BankDebit(_)
+        | api::PaymentMethodCreateData::Wallet(api::WalletPaymentMethodData::ApplePayDecrypted(
+            _,
+        )) => {
             let payment_method_type = req.payment_method_type.to_string();
             logger::info!("Creating volatile {} payment method", payment_method_type);
             Box::pin(create_generic_volatile_payment_method(
@@ -3592,7 +3737,10 @@ pub async fn create_generic_volatile_payment_method(
                 payment_method_billing_address.clone(),
                 state,
                 platform.get_provider().get_key_store(),
-                Some(&payment_method_data),
+                Some(build_payment_methods_additional_data_for_create(
+                    &req,
+                    &payment_method_data,
+                )),
                 Some(req.payment_method_type),
                 payment_method_subtype,
                 locker_id,
@@ -4407,7 +4555,11 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
             ),
             Self::Wallet(wallet_data) => match wallet_data {
                 api::WalletPaymentMethodData::ApplePay(data) => {
-                    Ok(payment_methods::PaymentMethodsData::WalletDetails(*data))
+                    Ok(payment_methods::PaymentMethodsData::WalletDetails(
+                        data.payment_method
+                            .map(payment_methods::PaymentMethodDataWalletInfo::from)
+                            .unwrap_or(data.wallet_info),
+                    ))
                 }
                 api::WalletPaymentMethodData::ApplePayDecrypted(data) => Ok(
                     payment_methods::PaymentMethodsData::WalletDetails(data.wallet_info),
@@ -5029,7 +5181,7 @@ pub async fn construct_payment_method_object(
     >,
     state: &SessionState,
     key_store: &domain::MerchantKeyStore,
-    payment_method_vaulting_data: Option<&domain::PaymentMethodVaultingData>,
+    payment_method_data: Option<domain::PaymentMethodsData>,
     payment_method_type: Option<common_enums::PaymentMethod>,
     payment_method_subtype: Option<common_enums::PaymentMethodType>,
     locker_id: Option<domain::VaultId>,
@@ -5041,8 +5193,7 @@ pub async fn construct_payment_method_object(
 ) -> RouterResult<domain::PaymentMethod> {
     let current_time = common_utils::date_time::now();
 
-    let encrypted_payment_method_data = payment_method_vaulting_data
-        .map(|payment_method_vaulting_data| payment_method_vaulting_data.get_payment_methods_data())
+    let encrypted_payment_method_data = payment_method_data
         .async_map(|payment_method_details| async {
             let key_manager_state = &(state).into();
 
@@ -5203,6 +5354,7 @@ pub async fn get_external_vault_token(
         storage::PaymentTokenData::BankDebit(bank_debit_token_data) => {
             bank_debit_token_data.payment_method_id
         }
+        storage::PaymentTokenData::WalletToken(wallet) => wallet.payment_method_id,
         storage::PaymentTokenData::TemporaryGeneric(_) => {
             Err(errors::ApiErrorResponse::NotImplemented {
                 message: errors::NotImplementedMessage::Reason(
@@ -5357,7 +5509,7 @@ fn build_payment_methods_additional_data_for_create(
         (domain::PaymentMethodsData::WalletDetails(vaulted_wallet_info), Some(wallet_info)) => {
             domain::PaymentMethodsData::WalletDetails(
                 payment_methods::PaymentMethodDataWalletInfo {
-                    last4: wallet_info.last4.or(vaulted_wallet_info.last4),
+                    last4: wallet_info.last4,
                     card_network: wallet_info
                         .card_network
                         .or(vaulted_wallet_info.card_network),
@@ -6071,16 +6223,26 @@ fn get_pm_list_context(
                 )),
             })
         }
-        Some(domain::payment_method_data::PaymentMethodsData::WalletDetails(_))
-        | Some(domain::payment_method_data::PaymentMethodsData::NetworkToken(_))
-        | None => Some(PaymentMethodListContext::TemporaryToken {
-            token_data: is_payment_associated.then_some(
-                storage::PaymentTokenData::temporary_generic(generate_id(
-                    consts::ID_LENGTH,
-                    "token",
-                )),
-            ),
-        }),
+        Some(domain::payment_method_data::PaymentMethodsData::WalletDetails(_)) => {
+            Some(PaymentMethodListContext::TemporaryToken {
+                token_data: is_payment_associated.then_some(
+                    storage::PaymentTokenData::wallet_token(
+                        payment_method.get_id().clone(),
+                        storage_type,
+                    ),
+                ),
+            })
+        }
+        Some(domain::payment_method_data::PaymentMethodsData::NetworkToken(_)) | None => {
+            Some(PaymentMethodListContext::TemporaryToken {
+                token_data: is_payment_associated.then_some(
+                    storage::PaymentTokenData::temporary_generic(generate_id(
+                        consts::ID_LENGTH,
+                        "token",
+                    )),
+                ),
+            })
+        }
         Some(domain::payment_method_data::PaymentMethodsData::BankRedirect(bank_redirect)) => None,
     };
 
@@ -6294,7 +6456,7 @@ pub async fn get_total_payment_method_count_core(
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method(
     state: SessionState,
-    pm: api::PaymentMethodId,
+    payment_method_id_or_token: api::PaymentMethodId,
     profile: domain::Profile,
     platform: domain::Platform,
     api_key_type: enums::ApiKeyType,
@@ -6307,13 +6469,14 @@ pub async fn retrieve_payment_method(
 
     // 1. Resolve parent token (if any) -> storage type & optional token data
     let (storage_type, pm_token_data_opt) =
-        resolve_storage_type_from_token(&state, &pm.payment_method_id).await?;
+        resolve_storage_type_from_token(&state, &payment_method_id_or_token.payment_method_id)
+            .await?;
 
     // 2. Fetch payment method record based on resolved storage type
     let (storage_type, payment_method) = fetch_payment_method_by_storage(
         &state,
         platform.get_provider(),
-        &pm,
+        &payment_method_id_or_token,
         storage_type,
         pm_token_data_opt,
     )
@@ -6502,6 +6665,33 @@ pub async fn retrieve_payment_method(
                 })
                 .ok();
             }
+            if let Some(payment_methods::RawPaymentMethodData::Wallet(
+                payment_methods::RawWalletDetail::ApplePayDecryptedData {
+                    application_primary_account_number: _,
+                    expiry_month: _,
+                    expiry_year: _,
+                    cryptogram,
+                    eci,
+                },
+            )) = &mut raw_payment_method_data
+            {
+                let cryptogram_data = vault::consume_apple_pay_cryptogram(
+                    &state,
+                    &payment_method_id_or_token.payment_method_id,
+                    platform.get_provider().get_key_store(),
+                )
+                .await?;
+                match cryptogram_data {
+                    Some(data) => {
+                        *cryptogram = Some(data.online_payment_cryptogram);
+                        *eci = data.eci_indicator;
+                    }
+                    None => {
+                        *cryptogram = None;
+                        *eci = None;
+                    }
+                }
+            }
         }
         RawPaymentMethodFetchAccess::Denied => {
             raw_payment_method_data = get_proxy_card_data(&payment_method);
@@ -6594,6 +6784,9 @@ pub async fn fetch_payment_method_by_storage(
                     storage::PaymentTokenData::BankDebit(bank_debit) => {
                         Some(bank_debit.payment_method_id)
                     }
+                    storage::PaymentTokenData::WalletToken(wallet) => {
+                        Some(wallet.payment_method_id)
+                    }
                     _ => None,
                 })
                 .ok_or_else(|| {
@@ -6619,6 +6812,9 @@ pub async fn fetch_payment_method_by_storage(
                 Some(storage::PaymentTokenData::PermanentCard(card)) => Ok(card.payment_method_id),
                 Some(storage::PaymentTokenData::BankDebit(bank_debit)) => {
                     Ok(bank_debit.payment_method_id)
+                }
+                Some(storage::PaymentTokenData::WalletToken(wallet)) => {
+                    Ok(wallet.payment_method_id)
                 }
                 Some(_) => Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound)
                     .attach_printable("Unexpected token data variant for payment method fetch")),
@@ -6740,8 +6936,10 @@ pub async fn resolve_storage_type_from_token(
                         Some(storage::PaymentTokenData::BankDebit(bank_debit)),
                     ))
                 }
-                // Any token kind other than PermanentCard is invalid for retrieving a saved payment method.
-                // Only PermanentCard is currently supported; all other enum variants should be removed.
+                storage::PaymentTokenData::WalletToken(wallet) => Ok((
+                    wallet.storage_type,
+                    Some(storage::PaymentTokenData::WalletToken(wallet)),
+                )),
                 storage::PaymentTokenData::TemporaryGeneric(_)
                 | storage::PaymentTokenData::AuthBankDebit(_)
                 | storage::PaymentTokenData::TemporaryCardToken(_) => {
@@ -8271,18 +8469,14 @@ pub async fn payment_methods_session_confirm(
     };
 
     let create_payment_method_request = get_payment_method_create_request(
-        request
-            .payment_method_data
-            .payment_method_data
-            .as_ref()
-            .get_required_value("payment_method_data")?,
-        request.payment_method_type,
-        request.payment_method_subtype,
-        payment_method_session.customer_id.clone(),
+        &platform,
+        &profile,
+        &request,
         unified_billing_address.as_ref(),
-        Some(&payment_method_session),
+        &payment_method_session,
         storage_type,
     )
+    .await
     .attach_printable("Failed to create payment method request")?;
 
     let (payment_method_response, payment_method) = Box::pin(create_payment_method_core(
@@ -8295,24 +8489,22 @@ pub async fn payment_methods_session_confirm(
     ))
     .await?;
 
-    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
-
-    let token_data = get_pm_list_token_data(
-        request.payment_method_type,
-        &payment_method,
-        create_payment_method_request.storage_type,
-    )?;
-
-    // insert the token data into redis
-    if let Some(token_data) = token_data {
-        pm_routes::ParentPaymentMethodToken::create_key_for_token(&parent_payment_method_token)
-            .insert(
-                profile.get_order_fulfillment_time_or_default(),
-                token_data,
-                &state,
-            )
-            .await?;
+    let apple_pay_cryptogram = match &create_payment_method_request.payment_method_data {
+        payment_methods::PaymentMethodCreateData::Wallet(
+            payment_methods::WalletPaymentMethodData::ApplePayDecrypted(apple_pay),
+        ) => Some(&apple_pay.decrypted_data.payment_data),
+        _ => None,
     };
+    let parent_payment_method_token = create_payment_method_retrieval_token(
+        &state,
+        &platform,
+        &profile,
+        &payment_method,
+        request.payment_method_type,
+        create_payment_method_request.storage_type,
+        apple_pay_cryptogram,
+    )
+    .await?;
 
     let associated_pm_data = payment_method_response.payment_method_data.clone();
 

@@ -65,9 +65,17 @@ pub struct GenericTokenData {
     pub token: String,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WalletTokenData {
     pub payment_method_id: String,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WalletTokenData {
+    pub payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
+    pub storage_type: enums::StorageType,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -101,6 +109,7 @@ pub enum PaymentTokenData {
     PermanentCard(CardTokenData),
     AuthBankDebit(payment_methods::BankAccountTokenData),
     BankDebit(BankDebitTokenData),
+    WalletToken(WalletTokenData),
     /// Temporary token that carries only CVC + card holder name for the repeat CIT
     /// (session confirm) flow. The card number/expiry come from the internal PM service.
     TemporaryCardToken(TemporaryCardTokenData),
@@ -168,6 +177,17 @@ impl PaymentTokenData {
     #[cfg(feature = "v1")]
     pub fn wallet_token(payment_method_id: String) -> Self {
         Self::WalletToken(WalletTokenData { payment_method_id })
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn wallet_token(
+        payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
+        storage_type: enums::StorageType,
+    ) -> Self {
+        Self::WalletToken(WalletTokenData {
+            payment_method_id,
+            storage_type,
+        })
     }
 
     #[cfg(feature = "v1")]
