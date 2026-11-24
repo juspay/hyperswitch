@@ -28,7 +28,7 @@ jobs:
       - name: Generate a token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
         id: generate_token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@v3.4.0
         env:
           NODE_USE_ENV_PROXY: "1"
         with:
@@ -37,7 +37,7 @@ jobs:
 
       - name: Checkout repository with token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
@@ -45,7 +45,7 @@ jobs:
 
       - name: Checkout repository for fork
         if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -87,7 +87,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -107,7 +107,7 @@ jobs:
           toolchain: "${{ env.rust_version }}"
 
       - name: Install Protoc
-        uses: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -116,7 +116,7 @@ jobs:
         run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Install sccache
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: sccache
           checksum: true
@@ -171,7 +171,7 @@ jobs:
       - name: Generate a token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
         id: generate_token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@v3.4.0
         env:
           NODE_USE_ENV_PROXY: "1"
         with:
@@ -180,11 +180,11 @@ jobs:
 
       - name: Checkout repository for fork
         if: ${{ (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name) }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Checkout repository with token
         if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
@@ -203,7 +203,7 @@ jobs:
           components: clippy
 
       - name: Install Protoc
-        uses: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -212,7 +212,7 @@ jobs:
         run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Install sccache
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: sccache
           checksum: true
@@ -233,7 +233,7 @@ jobs:
         run: .github/scripts/sccache-restore-s3.sh test "${{ steps.cache_scope.outputs.scope }}"
 
       - name: Install just
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: just
           checksum: true
@@ -281,7 +281,7 @@ jobs:
     runs-on: hypersage-runners
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Spell check
         uses: crate-ci/typos@master
@@ -291,7 +291,7 @@ jobs:
     runs-on: hypersage-runners
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Spell check specific directories
         uses: crate-ci/typos@v1.48.0
@@ -321,7 +321,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -336,7 +336,7 @@ jobs:
           components: clippy
 
       - name: Install Protoc
-        uses: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -345,7 +345,7 @@ jobs:
         run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Install sccache
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: sccache
           checksum: true
@@ -366,7 +366,7 @@ jobs:
         run: .github/scripts/sccache-restore-s3.sh check-v2 "${{ steps.cache_scope.outputs.scope }}"
 
       - name: Install just
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: just
           checksum: true

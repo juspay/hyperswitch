@@ -32,12 +32,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
       - name: Setup Go for oasdiff
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v5.6.0
         with:
           go-version: '1.21'
 
@@ -125,7 +125,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 

@@ -37,7 +37,7 @@ jobs:
         with:
           toolchain: stable
 
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@v2.90.8
         with:
           tool: cocogitto
           checksum: true
@@ -69,7 +69,7 @@ jobs:
       - name: Generate GitHub app token
         id: generate_app_token
         if: ${{ github.event_name == 'pull_request_target' }}
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@v3.4.0
         env:
           NODE_USE_ENV_PROXY: "1"
         with:
@@ -143,7 +143,7 @@ jobs:
     steps:
       - name: Generate GitHub app token
         id: generate_app_token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@v3.4.0
         env:
           NODE_USE_ENV_PROXY: "1"
         with:

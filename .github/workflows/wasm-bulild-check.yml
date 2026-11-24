@@ -30,7 +30,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -38,19 +38,19 @@ jobs:
           toolchain: stable 2 weeks ago
 
       - name: Install sccache
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: sccache
           checksum: true
 
       - name: Restore sccache cache
-        uses: actions/cache/restore@v6
+        uses: actions/cache/restore@v6.1.0
         with:
           path: ${{ env.SCCACHE_DIR }}
           key: sccache-local-wasm-${{ runner.os }}-${{ runner.arch }}
 
       - name: Install wasm-pack
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: wasm-pack
           checksum: true
@@ -79,7 +79,7 @@ jobs:
 
       - name: Save sccache cache
         if: ${{ !cancelled() && github.event_name == 'push' }}
-        uses: actions/cache/save@v6
+        uses: actions/cache/save@v6.1.0
         with:
           path: ${{ env.SCCACHE_DIR }}
           key: sccache-local-wasm-${{ runner.os }}-${{ runner.arch }}

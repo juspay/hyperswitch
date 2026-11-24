@@ -46,7 +46,7 @@ jobs:
       - name: Generate a token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
         id: generate_token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@v3.4.0
         env:
           # v3 refuses to run behind hypersage-runners' proxy without this.
           NODE_USE_ENV_PROXY: "1"
@@ -56,7 +56,7 @@ jobs:
 
       - name: Checkout repository with token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
@@ -64,10 +64,10 @@ jobs:
 
       - name: Checkout repository for fork
         if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Install Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.5.0
         with:
           node-version: "24"
 
@@ -165,7 +165,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Install mold linker
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -182,7 +182,7 @@ jobs:
 
       - name: Install Protoc
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -192,7 +192,7 @@ jobs:
 
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: sccache
           checksum: true
@@ -318,7 +318,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Install Rust
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -374,20 +374,20 @@ jobs:
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: diesel_cli@2.3.14
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: just
           checksum: true
 
       - name: Install Node.js
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.5.0
         with:
           node-version: "24"
 
@@ -472,7 +472,7 @@ jobs:
 
       - name: Upload server logs on failure
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
           path: ${{ env.SERVER_LOG_PATH }}
@@ -481,7 +481,7 @@ jobs:
 
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.report_artifact_name }}
           path: |
@@ -602,7 +602,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -651,18 +651,18 @@ jobs:
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Diesel CLI
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: diesel_cli@2.3.14
 
       - name: Install Just
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: just
           checksum: true
 
       - name: Install Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.5.0
         with:
           node-version: "24"
 
@@ -731,7 +731,7 @@ jobs:
 
       - name: Upload server logs on failure
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
           path: ${{ env.SERVER_LOG_PATH }}
@@ -740,7 +740,7 @@ jobs:
 
       - name: Upload Cypress test results
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.report_artifact_name }}
           path: |
@@ -880,7 +880,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Install Rust
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -935,20 +935,20 @@ jobs:
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: diesel_cli@2.3.14
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: just
           checksum: true
 
       - name: Install Node.js
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.5.0
         with:
           node-version: "24"
 
@@ -1178,7 +1178,7 @@ jobs:
 
       - name: Upload MITM replay logs on failure
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.server_logs_artifact }}-mitm-replay
           path: ${{ github.workspace }}/mitm-replay.log
@@ -1187,7 +1187,7 @@ jobs:
 
       - name: Upload server logs on failure
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
           path: ${{ env.SERVER_LOG_PATH }}
@@ -1196,7 +1196,7 @@ jobs:
 
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.report_artifact_name }}
           path: |
@@ -1314,7 +1314,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -1363,18 +1363,18 @@ jobs:
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Diesel CLI
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: diesel_cli@2.3.14
 
       - name: Install Just
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: just
           checksum: true
 
       - name: Install Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.5.0
         with:
           node-version: "24"
 
@@ -1450,7 +1450,7 @@ jobs:
 
       - name: Upload server logs on failure
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
           path: ${{ env.SERVER_LOG_PATH }}
@@ -1459,7 +1459,7 @@ jobs:
 
       - name: Upload Cypress test results
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.report_artifact_name }}
           path: |
@@ -1510,7 +1510,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Mask S3 cache location in job logs
         shell: bash
@@ -1548,20 +1548,20 @@ jobs:
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: diesel_cli@2.3.14
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: just
           checksum: true
 
       - name: Install Node.js
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.5.0
         with:
           node-version: "24"
 
@@ -1679,7 +1679,7 @@ jobs:
 
       - name: Upload Cypress test results for Alpha Connectors
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: cypress-test-results-alpha
           path: |
@@ -1743,7 +1743,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Download Encrypted TOML from S3 and Decrypt
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1791,7 +1791,7 @@ jobs:
 
       - name: Install Protoc
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -1801,7 +1801,7 @@ jobs:
 
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: sccache
           checksum: true
@@ -1814,27 +1814,27 @@ jobs:
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: diesel_cli@2.3.14
 
       - name: Install grcov
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: grcov
           checksum: true
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: just
           checksum: true
 
       - name: Install Node.js
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.5.0
         with:
           node-version: "24"
 
@@ -1938,7 +1938,7 @@ jobs:
 
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: cypress-v2-test-results
           path: |
@@ -1955,7 +1955,7 @@ jobs:
         run: grcov . --source-dir . --output-types lcov --output-path ${{ env.CODECOV_FILE }} --binary-path ./target/debug --keep-only "crates/*"
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v6.0.2
         if: ${{ env.RUN_TESTS == 'true' && github.event_name != 'merge_group' && (success() || failure()) }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

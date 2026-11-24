@@ -40,7 +40,7 @@ jobs:
     runs-on: hypersage-runners
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -66,7 +66,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -86,18 +86,18 @@ jobs:
           toolchain: "${{ env.rust_version }}"
 
       - name: Install Protoc
-        uses: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install cargo-hack
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: cargo-hack
           checksum: true
 
       - name: Install just
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: just
           checksum: true
@@ -111,7 +111,7 @@ jobs:
         run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Install sccache
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: sccache
           checksum: true
@@ -176,7 +176,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -191,12 +191,12 @@ jobs:
           components: clippy
 
       - name: Install Protoc
-        uses: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install just
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: just
           checksum: true
@@ -210,7 +210,7 @@ jobs:
         run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Install sccache
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: sccache
           checksum: true
@@ -250,7 +250,7 @@ jobs:
     runs-on: hypersage-runners
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Spell check
         uses: crate-ci/typos@master
@@ -260,7 +260,7 @@ jobs:
     runs-on: hypersage-runners
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Spell check specific directories
         uses: crate-ci/typos@v1.48.0
@@ -291,7 +291,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -306,12 +306,12 @@ jobs:
           components: clippy
 
       - name: Install Protoc
-        uses: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install just
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: just
           checksum: true
@@ -325,7 +325,7 @@ jobs:
         run: .github/scripts/sccache-mask-s3-env.sh
 
       - name: Install sccache
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: sccache
           checksum: true

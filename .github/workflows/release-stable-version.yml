@@ -19,7 +19,7 @@ jobs:
     steps:
       - name: Generate GitHub app token
         id: generate_app_token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@v3.4.0
         env:
           NODE_USE_ENV_PROXY: "1"
         with:
@@ -27,7 +27,7 @@ jobs:
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
 
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
 
@@ -100,13 +100,13 @@ jobs:
           toolchain: stable
 
       - name: Install git-cliff
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: git-cliff
           checksum: true
 
       - name: Install cocogitto
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: cocogitto@6.3.0
           checksum: true
@@ -161,7 +161,7 @@ jobs:
             | sed "/## ${PREVIOUS_TAG}\$/,\$d" > release-notes.md
 
       - name: Upload changelog as build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: release-notes.md
           path: release-notes.md
