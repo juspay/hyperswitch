@@ -24,6 +24,15 @@ use super::metrics;
 
 const DNS_LOOKUP_TIMEOUT: Duration = Duration::from_secs(2);
 
+const ENVIRONMENT_PROXY_VARIABLES: [&str; 6] = [
+    "HTTP_PROXY",
+    "http_proxy",
+    "HTTPS_PROXY",
+    "https_proxy",
+    "ALL_PROXY",
+    "all_proxy",
+];
+
 fn invalid_dns_destination() -> ValidationError {
     ValidationError::InvalidValue {
         message: "URL hostname must resolve to publicly routable IP addresses".to_string(),
@@ -40,16 +49,31 @@ pub struct GlobalOnlyResolver {
 impl GlobalOnlyResolver {
     /// A resolver that lets the hostnames of the configured proxies through unchecked.
     pub fn new(proxy_config: &Proxy) -> Self {
-        let proxy_hosts = [&proxy_config.http_url, &proxy_config.https_url]
+        let configured_proxies = [&proxy_config.http_url, &proxy_config.https_url]
             .into_iter()
             .flatten()
-            .filter_map(|proxy_url| url::Url::parse(proxy_url).ok())
-            .filter_map(|proxy_url| proxy_url.host_str().map(str::to_ascii_lowercase))
+            .cloned();
+        let environment_proxies = ENVIRONMENT_PROXY_VARIABLES
+            .into_iter()
+            .filter_map(|variable| std::env::var(variable).ok());
+        let proxy_hosts = configured_proxies
+            .chain(environment_proxies)
+            .filter_map(|proxy_url| proxy_hostname(&proxy_url))
             .collect();
         Self {
             proxy_hosts: Arc::new(proxy_hosts),
         }
     }
+}
+
+fn proxy_hostname(proxy_url: &str) -> Option<String> {
+    let proxy_url_with_scheme = match proxy_url.contains("://") {
+        true => proxy_url.to_owned(),
+        false => format!("http://{proxy_url}"),
+    };
+    url::Url::parse(&proxy_url_with_scheme)
+        .ok()
+        .and_then(|parsed| parsed.host_str().map(str::to_ascii_lowercase))
 }
 
 impl Resolve for GlobalOnlyResolver {

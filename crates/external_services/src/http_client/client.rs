@@ -12,7 +12,7 @@ static DEFAULT_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
 
 static PROXY_CLIENT_CACHE: OnceCell<RwLock<HashMap<Proxy, reqwest::Client>>> = OnceCell::new();
 
-static INTERNET_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
+static INTERNET_CLIENT_CACHE: OnceCell<RwLock<HashMap<Proxy, reqwest::Client>>> = OnceCell::new();
 
 use router_env::logger;
 
@@ -249,22 +249,53 @@ fn get_base_client_for_scope(
     }
 }
 
+fn internet_cache_key(proxy_config: &Proxy) -> Proxy {
+    Proxy {
+        idle_pool_connection_timeout: None,
+        ..proxy_config.clone()
+    }
+}
+
 fn get_internet_client(proxy_config: &Proxy) -> CustomResult<reqwest::Client, HttpClientError> {
     let metrics_tag = router_env::metric_attributes!(("client_type", "internet"));
+    let cache = INTERNET_CLIENT_CACHE.get_or_init(|| RwLock::new(HashMap::new()));
+    let cache_key = internet_cache_key(proxy_config);
 
-    let client = INTERNET_CLIENT
-        .get_or_try_init(|| {
-            logger::info!("Initializing INTERNET_CLIENT");
-            metrics::HTTP_CLIENT_CREATED.add(1, metrics_tag);
-            scoped_client_builder(proxy_config, EgressScope::Internet)?
-                .build()
-                .change_context(HttpClientError::ClientConstructionFailed)
-                .attach_printable("Failed to construct internet client")
-        })?
-        .clone();
+    let cached_client = cache
+        .read()
+        .ok()
+        .and_then(|read_lock| read_lock.get(&cache_key).cloned());
 
-    metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
-    Ok(client)
+    match cached_client {
+        Some(client) => {
+            metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
+            Ok(client)
+        }
+        None => {
+            let mut write_lock = cache.write().map_err(|_| {
+                error_stack::Report::new(HttpClientError::ClientConstructionFailed)
+                    .attach_printable("Failed to acquire internet client cache write lock")
+            })?;
+
+            match write_lock.get(&cache_key) {
+                Some(client) => {
+                    metrics::HTTP_CLIENT_CACHE_HIT.add(1, metrics_tag);
+                    Ok(client.clone())
+                }
+                None => {
+                    logger::info!("Creating new internet client for config: {:?}", cache_key);
+                    metrics::HTTP_CLIENT_CACHE_MISS.add(1, metrics_tag);
+                    let new_client = scoped_client_builder(proxy_config, EgressScope::Internet)?
+                        .build()
+                        .change_context(HttpClientError::ClientConstructionFailed)
+                        .attach_printable("Failed to construct internet client")?;
+                    metrics::HTTP_CLIENT_CREATED.add(1, metrics_tag);
+                    write_lock.insert(cache_key, new_client.clone());
+                    Ok(new_client)
+                }
+            }
+        }
+    }
 }
 
 fn get_or_create_proxy_client(
