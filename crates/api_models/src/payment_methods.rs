@@ -1614,12 +1614,6 @@ pub struct PaymentMethodResponse {
     #[schema(value_type = String, example = "0a_pm_01926c58bc6e77c09e809964e72af8c8")]
     pub id: id_type::GlobalPaymentMethodId,
 
-    /// Unique retrieval reference for this encrypted-wallet create.
-    /// Use it instead of the PM ID to retrieve the transaction cryptogram once.
-    #[schema(value_type = Option<AssociatedPaymentMethodTokenType>)]
-    pub payment_method_token:
-        Option<common_types::payment_methods::AssociatedPaymentMethodTokenType>,
-
     /// Unique identifier for a merchant
     #[schema(value_type = String, example = "merchant_1671528864")]
     pub merchant_id: id_type::MerchantId,

@@ -1958,8 +1958,7 @@ pub async fn create_payment_method_core(
     };
     req.payment_method_data = payment_method_data;
     let storage_type = req.storage_type;
-    let req_payment_method_type = req.payment_method_type;
-    let (mut response, payment_method) = match storage_type {
+    let (response, payment_method) = match storage_type {
         common_enums::StorageType::Volatile => {
             create_volatile_payment_method_core(
                 state,
@@ -1977,21 +1976,14 @@ pub async fn create_payment_method_core(
         }
     }?;
     if let Some(cryptogram) = apple_pay_cryptogram.as_ref() {
-        let token = create_payment_method_retrieval_token(
+        vault::store_apple_pay_cryptogram(
             state,
-            platform,
-            profile,
-            &payment_method,
-            req_payment_method_type,
-            storage_type,
-            Some(cryptogram),
+            Secret::new(response.id.get_string_repr()),
+            cryptogram,
+            profile.get_order_fulfillment_time_or_default(),
+            platform.get_provider().get_key_store(),
         )
         .await?;
-        response.payment_method_token = Some(
-            common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(
-                token,
-            ),
-        );
     }
     Ok((response, payment_method))
 }
@@ -6479,7 +6471,6 @@ pub async fn retrieve_payment_method(
     let (storage_type, pm_token_data_opt) =
         resolve_storage_type_from_token(&state, &payment_method_id_or_token.payment_method_id)
             .await?;
-    let is_retrieval_token = pm_token_data_opt.is_some();
 
     // 2. Fetch payment method record based on resolved storage type
     let (storage_type, payment_method) = fetch_payment_method_by_storage(
@@ -6684,26 +6675,21 @@ pub async fn retrieve_payment_method(
                 },
             )) = &mut raw_payment_method_data
             {
-                if is_retrieval_token {
-                    let cryptogram_data = vault::consume_apple_pay_cryptogram(
-                        &state,
-                        &payment_method_id_or_token.payment_method_id,
-                        platform.get_provider().get_key_store(),
-                    )
-                    .await?;
-                    match cryptogram_data {
-                        Some(data) => {
-                            *cryptogram = Some(data.online_payment_cryptogram);
-                            *eci = data.eci_indicator;
-                        }
-                        None => {
-                            *cryptogram = None;
-                            *eci = None;
-                        }
+                let cryptogram_data = vault::consume_apple_pay_cryptogram(
+                    &state,
+                    &payment_method_id_or_token.payment_method_id,
+                    platform.get_provider().get_key_store(),
+                )
+                .await?;
+                match cryptogram_data {
+                    Some(data) => {
+                        *cryptogram = Some(data.online_payment_cryptogram);
+                        *eci = data.eci_indicator;
                     }
-                } else {
-                    *cryptogram = None;
-                    *eci = None;
+                    None => {
+                        *cryptogram = None;
+                        *eci = None;
+                    }
                 }
             }
         }

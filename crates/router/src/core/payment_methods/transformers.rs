@@ -776,7 +776,6 @@ pub fn generate_payment_method_response(
         merchant_id: payment_method.merchant_id.to_owned(),
         customer_id,
         id: payment_method.id.to_owned(),
-        payment_method_token: None,
         payment_method_type: payment_method.get_payment_method_type(),
         payment_method_subtype: payment_method.get_payment_method_subtype(),
         created: Some(payment_method.created_at),

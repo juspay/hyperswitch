@@ -25346,14 +25346,6 @@
             "description": "The unique identifier of the Payment method",
             "example": "0a_pm_01926c58bc6e77c09e809964e72af8c8"
           },
-          "payment_method_token": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/AssociatedPaymentMethodTokenType"
-              }
-            ],
-            "nullable": true
-          },
           "merchant_id": {
             "type": "string",
             "description": "Unique identifier for a merchant",
