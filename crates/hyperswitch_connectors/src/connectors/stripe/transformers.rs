@@ -8,11 +8,11 @@ use common_types::{
 };
 use common_utils::{
     collect_missing_value_keys,
-    errors::{CustomResult, ParsingError},
+    errors::CustomResult,
     ext_traits::{ByteSliceExt, Encode, OptionExt as _},
     pii::{self, Email},
     request::{Method, RequestContent},
-    types::{AmountConvertor, MinorUnit},
+    types::{MinorUnit, MinorUnitInConnectorDecimals},
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -66,6 +66,7 @@ use crate::{
         UploadFileRouterData,
     },
     utils::{
+        convert_amount, convert_back_amount_to_minor_units,
         get_unimplemented_payment_method_error_message, is_payment_failure, is_refund_failure,
         PaymentMethodPredicates, PaymentsAuthorizeRequestData, SplitPaymentData,
     },
@@ -75,75 +76,48 @@ pub mod auth_headers {
     pub const STRIPE_VERSION: &str = "2022-11-15";
 }
 
-/// Stripe takes amounts in the currency's minor unit, except for currencies it still represents
-/// with two decimals for backwards compatibility although they have none (UGX: 5 UGX is `500`).
-#[derive(Debug, Clone, Copy)]
-pub struct StripeAmountConvertor;
+/// Converts amounts between core and Stripe, using Stripe's decimal digits for each currency
+pub const STRIPE_AMOUNT_CONVERTOR: MinorUnitInConnectorDecimals =
+    MinorUnitInConnectorDecimals::new(common_enums::connector_enums::Connector::Stripe);
 
-impl StripeAmountConvertor {
-    fn is_two_decimal_at_stripe(currency: enums::Currency) -> bool {
-        matches!(currency, enums::Currency::UGX)
-    }
-
-    /// Converts a core minor-unit amount to the amount Stripe expects for `currency`
-    pub fn amount_to_stripe(
-        amount: MinorUnit,
-        currency: enums::Currency,
-    ) -> Result<MinorUnit, error_stack::Report<ConnectorError>> {
-        Self.convert(amount, currency)
-            .change_context(ConnectorError::AmountConversionFailed)
-    }
-
-    /// Converts an amount Stripe returned for `currency` (as Stripe spells it) to the core minor unit
-    pub fn amount_from_stripe(
-        amount: MinorUnit,
-        currency: &str,
-    ) -> Result<MinorUnit, error_stack::Report<ConnectorError>> {
-        let currency = enums::Currency::from_str(currency.to_uppercase().as_str())
-            .change_context(ConnectorError::ParsingFailed)?;
-        Self::amount_from_stripe_in(amount, currency)
-    }
-
-    /// Converts an amount Stripe returned for `currency` to the core minor unit
-    pub fn amount_from_stripe_in(
-        amount: MinorUnit,
-        currency: enums::Currency,
-    ) -> Result<MinorUnit, error_stack::Report<ConnectorError>> {
-        Self.convert_back(amount, currency)
-            .change_context(ConnectorError::AmountConversionFailed)
-    }
+/// Converts a core payout amount to the amount Stripe expects for `currency`
+pub(crate) fn payout_amount_to_stripe(
+    amount: MinorUnit,
+    currency: enums::Currency,
+) -> Result<MinorUnit, error_stack::Report<ConnectorError>> {
+    convert_amount(
+        &MinorUnitInConnectorDecimals::for_payouts(
+            common_enums::connector_enums::Connector::Stripe,
+        ),
+        amount,
+        currency,
+    )
 }
 
-impl AmountConvertor for StripeAmountConvertor {
-    type Output = MinorUnit;
+/// Converts a core amount to the amount Stripe expects for `currency`
+pub(crate) fn amount_to_stripe(
+    amount: MinorUnit,
+    currency: enums::Currency,
+) -> Result<MinorUnit, error_stack::Report<ConnectorError>> {
+    convert_amount(&STRIPE_AMOUNT_CONVERTOR, amount, currency)
+}
 
-    fn convert(
-        &self,
-        amount: MinorUnit,
-        currency: enums::Currency,
-    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
-        if Self::is_two_decimal_at_stripe(currency) {
-            amount
-                .get_amount_as_i64()
-                .checked_mul(100)
-                .map(MinorUnit::new)
-                .ok_or_else(|| error_stack::report!(ParsingError::IntegerOverflow))
-        } else {
-            Ok(amount)
-        }
-    }
+/// Converts an amount Stripe returned for `currency` (as Stripe spells it) to the core amount
+pub(crate) fn amount_from_stripe(
+    amount: MinorUnit,
+    currency: &str,
+) -> Result<MinorUnit, error_stack::Report<ConnectorError>> {
+    let currency = enums::Currency::from_str(currency.to_uppercase().as_str())
+        .change_context(ConnectorError::ParsingFailed)?;
+    amount_from_stripe_in(amount, currency)
+}
 
-    fn convert_back(
-        &self,
-        amount: MinorUnit,
-        currency: enums::Currency,
-    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
-        if Self::is_two_decimal_at_stripe(currency) {
-            Ok(MinorUnit::new(amount.get_amount_as_i64() / 100))
-        } else {
-            Ok(amount)
-        }
-    }
+/// Converts an amount Stripe returned for `currency` to the core amount
+pub(crate) fn amount_from_stripe_in(
+    amount: MinorUnit,
+    currency: enums::Currency,
+) -> Result<MinorUnit, error_stack::Report<ConnectorError>> {
+    convert_back_amount_to_minor_units(&STRIPE_AMOUNT_CONVERTOR, amount, currency)
 }
 
 /// Tokenization method sent to Stripe for decrypted wallet tokens
@@ -2392,7 +2366,7 @@ fn create_stripe_line_items_data(
     l2_l3_data: &Option<Box<hyperswitch_domain_models::router_data::L2L3Data>>,
     currency: enums::Currency,
 ) -> Result<Option<StripeLineItemsData>, error_stack::Report<ConnectorError>> {
-    let to_stripe = |amount: MinorUnit| StripeAmountConvertor::amount_to_stripe(amount, currency);
+    let to_stripe = |amount: MinorUnit| amount_to_stripe(amount, currency);
     l2_l3_data.as_ref().map(|data| {
         let customer_reference = data.get_customer_id().map(|id| id.get_string_repr().to_string());
         let order_reference = data.get_merchant_order_reference_id();
@@ -2897,7 +2871,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             Some(SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment)) => {
                 let application_fee_amount = stripe_split_payment
                     .application_fees
-                    .map(|fee| StripeAmountConvertor::amount_to_stripe(fee, item.request.currency))
+                    .map(|fee| amount_to_stripe(fee, item.request.currency))
                     .transpose()?;
                 match &stripe_split_payment.charge_type {
                     PaymentChargeType::Stripe(charge_type) => match charge_type {
@@ -3962,16 +3936,12 @@ where
             .latest_charge
             .as_ref()
             .and_then(StripeChargeEnum::get_maximum_capturable_amount)
-            .map(|amount| {
-                StripeAmountConvertor::amount_from_stripe(amount, &item.response.currency)
-            })
+            .map(|amount| amount_from_stripe(amount, &item.response.currency))
             .transpose()?;
         let minor_amount_captured = item
             .response
             .amount_received
-            .map(|amount| {
-                StripeAmountConvertor::amount_from_stripe(amount, &item.response.currency)
-            })
+            .map(|amount| amount_from_stripe(amount, &item.response.currency))
             .transpose()?;
 
         Ok(Self {
@@ -4298,9 +4268,7 @@ where
         let minor_amount_captured = item
             .response
             .amount_received
-            .map(|amount| {
-                StripeAmountConvertor::amount_from_stripe(amount, &item.response.currency)
-            })
+            .map(|amount| amount_from_stripe(amount, &item.response.currency))
             .transpose()?;
 
         Ok(Self {
@@ -4660,10 +4628,7 @@ pub struct ChargeRefundRequest {
 impl<F> TryFrom<&RefundsRouterData<F>> for ChargeRefundRequest {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: &RefundsRouterData<F>) -> Result<Self, Self::Error> {
-        let amount = StripeAmountConvertor::amount_to_stripe(
-            item.request.minor_refund_amount,
-            item.request.currency,
-        )?;
+        let amount = amount_to_stripe(item.request.minor_refund_amount, item.request.currency)?;
         match item.request.split_refunds.as_ref() {
             None => Err(ConnectorError::MissingRequiredField {
                 field_name: "split_refunds".into(),
@@ -5237,9 +5202,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, ChargeSyncResponse, T, PaymentsResponse
         };
 
         let minor_amount_captured = match (item.response.amount_captured, &item.response.currency) {
-            (Some(amount), Some(currency)) => {
-                Some(StripeAmountConvertor::amount_from_stripe(amount, currency)?)
-            }
+            (Some(amount), Some(currency)) => Some(amount_from_stripe(amount, currency)?),
             (amount, _) => amount,
         };
 

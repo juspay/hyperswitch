@@ -6,7 +6,7 @@ use hyperswitch_interfaces::errors;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use super::{ErrorDetails, StripeAmountConvertor};
+use super::{payout_amount_to_stripe as amount_to_stripe, ErrorDetails};
 use crate::{
     types::{PayoutIndividualDetailsExt as _, PayoutsResponseRouterData},
     utils::{CustomerDetails as _, PayoutsData as _, RouterData},
@@ -14,8 +14,7 @@ use crate::{
 type Error = error_stack::Report<errors::ConnectorError>;
 
 fn payout_amount_to_stripe(amount: i64, currency: Currency) -> Result<i64, Error> {
-    StripeAmountConvertor::amount_to_stripe(MinorUnit::new(amount), currency)
-        .map(MinorUnit::get_amount_as_i64)
+    amount_to_stripe(MinorUnit::new(amount), currency).map(MinorUnit::get_amount_as_i64)
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

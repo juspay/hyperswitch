@@ -103,7 +103,7 @@ pub struct Stripe {
 impl Stripe {
     pub const fn new() -> &'static Self {
         &Self {
-            amount_converter: &stripe::StripeAmountConvertor,
+            amount_converter: &stripe::STRIPE_AMOUNT_CONVERTOR,
             amount_converter_webhooks: &StringMinorUnitForConnector,
         }
     }

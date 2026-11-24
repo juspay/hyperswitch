@@ -406,6 +406,90 @@ impl AmountConvertor for MinorUnitForConnector {
     }
 }
 
+/// Connector required amount in minor units, written with the connector's own decimal digits for
+/// the currency (`Currency::number_of_digits_after_decimal_point_for_connector`) and rejecting
+/// fractional amounts where the connector accepts only whole units
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MinorUnitInConnectorDecimals {
+    connector: common_enums::connector_enums::Connector,
+    is_payout: bool,
+}
+
+impl MinorUnitInConnectorDecimals {
+    /// Convertor for payment amounts of `connector`
+    pub const fn new(connector: common_enums::connector_enums::Connector) -> Self {
+        Self {
+            connector,
+            is_payout: false,
+        }
+    }
+
+    /// Convertor for payout amounts of `connector`
+    pub const fn for_payouts(connector: common_enums::connector_enums::Connector) -> Self {
+        Self {
+            connector,
+            is_payout: true,
+        }
+    }
+
+    /// Rewrites `amount` from `from_digits` to `to_digits` digits after the decimal point
+    fn rescale(
+        amount: MinorUnit,
+        from_digits: u8,
+        to_digits: u8,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        let factor = 10_i64
+            .checked_pow(u32::from(from_digits.abs_diff(to_digits)))
+            .ok_or(ParsingError::IntegerOverflow)?;
+        if to_digits >= from_digits {
+            amount
+                .0
+                .checked_mul(factor)
+                .map(MinorUnit)
+                .ok_or_else(|| report!(ParsingError::IntegerOverflow))
+        } else if amount.0.checked_rem(factor) == Some(0) {
+            amount
+                .0
+                .checked_div(factor)
+                .map(MinorUnit)
+                .ok_or_else(|| report!(ParsingError::IntegerOverflow))
+        } else {
+            Err(report!(ParsingError::FractionalAmountNotSupported))
+        }
+    }
+}
+
+impl AmountConvertor for MinorUnitInConnectorDecimals {
+    type Output = MinorUnit;
+    fn convert(
+        &self,
+        amount: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<Self::Output, error_stack::Report<ParsingError>> {
+        let digits = currency.number_of_digits_after_decimal_point();
+        if currency.is_whole_units_only_for_connector(self.connector, self.is_payout) {
+            // Dropping the decimals fails if there are any
+            Self::rescale(amount, digits, 0)?;
+        }
+        Self::rescale(
+            amount,
+            digits,
+            currency.number_of_digits_after_decimal_point_for_connector(self.connector),
+        )
+    }
+    fn convert_back(
+        &self,
+        amount: MinorUnit,
+        currency: enums::Currency,
+    ) -> Result<MinorUnit, error_stack::Report<ParsingError>> {
+        Self::rescale(
+            amount,
+            currency.number_of_digits_after_decimal_point_for_connector(self.connector),
+            currency.number_of_digits_after_decimal_point(),
+        )
+    }
+}
+
 /// This Unit struct represents MinorUnit in which core amount works
 #[derive(
     Default,
@@ -923,6 +1007,68 @@ mod amount_conversion_tests {
             .convert_back(converted_amount, currency)
             .unwrap();
         assert_eq!(converted_back_amount, request_amount);
+    }
+
+    #[test]
+    fn amount_conversion_in_connector_decimals() {
+        use common_enums::connector_enums::Connector;
+        let stripe = MinorUnitInConnectorDecimals::new(Connector::Stripe);
+        let stripe_payouts = MinorUnitInConnectorDecimals::for_payouts(Connector::Stripe);
+
+        // UGX is written with two decimals at Stripe
+        let ugx = stripe
+            .convert(MinorUnit::new(5), enums::Currency::UGX)
+            .unwrap();
+        assert_eq!(ugx, MinorUnit::new(500));
+        assert_eq!(
+            stripe.convert_back(ugx, enums::Currency::UGX).unwrap(),
+            MinorUnit::new(5)
+        );
+        assert!(stripe
+            .convert_back(MinorUnit::new(550), enums::Currency::UGX)
+            .is_err());
+
+        // ISK is whole units only at Stripe
+        assert_eq!(
+            stripe
+                .convert(MinorUnit::new(1000), enums::Currency::ISK)
+                .unwrap(),
+            MinorUnit::new(1000)
+        );
+        assert!(stripe
+            .convert(MinorUnit::new(1045), enums::Currency::ISK)
+            .is_err());
+
+        // HUF payouts are whole units only, payments are not
+        assert!(stripe_payouts
+            .convert(MinorUnit::new(1045), enums::Currency::HUF)
+            .is_err());
+        assert_eq!(
+            stripe
+                .convert(MinorUnit::new(1045), enums::Currency::HUF)
+                .unwrap(),
+            MinorUnit::new(1045)
+        );
+
+        // Other currencies and connectors are unchanged
+        assert_eq!(
+            stripe
+                .convert(MinorUnit::new(1045), TWO_DECIMAL_CURRENCY)
+                .unwrap(),
+            MinorUnit::new(1045)
+        );
+        assert_eq!(
+            stripe
+                .convert(MinorUnit::new(5), ZERO_DECIMAL_CURRENCY)
+                .unwrap(),
+            MinorUnit::new(5)
+        );
+        assert_eq!(
+            MinorUnitInConnectorDecimals::new(Connector::Adyen)
+                .convert(MinorUnit::new(5), enums::Currency::UGX)
+                .unwrap(),
+            MinorUnit::new(5)
+        );
     }
 }
 

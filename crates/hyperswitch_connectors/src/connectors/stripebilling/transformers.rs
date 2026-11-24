@@ -29,7 +29,7 @@ use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
-use crate::connectors::stripe::transformers::StripeAmountConvertor;
+use crate::connectors::stripe::transformers::amount_from_stripe_in;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     utils::{convert_uppercase, PaymentsAuthorizeRequestData},
@@ -416,10 +416,7 @@ impl TryFrom<StripebillingInvoiceBody> for revenue_recovery::RevenueRecoveryInvo
             .first()
             .map(|linedata| linedata.period.start);
         Ok(Self {
-            amount: StripeAmountConvertor::amount_from_stripe_in(
-                item.data.object.amount,
-                item.data.object.currency,
-            )?,
+            amount: amount_from_stripe_in(item.data.object.amount, item.data.object.currency)?,
             currency: item.data.object.currency,
             merchant_reference_id,
             billing_address: item
@@ -558,10 +555,7 @@ impl
             response: Ok(
                 recovery_response_types::BillingConnectorPaymentsSyncResponse {
                     status: charge_details.status.into(),
-                    amount: StripeAmountConvertor::amount_from_stripe_in(
-                        charge_details.amount,
-                        charge_details.currency,
-                    )?,
+                    amount: amount_from_stripe_in(charge_details.amount, charge_details.currency)?,
                     currency: charge_details.currency,
                     merchant_reference_id,
                     connector_account_reference_id:
