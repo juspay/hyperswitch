@@ -175,6 +175,7 @@ max_feed_count = 200
 # [cache.success_based_dynamic_algorithm]     # SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
 # [cache.elimination_based_dynamic_algorithm] # ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE
 # [cache.contract_based_dynamic_algorithm]    # CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE
+# [cache.gsm]                                 # GSM_CACHE
 max_failure_threshold_seconds = 5
 
 [trace_header]

@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
     router_flow_types,
     router_request_types::revenue_recovery as revenue_recovery_request,
     router_response_types::revenue_recovery as revenue_recovery_response,
-    types as router_types,
+    types as router_types, ApiModelToDieselModelConvertor,
 };
 use hyperswitch_interfaces::webhooks as interface_webhooks;
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -167,7 +167,7 @@ pub async fn recovery_incoming_webhook_flow(
 
     // Fetch the intent using merchant reference id, if not found create new intent.
     let payment_intent = invoice_details
-        .get_payment_intent(&state, &req_state, &platform, &business_profile)
+        .get_payment_intent(&state, &platform, &business_profile)
         .await
         .transpose()
         .async_unwrap_or_else(|| async {
@@ -369,7 +369,7 @@ impl RevenueRecoveryInvoice {
             data,
         ));
         recovery_intent
-            .get_payment_intent(state, req_state, platform, profile)
+            .get_payment_intent(state, platform, profile)
             .await
             .transpose()
             .async_unwrap_or_else(|| async {
@@ -384,7 +384,6 @@ impl RevenueRecoveryInvoice {
     pub async fn find_custom_recovery_intent(
         data: api_models::payments::RecoveryPaymentsCreate,
         state: &SessionState,
-        req_state: &ReqState,
         platform: &domain::Platform,
         profile: &domain::Profile,
     ) -> CustomResult<Option<revenue_recovery::RecoveryPaymentIntent>, errors::RevenueRecoveryError>
@@ -392,7 +391,7 @@ impl RevenueRecoveryInvoice {
         Self(revenue_recovery::RevenueRecoveryInvoiceData::foreign_from(
             data,
         ))
-        .get_payment_intent(state, req_state, platform, profile)
+        .get_payment_intent(state, platform, profile)
         .await
     }
 
@@ -431,61 +430,51 @@ impl RevenueRecoveryInvoice {
         )
     }
 
+    /// The invoice's payment intent, read straight from the store: the lookup is scoped to the
+    /// profile, so the intent found is the caller's own.
     async fn get_payment_intent(
         &self,
         state: &SessionState,
-        req_state: &ReqState,
         platform: &domain::Platform,
         profile: &domain::Profile,
     ) -> CustomResult<Option<revenue_recovery::RecoveryPaymentIntent>, errors::RevenueRecoveryError>
     {
-        let payment_response = Box::pin(payments::payments_get_intent_using_merchant_reference(
-            state.clone(),
-            platform.clone(),
-            profile.clone(),
-            req_state.clone(),
-            &self.0.merchant_reference_id,
-            hyperswitch_domain_models::payments::HeaderPayload::default(),
-        ))
-        .await;
-        let response = match payment_response {
-            Ok(services::ApplicationResponse::JsonWithHeaders((payments_response, _))) => {
-                let payment_id = payments_response.id.clone();
-                let status = payments_response.status;
-                let feature_metadata = payments_response.feature_metadata;
-                let merchant_id = platform.get_processor().get_account().get_id().clone();
-                let revenue_recovery_invoice_data = &self.0;
-                Ok(Some(revenue_recovery::RecoveryPaymentIntent {
-                    payment_id,
-                    status,
-                    feature_metadata,
-                    merchant_id,
-                    merchant_reference_id: Some(
-                        revenue_recovery_invoice_data.merchant_reference_id.clone(),
-                    ),
-                    invoice_amount: revenue_recovery_invoice_data.amount,
-                    invoice_currency: revenue_recovery_invoice_data.currency,
-                    created_at: revenue_recovery_invoice_data.billing_started_at,
-                    billing_address: revenue_recovery_invoice_data.billing_address.clone(),
-                }))
-            }
-            Err(err)
-                if matches!(
-                    err.current_context(),
-                    &errors::ApiErrorResponse::PaymentNotFound
-                ) =>
-            {
-                Ok(None)
-            }
-            Ok(_) => Err(errors::RevenueRecoveryError::PaymentIntentFetchFailed)
-                .attach_printable("Unexpected response from payment intent core"),
-            error @ Err(_) => {
+        let payment_intent = match state
+            .store
+            .find_payment_intent_by_merchant_reference_id_profile_id(
+                &self.0.merchant_reference_id,
+                profile.get_id(),
+                platform.get_processor().get_key_store(),
+                &platform.get_processor().get_storage_scheme(),
+            )
+            .await
+        {
+            Ok(payment_intent) => payment_intent,
+            Err(error) if error.current_context().is_db_not_found() => return Ok(None),
+            Err(error) => {
                 logger::error!(?error);
-                Err(errors::RevenueRecoveryError::PaymentIntentFetchFailed)
-                    .attach_printable("failed to fetch payment intent recovery webhook flow")
+                return Err(error)
+                    .change_context(errors::RevenueRecoveryError::PaymentIntentFetchFailed)
+                    .attach_printable("failed to fetch payment intent recovery webhook flow");
             }
-        }?;
-        Ok(response)
+        };
+        let merchant_id = platform.get_processor().get_account().get_id().clone();
+        let revenue_recovery_invoice_data = &self.0;
+        Ok(Some(revenue_recovery::RecoveryPaymentIntent {
+            payment_id: payment_intent.id,
+            status: payment_intent.status,
+            feature_metadata: payment_intent
+                .feature_metadata
+                .map(|feature_metadata| feature_metadata.convert_back()),
+            merchant_id,
+            merchant_reference_id: Some(
+                revenue_recovery_invoice_data.merchant_reference_id.clone(),
+            ),
+            invoice_amount: revenue_recovery_invoice_data.amount,
+            invoice_currency: revenue_recovery_invoice_data.currency,
+            created_at: revenue_recovery_invoice_data.billing_started_at,
+            billing_address: revenue_recovery_invoice_data.billing_address.clone(),
+        }))
     }
     async fn create_payment_intent(
         &self,
@@ -564,7 +553,7 @@ impl RevenueRecoveryAttempt {
         // A transaction can be reported only once for an invoice, so one that is already
         // recorded is rejected instead of being recorded again.
         let existing_attempt = recovery_attempt
-            .get_payment_attempt(state, req_state, platform, profile, payment_intent)
+            .get_payment_attempt(state, platform, payment_intent)
             .await?;
         if existing_attempt.is_some() {
             return Err(report!(
@@ -592,16 +581,13 @@ impl RevenueRecoveryAttempt {
     pub async fn find_recovery_request_attempt(
         data: &api_models::payments::RecoveryPaymentsCreate,
         state: &SessionState,
-        req_state: &ReqState,
         platform: &domain::Platform,
-        profile: &domain::Profile,
         payment_intent: &revenue_recovery::RecoveryPaymentIntent,
     ) -> CustomResult<RecoveryRequestAttempts, errors::RevenueRecoveryError> {
         let recovery_attempt = Self(revenue_recovery::RevenueRecoveryAttemptData::foreign_from(
             data,
         ));
-        let attempts =
-            Self::list_attempts(state, req_state, platform, profile, payment_intent).await?;
+        let attempts = Self::list_attempts(state, platform, payment_intent).await?;
         let listed = recovery_attempt.find_listed_attempt(&attempts);
         let recorded_at = listed.as_ref().map(|attempt| attempt.created_at);
         let earlier: Vec<&api_payments::PaymentAttemptResponse> = attempts
@@ -749,9 +735,7 @@ impl RevenueRecoveryAttempt {
     async fn get_payment_attempt(
         &self,
         state: &SessionState,
-        req_state: &ReqState,
         platform: &domain::Platform,
-        profile: &domain::Profile,
         payment_intent: &revenue_recovery::RecoveryPaymentIntent,
     ) -> CustomResult<
         Option<(
@@ -760,8 +744,7 @@ impl RevenueRecoveryAttempt {
         )>,
         errors::RevenueRecoveryError,
     > {
-        let attempts =
-            Self::list_attempts(state, req_state, platform, profile, payment_intent).await?;
+        let attempts = Self::list_attempts(state, platform, payment_intent).await?;
         let payment_attempt = match self.find_listed_attempt(&attempts) {
             Some(attempt) => Some(self.to_recovery_attempt(state, attempt).await),
             None => None,
@@ -770,48 +753,30 @@ impl RevenueRecoveryAttempt {
         Ok(payment_attempt.map(|attempt| (attempt, (*payment_intent).clone())))
     }
 
-    /// The attempts of the invoice, through the list attempts operation.
+    /// The attempts of the invoice. The invoice was found within the caller's profile, so its
+    /// attempts are read without checking its ownership again.
     async fn list_attempts(
         state: &SessionState,
-        req_state: &ReqState,
         platform: &domain::Platform,
-        profile: &domain::Profile,
         payment_intent: &revenue_recovery::RecoveryPaymentIntent,
     ) -> CustomResult<api_payments::PaymentAttemptListResponse, errors::RevenueRecoveryError> {
-        let attempt_response =
-            Box::pin(payments::payments_list_attempts_using_payment_intent_id::<
-                payments::operations::PaymentGetListAttempts,
-                api_payments::PaymentAttemptListResponse,
-                _,
-                payments::operations::payment_attempt_list::PaymentGetListAttempts,
-                hyperswitch_domain_models::payments::PaymentAttemptListData<
-                    payments::operations::PaymentGetListAttempts,
-                >,
-            >(
-                state.clone(),
-                req_state.clone(),
-                platform.clone(),
-                profile.clone(),
-                payments::operations::PaymentGetListAttempts,
-                api_payments::PaymentAttemptListRequest {
-                    payment_intent_id: payment_intent.payment_id.clone(),
-                },
-                payment_intent.payment_id.clone(),
-                hyperswitch_domain_models::payments::HeaderPayload::default(),
-            ))
-            .await;
-        match attempt_response {
-            Ok(services::ApplicationResponse::JsonWithHeaders((payments_response, _))) => {
-                Ok(payments_response)
-            }
-            Ok(_) => Err(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)
-                .attach_printable("Unexpected response from payment intent core"),
-            error @ Err(_) => {
-                logger::error!(?error);
-                Err(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)
-                    .attach_printable("failed to fetch payment attempt in recovery webhook flow")
-            }
-        }
+        let payment_attempts = state
+            .store
+            .find_payment_attempts_by_payment_intent_id(
+                &payment_intent.payment_id,
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_storage_scheme(),
+            )
+            .await
+            .inspect_err(|error| logger::error!(?error))
+            .change_context(errors::RevenueRecoveryError::PaymentAttemptFetchFailed)
+            .attach_printable("failed to fetch payment attempt in recovery webhook flow")?;
+        Ok(api_payments::PaymentAttemptListResponse {
+            payment_attempt_list: payment_attempts
+                .iter()
+                .map(api_payments::PaymentAttemptResponse::foreign_from)
+                .collect(),
+        })
     }
 
     /// This transaction's attempt among the invoice's attempts, found by its charge id when it has
@@ -1212,13 +1177,7 @@ impl RevenueRecoveryAttempt {
                 Box::pin(invoice_transaction_details.enrich_card_info_using_card_bin(state)).await;
 
                 let (payment_attempt, updated_payment_intent) = invoice_transaction_details
-                    .get_payment_attempt(
-                        state,
-                        req_state,
-                        platform,
-                        business_profile,
-                        payment_intent,
-                    )
+                    .get_payment_attempt(state, platform, payment_intent)
                     .await
                     .transpose()
                     .async_unwrap_or_else(|| async {
