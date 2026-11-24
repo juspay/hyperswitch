@@ -5553,11 +5553,16 @@ Cypress.Commands.add(
     }
 
     if (validatedConfigs?.POLL_BEFORE) {
-      cy.pollPaymentStatusCallTest(globalState).then(() => {
+      const refundableStatuses = ["succeeded", "partially_captured"];
+      cy.pollPaymentStatusCallTest(globalState, [
+        ...refundableStatuses,
+        "failed",
+        "cancelled",
+      ]).then(() => {
         expect(
           globalState.get("polledPaymentStatus"),
           "payment status before refund"
-        ).to.equal("succeeded");
+        ).to.be.oneOf(refundableStatuses);
       });
     }
 
