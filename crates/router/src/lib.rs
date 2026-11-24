@@ -160,6 +160,7 @@ pub mod headers {
     pub const X_PAYMENT_CONFIRM_SOURCE: &str = "X-Payment-Confirm-Source";
     pub const CONTENT_LENGTH: &str = "Content-Length";
     pub const BROWSER_NAME: &str = "x-browser-name";
+    pub const X_BROWSER_APPLEPAY_PAYMENT_ALLOWED: &str = "x-browser-applepay-payment-allowed";
     pub const X_CLIENT_PLATFORM: &str = "x-client-platform";
     pub const X_MERCHANT_DOMAIN: &str = "x-merchant-domain";
     pub const X_APP_ID: &str = "x-app-id";

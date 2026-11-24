@@ -1218,6 +1218,18 @@
         "summary": "Payments - Session token",
         "description": "Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.",
         "operationId": "Create Session tokens for a Payment",
+        "parameters": [
+          {
+            "name": "x-browser-applepay-payment-allowed",
+            "in": "header",
+            "description": "Whether the SDK allows Apple Pay in the browser. false skips Apple Pay merchant validation; true or an omitted header attempts validation using the merchant's configuration. Send true or false.",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {

@@ -529,13 +529,9 @@ async fn create_applepay_session_token(
             wallet_blocking_config,
         )?;
 
-        let apple_pay_session_response = match (
-            header_payload.browser_name.clone(),
-            header_payload.x_client_platform.clone(),
-        ) {
-            (Some(common_enums::BrowserName::Safari), Some(common_enums::ClientPlatform::Web))
-            | (Some(common_enums::BrowserName::Chrome), Some(common_enums::ClientPlatform::Web))
-            | (None, None) => {
+        let apple_pay_session_response = match header_payload.is_browser_applepay_payment_allowed()
+        {
+            true => {
                 let apple_pay_session_request = apple_pay_session_request_optional
                     .attach_printable("Failed to obtain apple pay session request")?;
                 let applepay_session_request = build_apple_pay_session_request(
@@ -609,8 +605,8 @@ async fn create_applepay_session_token(
                     })
                     .flatten()
             }
-            _ => {
-                logger::debug!("Skipping apple pay session call based on the browser name");
+            false => {
+                logger::debug!("Skipping apple pay session call because browser Apple Pay payment is not allowed");
                 None
             }
         };
@@ -981,25 +977,16 @@ fn create_apple_pay_session_response(
             ..router_data.clone()
         }),
         None => {
-            match (
-                header_payload.browser_name,
-                header_payload.x_client_platform,
-            ) {
-                (
-                    Some(common_enums::BrowserName::Safari),
-                    Some(common_enums::ClientPlatform::Web),
-                )
-                | (
-                    Some(common_enums::BrowserName::Chrome),
-                    Some(common_enums::ClientPlatform::Web),
-                )
-                | (None, None) => Ok(types::PaymentsSessionRouterData {
+            let is_browser_applepay_payment_allowed =
+                header_payload.is_browser_applepay_payment_allowed();
+            match is_browser_applepay_payment_allowed {
+                true => Ok(types::PaymentsSessionRouterData {
                     response: Ok(types::PaymentsResponseData::SessionResponse {
                         session_token: payment_types::SessionToken::NoSessionTokenReceived,
                     }),
                     ..router_data.clone()
                 }),
-                _ => Ok(types::PaymentsSessionRouterData {
+                false => Ok(types::PaymentsSessionRouterData {
                     response: Ok(types::PaymentsResponseData::SessionResponse {
                         session_token: payment_types::SessionToken::ApplePay(Box::new(
                             payment_types::ApplepaySessionTokenResponse {

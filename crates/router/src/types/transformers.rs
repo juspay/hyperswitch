@@ -29,9 +29,9 @@ use crate::db::storage::revenue_recovery_redis_operation;
 use crate::{
     core::{errors, offer_engine},
     headers::{
-        ACCEPT_LANGUAGE, BROWSER_NAME, X_APP_ID, X_CLIENT_PLATFORM, X_CLIENT_SOURCE,
-        X_CLIENT_VERSION, X_MERCHANT_DOMAIN, X_PAYMENT_CONFIRM_SOURCE, X_REDIRECT_URI,
-        X_REFERENCE_ID,
+        ACCEPT_LANGUAGE, BROWSER_NAME, X_APP_ID, X_BROWSER_APPLEPAY_PAYMENT_ALLOWED,
+        X_CLIENT_PLATFORM, X_CLIENT_SOURCE, X_CLIENT_VERSION, X_MERCHANT_DOMAIN,
+        X_PAYMENT_CONFIRM_SOURCE, X_REDIRECT_URI, X_REFERENCE_ID,
     },
     services::authentication::get_header_value_by_key,
     types::{
@@ -1723,6 +1723,22 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
                 .unwrap_or(api_enums::BrowserName::Unknown)
         });
 
+        let x_browser_applepay_payment_allowed =
+            get_header_value_by_key(X_BROWSER_APPLEPAY_PAYMENT_ALLOWED.into(), headers)?.and_then(
+                |value| {
+                    value
+                        .parse::<bool>()
+                        .inspect_err(|error| {
+                            router_env::logger::warn!(
+                                ?error,
+                                header = X_BROWSER_APPLEPAY_PAYMENT_ALLOWED,
+                                "Ignoring invalid boolean header"
+                            );
+                        })
+                        .ok()
+                },
+            );
+
         let x_client_platform_str =
             get_header_value_by_key(X_CLIENT_PLATFORM.into(), headers)?.map(|val| val.to_string());
 
@@ -1750,6 +1766,7 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
             client_version,
             x_hs_latency: Some(x_hs_latency),
             browser_name,
+            x_browser_applepay_payment_allowed,
             x_client_platform,
             x_merchant_domain,
             locale,
@@ -1814,6 +1831,22 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
                 .unwrap_or(api_enums::BrowserName::Unknown)
         });
 
+        let x_browser_applepay_payment_allowed =
+            get_header_value_by_key(X_BROWSER_APPLEPAY_PAYMENT_ALLOWED.into(), headers)?.and_then(
+                |value| {
+                    value
+                        .parse::<bool>()
+                        .inspect_err(|error| {
+                            router_env::logger::warn!(
+                                ?error,
+                                header = X_BROWSER_APPLEPAY_PAYMENT_ALLOWED,
+                                "Ignoring invalid boolean header"
+                            );
+                        })
+                        .ok()
+                },
+            );
+
         let x_client_platform_str =
             get_header_value_by_key(X_CLIENT_PLATFORM.into(), headers)?.map(|val| val.to_string());
 
@@ -1841,6 +1874,7 @@ impl ForeignTryFrom<&HeaderMap> for hyperswitch_domain_models::payments::HeaderP
             // client_version,
             x_hs_latency: Some(x_hs_latency),
             browser_name,
+            x_browser_applepay_payment_allowed,
             x_client_platform,
             x_merchant_domain,
             locale,
