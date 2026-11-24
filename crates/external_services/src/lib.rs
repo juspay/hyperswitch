@@ -101,6 +101,7 @@ pub mod consts {
 
     /// Header key used to specify the connector name in UCS requests.
     pub(crate) const UCS_HEADER_CONNECTOR: &str = "x-connector";
+    pub(crate) const UCS_HEADER_AUTHENTICATOR_CONNECTOR: &str = "x-auth-connector";
 
     /// Provider identity for UCS webhook event parsing, independent of the resource family.
     pub(crate) const UCS_HEADER_WEBHOOK_CONNECTOR: &str = "x-webhook-connector";

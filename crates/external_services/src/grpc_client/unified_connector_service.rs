@@ -674,8 +674,10 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(payment_pre_authenticate_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let metadata = build_unified_connector_service_grpc_headers_for_authentication(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
 
         *request.metadata_mut() = metadata;
 
@@ -711,8 +713,10 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(payment_authenticate_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let metadata = build_unified_connector_service_grpc_headers_for_authentication(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
 
         *request.metadata_mut() = metadata;
 
@@ -786,8 +790,10 @@ impl UnifiedConnectorServiceClient {
         let mut request = tonic::Request::new(payment_post_authenticate_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
-        let metadata =
-            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        let metadata = build_unified_connector_service_grpc_headers_for_authentication(
+            connector_auth_metadata,
+            grpc_headers,
+        )?;
 
         *request.metadata_mut() = metadata;
 
@@ -1869,6 +1875,21 @@ pub fn build_unified_connector_service_grpc_headers(
     build_grpc_headers_internal(meta, grpc_headers, consts::UCS_HEADER_CONNECTOR)
 }
 
+/// Select the authenticator registry for standalone 3DS connectors.
+fn build_unified_connector_service_grpc_headers_for_authentication(
+    meta: ConnectorAuthMetadata,
+    grpc_headers: GrpcHeadersUcs,
+) -> Result<MetadataMap, UnifiedConnectorServiceError> {
+    // Netcetera is an authenticator; payment connectors performing their own
+    // 3DS steps continue to use the payment connector registry.
+    let connector_header_key = if meta.connector_name == "netcetera" {
+        consts::UCS_HEADER_AUTHENTICATOR_CONNECTOR
+    } else {
+        consts::UCS_HEADER_CONNECTOR
+    };
+    build_grpc_headers_internal(meta, grpc_headers, connector_header_key)
+}
+
 /// Build the gRPC Headers for Unified Connector Service Payout Request
 /// Uses `x-payout-connector` instead of `x-connector` so the UCS server can
 /// route payout traffic via a separate `PayoutConnectorEnum` without affecting
@@ -2085,7 +2106,6 @@ fn build_grpc_headers_internal(
 
     Ok(metadata)
 }
-
 /// Build gRPC headers for UCS surcharge requests.
 /// Same as [`build_unified_connector_service_grpc_headers`] but uses
 /// `x-surcharge-connector` instead of `x-connector` for the connector name,
@@ -2117,7 +2137,6 @@ pub fn build_unified_connector_service_grpc_headers_for_surcharge(
     Ok(metadata)
 }
 
-/// Build gRPC headers for UCS notify requests.
 /// Build gRPC headers for UCS notify requests.
 /// Same as [`build_unified_connector_service_grpc_headers`] but uses
 /// `x-surcharge-connector` for surcharge events and `x-connector` for other events.

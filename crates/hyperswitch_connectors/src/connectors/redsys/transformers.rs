@@ -836,6 +836,10 @@ impl ForeignTryFrom<&RedsysThreeDsInvokeData> for router_request_types::UcsAuthe
             challenge_cancel: None,
             challenge_code_reason: None,
             message_extension: None,
+            acs_signed_content: None,
+            acs_reference_number: None,
+            directory_server_id: None,
+            scheme_id: None,
         })
     }
 }
@@ -861,6 +865,10 @@ impl ForeignTryFrom<&ThreeDsInvokeExempt> for router_request_types::UcsAuthentic
             challenge_cancel: None,
             challenge_code_reason: None,
             message_extension: None,
+            acs_signed_content: None,
+            acs_reference_number: None,
+            directory_server_id: None,
+            scheme_id: None,
         })
     }
 }
