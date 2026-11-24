@@ -748,7 +748,7 @@ async fn resolve_ab_algorithm_for_attempt(
     state: &SessionState,
     profile_dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
     error_code: Option<common_enums::StandardisedCode>,
-    failed_attempt_id: &id_type::GlobalAttemptId,
+    prev_attempt_id: &id_type::GlobalAttemptId,
 ) -> Option<common_enums::RevenueRecoveryABAlgorithm> {
     use external_services::superposition::Config as _;
 
@@ -765,7 +765,7 @@ async fn resolve_ab_algorithm_for_attempt(
     match RevenueRecoveryAbAlgorithmForAttempt::fetch(
         state.superposition_service.as_ref(),
         context.as_ref(),
-        Some(failed_attempt_id),
+        Some(prev_attempt_id),
     )
     .await
     {
@@ -823,7 +823,7 @@ pub(crate) struct RetryTimingParams<'a> {
     pub retry_count: u32,
     pub prev_attempt_error_code: Option<common_enums::StandardisedCode>,
     /// The failed attempt this decision is for.
-    pub failed_attempt_id: &'a id_type::GlobalAttemptId,
+    pub prev_attempt_id: &'a id_type::GlobalAttemptId,
     pub static_ladder_progress: &'a pcr::schedule::StaticLadderProgress,
     pub remaining_grace_days: u32,
     pub remaining_budget: u32,
@@ -845,7 +845,7 @@ pub(crate) async fn get_retry_timing(
         retry_algorithm_type,
         retry_count,
         prev_attempt_error_code,
-        failed_attempt_id,
+        prev_attempt_id,
         static_ladder_progress,
         remaining_grace_days,
         remaining_budget,
@@ -910,7 +910,7 @@ pub(crate) async fn get_retry_timing(
                     state,
                     &ab_dimensions,
                     prev_attempt_error_code,
-                    failed_attempt_id,
+                    prev_attempt_id,
                 )
                 .await
             } else {
@@ -928,7 +928,7 @@ pub(crate) async fn get_retry_timing(
 
                 logger::info!(
                     payment_id = %payment_intent.id.get_string_repr(),
-                    failed_attempt_id = %failed_attempt_id.get_string_repr(),
+                    prev_attempt_id = %prev_attempt_id.get_string_repr(),
                     error_code = ?prev_attempt_error_code,
                     retry_count,
                     schedule_time = ?schedule_time,
@@ -1178,7 +1178,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             retry_algorithm_type,
             retry_count,
             prev_attempt_error_code: tracking_data.prev_attempt_error_code,
-            failed_attempt_id: &tracking_data.payment_attempt_id,
+            prev_attempt_id: &tracking_data.payment_attempt_id,
             static_ladder_progress,
             remaining_grace_days,
             remaining_budget,

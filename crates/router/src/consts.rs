@@ -487,7 +487,7 @@ pub mod superposition {
     /// Whether a retry may be made with any of the customer's cards stored in redis, rather than
     /// only the card the invoice last used — whichever algorithm decides when it runs
     pub const CARD_SWITCHING_ENABLED: &str = "revenue_recovery.card_switching_enabled";
-    /// Whether A/B routing decides which retry implementation an invoice runs.
+    /// Whether A/B routing decides which retry implementation each retry decision runs.
     pub const REVENUE_RECOVERY_AB_ENABLED: &str = "revenue_recovery.ab_enabled";
     /// Which retry implementation inside the `Smart` arm a retry decision runs under A/B routing.
     pub const REVENUE_RECOVERY_AB_ALGORITHM: &str = "revenue_recovery.ab_algorithm";

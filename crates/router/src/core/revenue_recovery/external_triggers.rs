@@ -389,7 +389,7 @@ async fn get_retry_time(
             retry_algorithm_type,
             retry_count: u32::from(inputs.retry_count),
             prev_attempt_error_code: inputs.last_failure_code,
-            failed_attempt_id: inputs.reported_attempt_id,
+            prev_attempt_id: inputs.reported_attempt_id,
             static_ladder_progress: inputs.ladder_progress,
             remaining_grace_days: u32::try_from((grace_window_end - now).whole_days().max(0))
                 .unwrap_or(0),
