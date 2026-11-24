@@ -3611,7 +3611,7 @@
         },
         "security": [
           {
-            "admin_api_key": []
+            "api_key": []
           }
         ]
       }
