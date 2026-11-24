@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.24.0
+
+### Features
+
+- **payments:** Configure cross-currency MIT validation ([#15320](https://github.com/juspay/hyperswitch/pull/15320)) ([`a3d1382`](https://github.com/juspay/hyperswitch/commit/a3d1382bd677b2f599ace48193f75bb2e4e1227b))
+
+### Bug Fixes
+
+- **webhooks:** Preserve in-progress payment status ([#15253](https://github.com/juspay/hyperswitch/pull/15253)) ([`f3e28d5`](https://github.com/juspay/hyperswitch/commit/f3e28d5470dc5e7bd353fb04661909253177847a))
+
+### Testing
+
+- **cypress:** Create merchants with a known payment response hash key ([#15374](https://github.com/juspay/hyperswitch/pull/15374)) ([`a0cfd39`](https://github.com/juspay/hyperswitch/commit/a0cfd39ea04ba982e5af84a5852ae802b1b71b25))
+
+**Full Changelog:** [`2026.11.23.0...2026.11.24.0`](https://github.com/juspay/hyperswitch/compare/2026.11.23.0...2026.11.24.0)
+
+- - -
+
 ## 2026.11.23.0
 
 ### Features
