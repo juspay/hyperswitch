@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.11.1-hotfix12
+
+### Miscellaneous Tasks
+
+- **superposition:** Bump superposition to 0.120.1 ([#15405](https://github.com/juspay/hyperswitch/pull/15405)) ([`9003984`](https://github.com/juspay/hyperswitch/commit/900398427d77135b36869eef6132e76ec6bad163))
+
+**Full Changelog:** [`2026.11.11.1-hotfix11...2026.11.11.1-hotfix12`](https://github.com/juspay/hyperswitch/compare/2026.11.11.1-hotfix11...2026.11.11.1-hotfix12)
+
+- - -
+
 ## 2026.11.11.1-hotfix11
 
 ### Miscellaneous Tasks
