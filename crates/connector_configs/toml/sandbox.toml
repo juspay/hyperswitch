@@ -7259,10 +7259,11 @@ payment_method_type = "Discover"
 payment_method_type = "CartesBancaires"
 [[elavon.debit]]
 payment_method_type = "UnionPay"
-[elavon.connector_auth.SignatureKey]
+[elavon.connector_auth.MultiAuthKey]
 api_key = "Account Id"
 key1 = "User ID"
 api_secret = "Pin"
+key2 = "Vendor ID"
 
 [ctp_mastercard]
 [ctp_mastercard.connector_auth.HeaderKey]
