@@ -4822,11 +4822,11 @@ impl ThemeInterface for KafkaStore {
             .await
     }
 
-    async fn list_themes_in_lineage_path(
+    async fn list_themes_in_lineage(
         &self,
         lineage: ThemeLineage,
     ) -> CustomResult<Vec<diesel_models::user::theme::Theme>, errors::StorageError> {
-        self.diesel_store.list_themes_in_lineage_path(lineage).await
+        self.diesel_store.list_themes_in_lineage(lineage).await
     }
 
     async fn find_theme_by_lineage(

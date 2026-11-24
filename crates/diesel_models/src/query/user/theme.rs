@@ -128,14 +128,14 @@ impl Theme {
         conn: &DatabaseConnectionWithContext<'_>,
         lineage: ThemeLineage,
     ) -> StorageResult<Self> {
-        Self::find_all_in_lineage_path(conn, lineage)
+        Self::list_in_lineage(conn, lineage)
             .await?
             .into_iter()
             .min_by_key(|theme| theme.entity_type)
             .ok_or(report!(DatabaseError::NotFound))
     }
 
-    pub async fn find_all_in_lineage_path(
+    pub async fn list_in_lineage(
         conn: &DatabaseConnectionWithContext<'_>,
         lineage: ThemeLineage,
     ) -> StorageResult<Vec<Self>> {

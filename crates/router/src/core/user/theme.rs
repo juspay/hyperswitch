@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use api_models::user::theme as theme_api;
 use common_enums::EntityType;
 use common_utils::{
@@ -486,13 +488,13 @@ pub async fn list_all_themes_in_lineage(
     let user_lineage =
         theme_utils::get_theme_lineage_from_user_token(&user, &state, &user_entity_type).await?;
 
-    let ancestor_themes = state
+    let lineage_themes = state
         .store
-        .list_themes_in_lineage_path(token_lineage)
+        .list_themes_in_lineage(token_lineage)
         .await
         .change_context(UserErrors::InternalServerError)?
         .into_iter()
-        .filter(|theme| theme.entity_type > user_entity_type && theme.entity_type <= entity_type);
+        .filter(|theme| theme.entity_type <= entity_type);
 
     let subtree_themes = state
         .store
@@ -502,7 +504,11 @@ pub async fn list_all_themes_in_lineage(
         .into_iter()
         .filter(|theme| theme.entity_type <= entity_type);
 
-    let db_themes: Vec<_> = ancestor_themes.chain(subtree_themes).collect();
+    let db_themes = lineage_themes
+        .chain(subtree_themes)
+        .map(|theme| (theme.theme_id.clone(), theme))
+        .collect::<HashMap<_, _>>()
+        .into_values();
 
     let mut themes = Vec::new();
     for theme in db_themes {

@@ -27,7 +27,7 @@ pub trait ThemeInterface {
         lineage: ThemeLineage,
     ) -> CustomResult<storage::Theme, errors::StorageError>;
 
-    async fn list_themes_in_lineage_path(
+    async fn list_themes_in_lineage(
         &self,
         lineage: ThemeLineage,
     ) -> CustomResult<Vec<storage::Theme>, errors::StorageError>;
@@ -87,12 +87,12 @@ impl ThemeInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
-    async fn list_themes_in_lineage_path(
+    async fn list_themes_in_lineage(
         &self,
         lineage: ThemeLineage,
     ) -> CustomResult<Vec<storage::Theme>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Theme::find_all_in_lineage_path(&conn, lineage)
+        storage::Theme::list_in_lineage(&conn, lineage)
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
@@ -332,7 +332,7 @@ impl ThemeInterface for MockDb {
             .cloned()
     }
 
-    async fn list_themes_in_lineage_path(
+    async fn list_themes_in_lineage(
         &self,
         lineage: ThemeLineage,
     ) -> CustomResult<Vec<storage::Theme>, errors::StorageError> {
