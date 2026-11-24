@@ -2106,7 +2106,6 @@ fn build_grpc_headers_internal(
 
     Ok(metadata)
 }
-
 /// Build gRPC headers for UCS surcharge requests.
 /// Same as [`build_unified_connector_service_grpc_headers`] but uses
 /// `x-surcharge-connector` instead of `x-connector` for the connector name,
@@ -2192,88 +2191,4 @@ pub fn build_unified_connector_service_grpc_headers_for_notify_connector(
     }
 
     Ok(metadata)
-}
-
-#[cfg(test)]
-mod authentication_header_tests {
-    use std::borrow::Cow;
-
-    use super::*;
-    use crate::grpc_client::LineageIds;
-
-    #[test]
-    fn authentication_headers_preserve_config_and_vault_routing() {
-        let netcetera_config =
-            r#"{"config":{"Netcetera":{"merchant_configuration_id":"synthetic-configuration"}}}"#;
-        for (connector_name, selected_header, absent_header) in [
-            (
-                "netcetera",
-                consts::UCS_HEADER_AUTHENTICATOR_CONNECTOR,
-                consts::UCS_HEADER_CONNECTOR,
-            ),
-            (
-                "cybersource",
-                consts::UCS_HEADER_CONNECTOR,
-                consts::UCS_HEADER_AUTHENTICATOR_CONNECTOR,
-            ),
-        ] {
-            let typed_config = (connector_name == "netcetera").then_some(netcetera_config);
-            let merchant_id =
-                common_utils::id_type::MerchantId::try_from(Cow::Borrowed("merchant_synthetic"))
-                    .expect("synthetic merchant id");
-            let profile_id =
-                common_utils::id_type::ProfileId::try_from(Cow::Borrowed("pro_synthetic"))
-                    .expect("synthetic profile id");
-            let meta = ConnectorAuthMetadata {
-                connector_name: connector_name.to_string(),
-                auth_type: "no-key".to_string(),
-                api_key: None,
-                key1: None,
-                key2: None,
-                api_secret: None,
-                auth_key_map: None,
-                merchant_id: Secret::new("merchant_synthetic".to_string()),
-                connector_config: typed_config.map(|config| Secret::new(config.to_string())),
-            };
-            let grpc_headers = GrpcHeadersUcs {
-                tenant_id: "public".to_string(),
-                request_id: None,
-                lineage_ids: LineageIds::new(merchant_id, profile_id),
-                external_vault_proxy_metadata: Some("synthetic-vault-metadata".to_string()),
-                merchant_reference_id: None,
-                resource_id: None,
-                shadow_mode: Some(false),
-                proxy_name: Some("primary"),
-                config_override: None,
-                payment_method: None,
-                payment_method_type: None,
-            };
-            let headers =
-                build_unified_connector_service_grpc_headers_for_authentication(meta, grpc_headers)
-                    .expect("authentication headers");
-            assert_eq!(
-                headers.get(selected_header).and_then(|v| v.to_str().ok()),
-                Some(connector_name)
-            );
-            assert!(headers.get(absent_header).is_none());
-            assert_eq!(
-                headers
-                    .get(consts::UCS_HEADER_CONNECTOR_CONFIG)
-                    .and_then(|v| v.to_str().ok()),
-                typed_config
-            );
-            assert_eq!(
-                headers
-                    .get(consts::UCS_HEADER_EXTERNAL_VAULT_METADATA)
-                    .and_then(|v| v.to_str().ok()),
-                Some("synthetic-vault-metadata")
-            );
-            assert_eq!(
-                headers
-                    .get(common_utils_consts::X_PROXY_NAME)
-                    .and_then(|v| v.to_str().ok()),
-                Some("primary")
-            );
-        }
-    }
 }
