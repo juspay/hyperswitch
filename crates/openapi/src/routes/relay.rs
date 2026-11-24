@@ -65,7 +65,7 @@ pub async fn relay() {}
     ),
     tag = "Relay",
     operation_id = "Retrieve a Relay details",
-    security(("api_key" = []), ("ephemeral_key" = []))
+    security(("api_key" = []))
 )]
 
 pub async fn relay_retrieve() {}

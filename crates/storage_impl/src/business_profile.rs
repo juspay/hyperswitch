@@ -7,9 +7,9 @@ use hyperswitch_domain_models::{
     },
     merchant_key_store::MerchantKeyStore,
 };
+use router_env::instrument;
 #[cfg(feature = "accounts_cache")]
 use router_env::logger;
-use router_env::{instrument, tracing};
 
 #[cfg(feature = "accounts_cache")]
 use crate::metrics;
@@ -21,9 +21,7 @@ use crate::redis::{
 };
 use crate::{
     behaviour::{Conversion, ForeignFrom, ReverseConversion},
-    kv_router_store,
-    utils::{pg_accounts_connection_read, pg_accounts_connection_write},
-    CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
+    kv_router_store, CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
 };
 
 /// Cache key for a profile.
@@ -185,7 +183,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
         business_profile: domain::Profile,
     ) -> CustomResult<domain::Profile, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
         Box::pin(
             business_profile
                 .construct_new()
@@ -212,7 +210,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::Profile, StorageError> {
         let fetch_func = || async {
-            let conn = pg_accounts_connection_read(self).await?;
+            let conn = self.pg_accounts_connection_read().await?;
             diesel::Profile::find_by_merchant_id_profile_id(
                 &conn,
                 &merchant_key_store.merchant_id,
@@ -272,7 +270,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         profile_id: &common_utils::id_type::ProfileId,
     ) -> CustomResult<domain::Profile, StorageError> {
         let fetch_func = || async {
-            let conn = pg_accounts_connection_read(self).await?;
+            let conn = self.pg_accounts_connection_read().await?;
             diesel::Profile::find_by_merchant_id_profile_id(&conn, merchant_id, profile_id)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
@@ -318,7 +316,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         profile_name: &str,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<domain::Profile, StorageError> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let conn = self.pg_accounts_connection_read().await?;
         self.call_database_new(
             merchant_key_store,
             diesel::Profile::find_by_profile_name_merchant_id(&conn, profile_name, merchant_id),
@@ -333,7 +331,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         current_state: domain::Profile,
         profile_update: domain::ProfileUpdate,
     ) -> CustomResult<domain::Profile, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
         let updated_profile = Box::pin(
             Conversion::convert(current_state)
                 .await
@@ -363,7 +361,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         profile_id: &common_utils::id_type::ProfileId,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<bool, StorageError> {
-        let conn = pg_accounts_connection_write(self).await?;
+        let conn = self.pg_accounts_connection_write().await?;
         let is_deleted =
             diesel::Profile::delete_by_profile_id_merchant_id(&conn, profile_id, merchant_id)
                 .await
@@ -381,7 +379,7 @@ impl<T: DatabaseStore> ProfileInterface for RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
         merchant_id: &common_utils::id_type::MerchantId,
     ) -> CustomResult<Vec<domain::Profile>, StorageError> {
-        let conn = pg_accounts_connection_read(self).await?;
+        let conn = self.pg_accounts_connection_read().await?;
         Box::pin(self.find_resources_new(
             merchant_key_store,
             diesel::Profile::list_profile_by_merchant_id(&conn, merchant_id),
@@ -1774,8 +1772,10 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                     merchant_country_code,
                     revenue_recovery_retry_algorithm_type,
                     split_txns_enabled,
+                    revenue_recovery_trigger_model,
                     billing_processor_id,
                     surcharge_connector_details,
+                    revenue_recovery_config,
                 } = *update;
                 Self {
                     profile_name,
@@ -1831,10 +1831,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                     merchant_category_code,
                     merchant_country_code,
                     split_txns_enabled,
+                    revenue_recovery_trigger_model,
                     billing_processor_id,
                     surcharge_connector_details,
                     apple_pay_certificates: None,
                     apple_pay_certificates_encrypted: None,
+                    revenue_recovery_config,
                 }
             }
             domain::ProfileUpdate::RoutingAlgorithmUpdate {
@@ -1893,10 +1895,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -1953,10 +1957,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -2013,10 +2019,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -2073,10 +2081,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -2133,10 +2143,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -2193,10 +2205,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -2253,10 +2267,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -2313,10 +2329,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
                 revenue_recovery_retry_algorithm_type,
@@ -2374,10 +2392,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                revenue_recovery_config: None,
             },
             domain::ProfileUpdate::ApplePayCertificateCacheUpdate {
                 apple_pay_certificates,
@@ -2435,10 +2455,12 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 merchant_category_code: None,
                 merchant_country_code: None,
                 split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
                 billing_processor_id: None,
                 surcharge_connector_details: None,
                 apple_pay_certificates,
                 apple_pay_certificates_encrypted,
+                revenue_recovery_config: None,
             },
         }
     }
@@ -2519,12 +2541,14 @@ impl Conversion for domain::Profile {
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: None,
             split_txns_enabled: Some(self.split_txns_enabled),
+            revenue_recovery_trigger_model: Some(self.revenue_recovery_trigger_model),
             is_manual_retry_enabled: None,
             auto_fallback_capture_method: None,
             is_l2_l3_enabled: None,
             always_enable_overcapture: None,
             billing_processor_id: self.billing_processor_id,
             surcharge_connector_details: self.surcharge_connector_details,
+            revenue_recovery_config: self.revenue_recovery_config,
             network_tokenization_credentials: None,
             payment_method_blocking: None,
             apple_pay_certificates: None,
@@ -2629,9 +2653,13 @@ impl Conversion for domain::Profile {
                     merchant_category_code: item.merchant_category_code,
                     merchant_country_code: item.merchant_country_code,
                     split_txns_enabled: item.split_txns_enabled.unwrap_or_default(),
+                    revenue_recovery_trigger_model: item
+                        .revenue_recovery_trigger_model
+                        .unwrap_or_default(),
                     is_manual_retry_enabled: item.is_manual_retry_enabled,
                     billing_processor_id: item.billing_processor_id,
                     surcharge_connector_details: item.surcharge_connector_details,
+                    revenue_recovery_config: item.revenue_recovery_config,
                 }
                 .into(),
             )
@@ -2706,8 +2734,10 @@ impl Conversion for domain::Profile {
             is_l2_l3_enabled: None,
             merchant_country_code: self.merchant_country_code,
             split_txns_enabled: Some(self.split_txns_enabled),
+            revenue_recovery_trigger_model: Some(self.revenue_recovery_trigger_model),
             billing_processor_id: self.billing_processor_id,
             surcharge_connector_details: self.surcharge_connector_details,
+            revenue_recovery_config: self.revenue_recovery_config,
             payment_method_blocking: None,
         })
     }

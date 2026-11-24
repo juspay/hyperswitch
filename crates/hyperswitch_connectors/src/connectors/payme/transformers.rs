@@ -72,7 +72,7 @@ pub struct MandateRequest {
     sale_price: MinorUnit,
     transaction_id: String,
     product_name: String,
-    sale_return_url: String,
+    sale_return_url: Secret<String>,
     seller_payme_id: Secret<String>,
     sale_callback_url: String,
     buyer_key: Secret<String>,
@@ -133,7 +133,7 @@ pub struct GenerateSaleRequest {
     sale_price: MinorUnit,
     transaction_id: String,
     product_name: String,
-    sale_return_url: String,
+    sale_return_url: Secret<String>,
     seller_payme_id: Secret<String>,
     sale_callback_url: String,
     sale_payment_method: SalePaymentMethod,
@@ -246,9 +246,12 @@ impl TryFrom<&PaymePaySaleResponse> for PaymentsResponseData {
     fn try_from(value: &PaymePaySaleResponse) -> Result<Self, Self::Error> {
         let redirection_data = match value.sale_3ds {
             Some(true) => value.redirect_url.clone().map(|url| RedirectForm::Form {
-                endpoint: url.to_string(),
+                endpoint: url.to_string().into(),
                 method: common_utils::request::Method::Get,
-                form_fields: HashMap::<String, String>::new(),
+                form_fields: (HashMap::<String, String>::new())
+                    .into_iter()
+                    .map(|(key, value)| (key, value.into()))
+                    .collect(),
             }),
             _ => None,
         };

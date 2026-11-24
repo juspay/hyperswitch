@@ -4,7 +4,7 @@ use common_utils::{date_time, id_type};
 use csv::{ReaderBuilder, Trim, WriterBuilder};
 use error_stack::{report, ResultExt};
 use futures::future;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use scheduler::utils as pt_utils;
 use serde::{Deserialize, Serialize};
 
@@ -359,7 +359,7 @@ pub async fn initiate_batch_blocklist_upload(
         None,
         platform.get_processor(),
         profile_id.as_ref(),
-        &*state.store,
+        state.accounts_store.as_ref(),
     )
     .await?
     .get_id()

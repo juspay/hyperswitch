@@ -76,6 +76,7 @@ pub enum Connector {
     Bamboraapac,
     Bankofamerica,
     Barclaycard,
+    Betterpayment,
     Billwerk,
     Bitpay,
     Bluesnap,
@@ -165,6 +166,7 @@ pub enum Connector {
     Opennode,
     Paybox,
     Paydotcom,
+    Payhound,
     // Payeezy, As psync and rsync are not supported by this connector, it is added as template code for future usage
     Payload,
     Payme,
@@ -238,6 +240,7 @@ impl Connector {
         matches!(
             (self, payout_method),
             (Self::Paypal, Some(PayoutType::Wallet))
+                | (Self::Checkout, _)
                 | (Self::Envoy, _)
                 | (_, Some(PayoutType::Card))
                 | (Self::Adyenplatform, _)
@@ -386,6 +389,7 @@ impl Connector {
             | Self::Bamboraapac
             | Self::Bankofamerica
             | Self::Barclaycard
+            | Self::Betterpayment
             | Self::Billwerk
             | Self::Bitpay
             | Self::Bluesnap
@@ -524,6 +528,7 @@ impl Connector {
             | Self::Ilixium
             | Self::Ecommpay
             | Self::JpmorganOrbital
+            | Self::Payhound
             | Self::Givepayments => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen | Self::Fiservcommercehub | Self::Worldpayxml

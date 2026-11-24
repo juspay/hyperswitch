@@ -23,6 +23,26 @@ use crate::{
     enums as api_enums, payment_methods, profile_acquirer,
 };
 
+const MIN_PAYMENT_RESPONSE_HASH_KEY_LENGTH: usize = 32;
+
+fn deserialize_payment_response_hash_key<'de, D>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let key = Option::<String>::deserialize(deserializer)?;
+    if key
+        .as_ref()
+        .is_some_and(|key| key.chars().count() < MIN_PAYMENT_RESPONSE_HASH_KEY_LENGTH)
+    {
+        return Err(serde::de::Error::custom(format!(
+            "payment_response_hash_key must be at least {MIN_PAYMENT_RESPONSE_HASH_KEY_LENGTH} characters long"
+        )));
+    }
+    Ok(key)
+}
+
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
     pub organization_id: id_type::OrganizationId,
@@ -73,6 +93,8 @@ pub struct MerchantAccountCreate {
     pub enable_payment_response_hash: Option<bool>,
 
     /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.
+    #[schema(min_length = 32)]
+    #[serde(default, deserialize_with = "deserialize_payment_response_hash_key")]
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled.
@@ -475,6 +497,8 @@ pub struct MerchantAccountUpdate {
     pub enable_payment_response_hash: Option<bool>,
 
     /// Refers to the hash key used for calculating the signature for webhooks and redirect response.
+    #[schema(min_length = 32)]
+    #[serde(default, deserialize_with = "deserialize_payment_response_hash_key")]
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -660,8 +684,8 @@ pub struct MerchantAccountResponse {
     #[schema(default = false, example = true)]
     pub enable_payment_response_hash: bool,
 
-    /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.
-    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf")]
+    /// The first 4 characters of the hash key used to sign webhooks and redirect responses.
+    #[schema(max_length = 4, example = "xkkd")]
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -824,6 +848,10 @@ pub struct MerchantDetails {
 
     #[schema(value_type = Option<String>, example = "123456789")]
     pub merchant_tax_registration_id: Option<Secret<String>>,
+
+    /// The merchant's VAT registration identifier
+    #[schema(value_type = Option<String>, example = "GB987654321")]
+    pub merchant_vat_registration_id: Option<Secret<String>>,
 }
 
 /// The credentials required for calling the network tokenization provider APIs
@@ -1397,10 +1425,47 @@ pub struct RevenueRecoveryMetadata {
     #[serde(default)]
     #[schema(default = false, example = false)]
     pub enable_partial_authorization: bool,
+    /// Number of retries allowed on an invoice after a hard decline. Defaults to 0 when not
+    /// provided.
+    #[serde(default)]
+    #[schema(value_type = u16, default = 0, example = "0")]
+    pub max_hard_decline_retries: u16,
     /// Billing account reference id is payment gateway id at billing connector end.
     /// Merchants need to provide a mapping between these merchant connector account and the corresponding account reference IDs for each `billing connector`.
     #[schema(value_type = u16, example = r#"{ "mca_vDSg5z6AxnisHq5dbJ6g": "stripe_123", "mca_vDSg5z6AumisHqh4x5m1": "adyen_123" }"#)]
     pub billing_account_reference: HashMap<id_type::MerchantConnectorAccountId, String>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+/// Revenue recovery retry configuration for a profile
+pub struct RevenueRecoveryConfig {
+    /// The maximum number of retries allowed for an invoice. Once this limit is reached, no further retries will be attempted.
+    #[schema(value_type = u16, example = "15")]
+    pub max_retry_count: u16,
+    /// Maximum number of `billing connector` retries before revenue recovery can start executing retries.
+    #[schema(value_type = u16, example = "10")]
+    pub billing_connector_retry_threshold: u16,
+    /// Number of cascading (static) retries an invoice may use under the hybrid static + adaptive
+    /// scheme.
+    #[serde(default)]
+    #[schema(value_type = u16, example = "5")]
+    pub max_hybrid_cascading_retry_count: u16,
+    /// Grace period, in days from the invoice's billing start, within which retries are allowed.
+    /// Defaults to 30 days when not provided.
+    #[serde(default = "default_grace_period_days")]
+    #[schema(value_type = u16, default = 30, example = "30")]
+    pub grace_period_days: u16,
+    /// Allow partial authorization for recovered payments. A value passed in the recovery
+    /// payments API request takes priority over this. Defaults to `false` when not provided.
+    #[serde(default)]
+    #[schema(default = false, example = false)]
+    pub enable_partial_authorization: bool,
+    /// Number of retries allowed on an invoice after a hard decline. Defaults to 0 when not
+    /// provided.
+    #[serde(default)]
+    #[schema(value_type = u16, default = 0, example = "0")]
+    pub max_hard_decline_retries: u16,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1576,10 +1641,35 @@ pub enum ConnectorAuthType {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantConnectorWebhookDetails {
-    #[schema(value_type = String, example = "12345678900987654321")]
+    /// Webhook verification secret. Must contain at least one non-whitespace character.
+    #[schema(value_type = String, min_length = 1, example = "12345678900987654321")]
     pub merchant_secret: Secret<String>,
-    #[schema(value_type = String, example = "12345678900987654321")]
+    /// Optional additional secret. When supplied, must contain a non-whitespace character.
+    #[schema(value_type = String, min_length = 1, example = "12345678900987654321")]
     pub additional_secret: Option<Secret<String>>,
+}
+
+impl MerchantConnectorWebhookDetails {
+    /// Validate newly supplied secrets without changing stored values or deserialization.
+    pub fn validate(&self) -> Result<(), String> {
+        if self.merchant_secret.peek().trim().is_empty() {
+            Err(
+                "connector_webhook_details.merchant_secret must not be empty or whitespace-only"
+                    .to_string(),
+            )
+        } else if self
+            .additional_secret
+            .as_ref()
+            .is_some_and(|secret| secret.peek().trim().is_empty())
+        {
+            Err(
+                "connector_webhook_details.additional_secret must not be empty or whitespace-only"
+                    .to_string(),
+            )
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
@@ -2426,6 +2516,8 @@ pub struct ProfileCreate {
     pub enable_payment_response_hash: Option<bool>,
 
     /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.
+    #[schema(min_length = 32)]
+    #[serde(default, deserialize_with = "deserialize_payment_response_hash_key")]
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -2640,6 +2732,8 @@ pub struct ProfileCreate {
     pub enable_payment_response_hash: Option<bool>,
 
     /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.
+    #[schema(min_length = 32)]
+    #[serde(default, deserialize_with = "deserialize_payment_response_hash_key")]
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -2773,12 +2867,19 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<SplitTxnsEnabled>, default = "skip")]
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
 
+    /// Decides who triggers the retries of failed invoices under revenue recovery, and so which fields the recovery API needs. With `internal_triggers` Hyperswitch schedules the retries using the billing and payment merchant connector accounts. With `external_triggers` the merchant triggers them, and transactions are only recorded, without any merchant connector account.
+    #[schema(value_type = Option<RevenueRecoveryTriggerModel>, default = "internal_triggers", example = "external_triggers")]
+    pub revenue_recovery_trigger_model: Option<common_enums::RevenueRecoveryTriggerModel>,
+
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// The surcharge connector details for calculating external surcharge
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+
+    /// Revenue recovery retry configuration for this profile
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
 
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
@@ -2808,7 +2909,8 @@ pub struct ProfileResponse {
     #[schema(default = true, example = true)]
     pub enable_payment_response_hash: bool,
 
-    /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.
+    /// The first 4 characters of the hash key used to sign webhooks and redirect responses.
+    #[schema(max_length = 4, example = "xkkd")]
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -3036,7 +3138,8 @@ pub struct ProfileResponse {
     #[schema(default = true, example = true)]
     pub enable_payment_response_hash: bool,
 
-    /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.
+    /// The first 4 characters of the hash key used to sign webhooks and redirect responses.
+    #[schema(max_length = 4, example = "xkkd")]
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -3177,6 +3280,10 @@ pub struct ProfileResponse {
     #[schema(value_type = SplitTxnsEnabled, default = "skip")]
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
 
+    /// Decides who triggers the retries of failed invoices under revenue recovery, and so which fields the recovery API needs. With `internal_triggers` Hyperswitch schedules the retries using the billing and payment merchant connector accounts. With `external_triggers` the merchant triggers them, and transactions are only recorded, without any merchant connector account.
+    #[schema(value_type = RevenueRecoveryTriggerModel, default = "internal_triggers", example = "external_triggers")]
+    pub revenue_recovery_trigger_model: common_enums::RevenueRecoveryTriggerModel,
+
     /// Indicates the state of revenue recovery algorithm type
     #[schema(value_type = Option<RevenueRecoveryAlgorithmType>, example = "cascading")]
     pub revenue_recovery_retry_algorithm_type:
@@ -3188,6 +3295,9 @@ pub struct ProfileResponse {
 
     /// The surcharge connector details for calculating external surcharge
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+
+    /// Revenue recovery retry configuration for this profile
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
 
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
@@ -3211,6 +3321,8 @@ pub struct ProfileUpdate {
     pub enable_payment_response_hash: Option<bool>,
 
     /// Refers to the hash key used for calculating the signature for webhooks and redirect response.
+    #[schema(min_length = 32)]
+    #[serde(default, deserialize_with = "deserialize_payment_response_hash_key")]
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -3424,6 +3536,8 @@ pub struct ProfileUpdate {
     pub enable_payment_response_hash: Option<bool>,
 
     /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.
+    #[schema(min_length = 32)]
+    #[serde(default, deserialize_with = "deserialize_payment_response_hash_key")]
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -3558,12 +3672,19 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<SplitTxnsEnabled>, default = "skip")]
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
 
+    /// Decides who triggers the retries of failed invoices under revenue recovery, and so which fields the recovery API needs. With `internal_triggers` Hyperswitch schedules the retries using the billing and payment merchant connector accounts. With `external_triggers` the merchant triggers them, and transactions are only recorded, without any merchant connector account.
+    #[schema(value_type = Option<RevenueRecoveryTriggerModel>, default = "internal_triggers", example = "external_triggers")]
+    pub revenue_recovery_trigger_model: Option<common_enums::RevenueRecoveryTriggerModel>,
+
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// The surcharge connector details for calculating external surcharge
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
+
+    /// Revenue recovery retry configuration for this profile
+    pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -4046,6 +4167,53 @@ pub struct MCACGraphData {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn assert_payment_response_hash_key_validation<T: serde::de::DeserializeOwned>(
+        request: serde_json::Value,
+    ) {
+        assert!(serde_json::from_value::<T>(request.clone()).is_ok());
+
+        let mut with_key = request;
+        with_key
+            .as_object_mut()
+            .expect("request must be a JSON object")
+            .insert("payment_response_hash_key".into(), serde_json::Value::Null);
+        assert!(serde_json::from_value::<T>(with_key.clone()).is_ok());
+
+        for key in [String::new(), "a".repeat(4), "a".repeat(31), "é".repeat(16)] {
+            *with_key
+                .get_mut("payment_response_hash_key")
+                .expect("signing key field must be present") = serde_json::json!(key);
+            let error = serde_json::from_value::<T>(with_key.clone())
+                .err()
+                .expect("short signing keys must be rejected");
+            assert!(error
+                .to_string()
+                .contains("payment_response_hash_key must be at least 32 characters long"));
+        }
+
+        for key in ["a".repeat(32), "a".repeat(64), "é".repeat(32)] {
+            *with_key
+                .get_mut("payment_response_hash_key")
+                .expect("signing key field must be present") = serde_json::json!(key);
+            assert!(serde_json::from_value::<T>(with_key.clone()).is_ok());
+        }
+    }
+
+    #[cfg(feature = "v1")]
+    #[test]
+    fn merchant_requests_validate_payment_response_hash_key_length() {
+        let request = serde_json::json!({ "merchant_id": "merchant_hash_key_test" });
+        assert_payment_response_hash_key_validation::<MerchantAccountCreate>(request.clone());
+        assert_payment_response_hash_key_validation::<MerchantAccountUpdate>(request);
+    }
+
+    #[test]
+    fn profile_requests_validate_payment_response_hash_key_length() {
+        let request = serde_json::json!({ "profile_name": "Signing key test" });
+        assert_payment_response_hash_key_validation::<ProfileCreate>(request.clone());
+        assert_payment_response_hash_key_validation::<ProfileUpdate>(request);
+    }
 
     #[test]
     fn empty_webhook_url_fails_validation_while_omission_preserves_the_destination() {

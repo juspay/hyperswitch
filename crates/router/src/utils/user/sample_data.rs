@@ -43,17 +43,15 @@ pub async fn generate_sample_data(
         return Err(SampleDataError::InvalidRange.into());
     }
 
+    let key_store_master_key = state.store.get_master_key().to_vec().into();
     let key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
         .await
         .change_context(SampleDataError::InternalServerError)?;
 
     let merchant_from_db = state
-        .store
+        .accounts_store
         .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .change_context::<SampleDataError>(SampleDataError::DataDoesNotExist)?;
@@ -81,7 +79,7 @@ pub async fn generate_sample_data(
             business_label_default.as_ref(),
             platform.get_processor(),
             req.profile_id.as_ref(),
-            &*state.store,
+            state.accounts_store.as_ref(),
         )
         .await
         .map(|business_profile| business_profile.get_id().to_owned());
@@ -107,7 +105,7 @@ pub async fn generate_sample_data(
             );
 
             state
-                .store
+                .accounts_store
                 .list_profile_by_merchant_id(platform.get_processor().get_key_store(), merchant_id)
                 .await
                 .change_context(SampleDataError::InternalServerError)
@@ -297,12 +295,17 @@ pub async fn generate_sample_data(
             duty_amount: None,
             tax_status: None,
             shipping_amount_tax: None,
+            value_added_tax_amount: None,
+            value_added_tax_percent: None,
+            order_commodity_code: None,
+            vat_invoice_reference_number: None,
             enable_partial_authorization: None,
             enable_overcapture: None,
             mit_category: None,
             billing_descriptor: None,
             is_account_funded_transaction: None,
             recipient_details: None,
+            sender_details: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
             state_metadata: None,
@@ -311,6 +314,7 @@ pub async fn generate_sample_data(
             external_surcharge_strategy: None,
             external_surcharge_applicable: None,
             enable_avs_check: None,
+            enable_account_name_verification: None,
             settlement_conclusion_applied: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
@@ -447,6 +451,9 @@ pub async fn generate_sample_data(
                     .unwrap_or(&common_enums::Currency::USD),
                 total_amount: MinorUnit::new(amount * 100),
                 refund_amount: MinorUnit::new(amount * 100),
+                refund_surcharge_amount: None,
+                net_refund_amount: Some(MinorUnit::new(amount * 100)),
+                external_surcharge_refund_details: None,
                 refund_status: common_enums::RefundStatus::Success,
                 sent_to_gateway: true,
                 refund_type: diesel_models::enums::RefundType::InstantRefund,

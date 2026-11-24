@@ -24,6 +24,7 @@ impl Default for ZeroMandates {
 impl Default for Mandates {
     fn default() -> Self {
         Self {
+            cross_currency_mit_supported_connectors: Default::default(),
             supported_payment_methods: SupportedPaymentMethodsForMandate(HashMap::from([
                 (
                     enums::PaymentMethod::PayLater,
@@ -3096,6 +3097,13 @@ fn get_wallet_required_fields() -> HashMap<enums::PaymentMethodType, ConnectorFi
         (
             enums::PaymentMethodType::Vipps,
             connectors(vec![(Connector::Adyen, fields(vec![], vec![], vec![]))]),
+        ),
+        (
+            enums::PaymentMethodType::Wero,
+            connectors(vec![(
+                Connector::Betterpayment,
+                fields(vec![], vec![], vec![]),
+            )]),
         ),
         (
             enums::PaymentMethodType::Dana,

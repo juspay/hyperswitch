@@ -584,7 +584,7 @@ pub struct CybersourceConsumerAuthInformation {
     /// The URL to which the cardholder's browser is redirected after the 3DS challenge is completed.
     /// Required when requesting Cybersource to perform payer authentication inline (e.g. Google Pay PAN_ONLY with 3DS).
     #[serde(skip_serializing_if = "Option::is_none")]
-    return_url: Option<String>,
+    return_url: Option<Secret<String>>,
     /// Reference ID used to correlate the payer authentication request
     /// (the Cardinal device-data-collection session id for 3DS).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1460,8 +1460,9 @@ impl
             capture_options: None,
             commerce_indicator: Some(
                 three_ds_data
-                    .indicator
-                    .to_owned()
+                    .ecommerce_indicator
+                    .clone()
+                    .or(three_ds_data.indicator.clone())
                     .unwrap_or(String::from("internet")),
             ),
         })
@@ -2250,6 +2251,18 @@ impl
                 .directory_server_transaction_id,
             specification_version: three_ds_info.three_ds_data.specification_version.clone(),
             pa_specification_version: three_ds_info.three_ds_data.specification_version.clone(),
+            eci_raw: three_ds_info
+                .three_ds_data
+                .eci_raw
+                .clone()
+                .filter(|s| !s.is_empty())
+                .or_else(|| {
+                    three_ds_info
+                        .three_ds_data
+                        .eci
+                        .clone()
+                        .filter(|s| !s.is_empty())
+                }),
             ..Default::default()
         });
 
@@ -3718,7 +3731,7 @@ impl From<&api_models::payments::DeviceChannel> for CybersourceDeviceChannel {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CybersourceConsumerAuthInformationRequest {
-    return_url: String,
+    return_url: Secret<String>,
     reference_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     challenge_code: Option<String>,
@@ -4178,6 +4191,18 @@ impl
                 .clone(),
             specification_version: three_ds_info.three_ds_data.specification_version.clone(),
             pa_specification_version: three_ds_info.three_ds_data.specification_version.clone(),
+            eci_raw: three_ds_info
+                .three_ds_data
+                .eci_raw
+                .clone()
+                .filter(|s| !s.is_empty())
+                .or_else(|| {
+                    three_ds_info
+                        .three_ds_data
+                        .eci
+                        .clone()
+                        .filter(|s| !s.is_empty())
+                }),
             ..Default::default()
         });
 
@@ -4216,6 +4241,9 @@ pub struct CybersourceConsumerAuthValidateResponse {
     specification_version: Option<SemanticVersion>,
     directory_server_transaction_id: Option<Secret<String>>,
     indicator: Option<String>,
+    eci: Option<String>,
+    eci_raw: Option<String>,
+    ecommerce_indicator: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -4230,7 +4258,11 @@ impl ForeignTryFrom<&CybersourceConsumerAuthValidateResponse> for UcsAuthenticat
         value: &CybersourceConsumerAuthValidateResponse,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            eci: value.indicator.clone(),
+            eci: value
+                .eci
+                .clone()
+                .or(value.eci_raw.clone())
+                .or(value.indicator.clone()),
             cavv: value.cavv.clone(),
             threeds_server_transaction_id: None,
             message_version: value.specification_version.clone(),

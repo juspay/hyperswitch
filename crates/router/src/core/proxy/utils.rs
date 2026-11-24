@@ -3,6 +3,7 @@ use common_utils::{
     crypto::{DecodeMessage, GcmAes256},
     encryption::Encryption,
     ext_traits::{BytesExt, Encode, OptionExt},
+    fp_utils::when,
     id_type,
 };
 use error_stack::ResultExt;
@@ -10,12 +11,6 @@ use hyperswitch_domain_models::payment_methods;
 use hyperswitch_masking::{Mask, PeekInterface};
 use serde_json::Value;
 use storage_impl::behaviour::Conversion;
-use x509_parser::nom::{
-    bytes::complete::{tag, take_while1},
-    character::complete::{char, multispace0},
-    sequence::{delimited, preceded, terminated},
-    IResult,
-};
 
 use crate::{
     core::{
@@ -37,6 +32,16 @@ pub enum ProxyRecord {
 
 impl ProxyRequestWrapper {
     pub async fn get_proxy_record(
+        &self,
+        state: &SessionState,
+        provider: &domain::Provider,
+    ) -> RouterResult<ProxyRecord> {
+        let proxy_record = self.fetch_proxy_record(state, provider).await?;
+        proxy_record.validate_ownership(provider)?;
+        Ok(proxy_record)
+    }
+
+    async fn fetch_proxy_record(
         &self,
         state: &SessionState,
         provider: &domain::Provider,
@@ -168,6 +173,38 @@ impl ProxyRequestWrapper {
             .collect()
     }
 
+    /// The connector Content-Type, parsed once for the whole proxy flow. Header names are
+    /// case-insensitive. An invalid Content-Type is rejected, and so are conflicting
+    /// duplicates, instead of picking one of them from the HashMap.
+    pub fn get_content_type(
+        &self,
+    ) -> RouterResult<Option<common_utils::request::ConnectorContentType<'_>>> {
+        let values: Vec<&str> = self
+            .0
+            .headers
+            .as_map()
+            .iter()
+            .filter(|(name, _)| name.eq_ignore_ascii_case("content-type"))
+            .map(|(_, value)| value.as_str())
+            .collect();
+        let first = values.first().copied();
+        when(values.iter().any(|value| Some(*value) != first), || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Conflicting connector Content-Type headers".into(),
+            })
+        })?;
+        first
+            .map(|value| {
+                common_utils::request::ConnectorContentType::parse(value).ok_or_else(|| {
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: "Invalid connector Content-Type header".into(),
+                    }
+                    .into()
+                })
+            })
+            .transpose()
+    }
+
     pub fn get_destination_url(&self) -> &str {
         self.0.destination_url.get_string_repr()
     }
@@ -178,6 +215,22 @@ impl ProxyRequestWrapper {
 }
 
 impl ProxyRecord {
+    fn get_merchant_id(&self) -> &id_type::MerchantId {
+        match self {
+            Self::PaymentMethodRecord(payment_method)
+            | Self::VolatilePaymentMethodRecord(payment_method) => &payment_method.merchant_id,
+            Self::TokenizationRecord(tokenization_record) => &tokenization_record.merchant_id,
+        }
+    }
+
+    fn validate_ownership(&self, provider: &domain::Provider) -> RouterResult<()> {
+        if self.get_merchant_id() != provider.get_account().get_id() {
+            return Err(errors::ApiErrorResponse::PaymentMethodNotFound)
+                .attach_printable("Proxy token does not belong to the authenticated merchant");
+        }
+        Ok(())
+    }
+
     fn get_vault_id(&self) -> RouterResult<payment_methods::VaultId> {
         match self {
             Self::PaymentMethodRecord(payment_method) => payment_method
@@ -362,35 +415,6 @@ impl ProxyRecord {
             }
         }
     }
-}
-
-#[derive(Debug)]
-pub struct TokenReference {
-    pub field: String,
-}
-
-pub fn parse_token(input: &str) -> IResult<&str, TokenReference> {
-    let (input, field) = delimited(
-        tag("{{"),
-        preceded(
-            multispace0,
-            preceded(
-                char('$'),
-                terminated(
-                    take_while1(|c: char| c.is_alphanumeric() || c == '_'),
-                    multispace0,
-                ),
-            ),
-        ),
-        tag("}}"),
-    )(input)?;
-
-    Ok((
-        input,
-        TokenReference {
-            field: field.to_string(),
-        },
-    ))
 }
 
 pub fn contains_token(s: &str) -> bool {

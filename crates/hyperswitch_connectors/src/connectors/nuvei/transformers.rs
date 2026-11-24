@@ -132,7 +132,7 @@ impl TryFrom<(&types::PaymentsPreAuthenticateRouterData, String)>
             .ok_or_else(missing_field_err("browser_info"))?;
 
         let return_url = match env::which() {
-            Env::Development => "https://example.com".to_string(),
+            Env::Development => "https://example.com".to_string().into(),
             _ => item
                 .request
                 .router_return_url
@@ -495,9 +495,9 @@ pub struct ThreeD {
     pub method_completion_ind: Option<MethodCompletion>,
     pub browser_details: Option<BrowserDetails>,
     #[serde(rename = "notificationURL")]
-    pub notification_url: Option<String>,
+    pub notification_url: Option<Secret<String>>,
     #[serde(rename = "merchantURL")]
-    pub merchant_url: Option<String>,
+    pub merchant_url: Option<Secret<String>>,
     pub acs_url: Option<String>,
     pub c_req: Option<Secret<String>>,
     pub external_mpi: Option<ExternalMpi>,
@@ -1139,7 +1139,7 @@ where
         let base = NuveiPaymentBaseRequest::try_from((item, session_token))?;
 
         let return_url = match env::which() {
-            Env::Development => "https://example.com".to_string(),
+            Env::Development => "https://example.com".to_string().into(),
             _ => item.request.get_return_url_required()?,
         };
 
@@ -1732,7 +1732,7 @@ pub struct NuveiPayoutMethodData {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiPayoutUrlDetails {
-    pub notification_url: String,
+    pub notification_url: Secret<String>,
 }
 
 #[cfg(feature = "payouts")]
@@ -1864,7 +1864,7 @@ impl<F> TryFrom<&types::PayoutsRouterData<F>> for NuveiPayoutRequest {
         let customer_details = item.request.get_customer_details()?;
 
         let url_details = NuveiPayoutUrlDetails {
-            notification_url: item.request.get_webhook_url()?,
+            notification_url: item.request.get_webhook_url()?.into(),
         };
 
         Ok(Self {
@@ -2423,9 +2423,9 @@ fn process_nuvei_payment_response(
             .and_then(|card| card.three_d)
             .and_then(|three_ds| three_ds.acs_url.zip(three_ds.c_req))
             .map(|(base_url, creq)| RedirectForm::Form {
-                endpoint: base_url,
+                endpoint: base_url.into(),
                 method: Method::Post,
-                form_fields: std::collections::HashMap::from([("creq".to_string(), creq.expose())]),
+                form_fields: std::collections::HashMap::from([("creq".to_string(), creq)]),
             }),
     };
 
@@ -3003,22 +3003,30 @@ where
         {
             Ok(Self {
                 related_transaction_id: item.request.get_related_transaction_id().clone(),
-                device_details: DeviceDetails {
-                    ip_address: Secret::new(
-                        item.recurring_mandate_payment_data
-                            .as_ref()
-                            .and_then(|r| r.mandate_metadata.as_ref())
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "browser_info.ip_address".into(),
-                            })?
-                            .clone()
-                            .expose()
-                            .as_str()
-                            .ok_or(errors::ConnectorError::MissingRequiredField {
-                                field_name: "browser_info.ip_address".into(),
-                            })?
-                            .to_owned(),
-                    ),
+                device_details: match item
+                    .request
+                    .get_browser_info()
+                    .and_then(|browser_info| browser_info.ip_address)
+                {
+                    Some(ip_address) => DeviceDetails {
+                        ip_address: Secret::new(ip_address.to_string()),
+                    },
+                    None => DeviceDetails {
+                        ip_address: Secret::new(
+                            item.recurring_mandate_payment_data
+                                .as_ref()
+                                .and_then(|r| r.mandate_metadata.as_ref())
+                                .ok_or(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "browser_info.ip_address".into(),
+                                })?
+                                .peek()
+                                .as_str()
+                                .ok_or(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "browser_info.ip_address".into(),
+                                })?
+                                .to_owned(),
+                        ),
+                    },
                 },
                 payment_option: PaymentOption {
                     user_payment_option_id: item.request.get_connector_mandate_id().clone(),
@@ -3959,7 +3967,7 @@ impl From<primitive_wrappers::EnablePartialAuthorizationBool> for PartialApprova
 
 trait NuveiAuthorizePreprocessingCommon {
     fn get_browser_info(&self) -> Option<BrowserInformation>;
-    fn get_complete_authorize_url(&self) -> Option<String>;
+    fn get_complete_authorize_url(&self) -> Option<Secret<String>>;
     fn get_related_transaction_id(&self) -> Option<String> {
         None
     }
@@ -3988,7 +3996,7 @@ trait NuveiAuthorizePreprocessingCommon {
     }
     fn get_return_url_required(
         &self,
-    ) -> Result<String, error_stack::Report<errors::ConnectorError>>;
+    ) -> Result<Secret<String>, error_stack::Report<errors::ConnectorError>>;
     fn get_capture_method(&self) -> Option<CaptureMethod>;
     fn get_minor_amount_required(&self) -> MinorUnit;
     fn get_email_required(&self) -> Result<Email, error_stack::Report<errors::ConnectorError>>;
@@ -4036,7 +4044,7 @@ impl NuveiAuthorizePreprocessingCommon for CompleteAuthorizeData {
     }
     fn get_return_url_required(
         &self,
-    ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<Secret<String>, error_stack::Report<errors::ConnectorError>> {
         self.get_router_return_url()
     }
 
@@ -4068,7 +4076,7 @@ impl NuveiAuthorizePreprocessingCommon for CompleteAuthorizeData {
         self.browser_info.clone()
     }
 
-    fn get_complete_authorize_url(&self) -> Option<String> {
+    fn get_complete_authorize_url(&self) -> Option<Secret<String>> {
         self.complete_authorize_url.clone()
     }
 
@@ -4093,7 +4101,7 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
             _ => None,
         }
     }
-    fn get_complete_authorize_url(&self) -> Option<String> {
+    fn get_complete_authorize_url(&self) -> Option<Secret<String>> {
         self.complete_authorize_url.clone()
     }
 
@@ -4112,7 +4120,7 @@ impl NuveiAuthorizePreprocessingCommon for SetupMandateRequestData {
 
     fn get_return_url_required(
         &self,
-    ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<Secret<String>, error_stack::Report<errors::ConnectorError>> {
         self.get_router_return_url()
     }
 
@@ -4182,7 +4190,7 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
 
     fn get_return_url_required(
         &self,
-    ) -> Result<String, error_stack::Report<errors::ConnectorError>> {
+    ) -> Result<Secret<String>, error_stack::Report<errors::ConnectorError>> {
         self.get_router_return_url()
     }
 
@@ -4190,7 +4198,7 @@ impl NuveiAuthorizePreprocessingCommon for PaymentsAuthorizeData {
         self.capture_method
     }
 
-    fn get_complete_authorize_url(&self) -> Option<String> {
+    fn get_complete_authorize_url(&self) -> Option<Secret<String>> {
         self.complete_authorize_url.clone()
     }
 
@@ -4305,9 +4313,9 @@ pub struct NuveiAmountDetails {
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct UrlDetails {
-    pub success_url: String,
-    pub failure_url: String,
-    pub pending_url: String,
+    pub success_url: Secret<String>,
+    pub failure_url: Secret<String>,
+    pub pending_url: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]

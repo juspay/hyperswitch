@@ -487,6 +487,8 @@ pub trait ConnectorActions: Connector {
                 connector_transfer_method_id: None,
                 webhook_url: None,
                 browser_info: None,
+                funds_transfer_type: None,
+                purpose: None,
                 payout_connector_metadata: None,
                 additional_payout_method_data: None,
                 source_bank_data: None,
@@ -994,6 +996,7 @@ impl Default for CCardType {
 impl Default for PaymentAuthorizeType {
     fn default() -> Self {
         let data = types::PaymentsAuthorizeData {
+            router_notification_url: None,
             payment_method_data: types::domain::PaymentMethodData::Card(CCardType::default().0),
             amount: 100,
             minor_amount: MinorUnit::new(100),
@@ -1046,6 +1049,7 @@ impl Default for PaymentAuthorizeType {
             billing_descriptor: None,
             is_account_funded_transaction: None,
             recipient_details: None,
+            sender_details: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
             feature_metadata: None,
@@ -1053,6 +1057,7 @@ impl Default for PaymentAuthorizeType {
             connector_intent_metadata: None,
             business_country: None,
             enable_avs_check: None,
+            enable_account_name_verification: None,
         };
         Self(data)
     }

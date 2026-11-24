@@ -449,12 +449,11 @@ impl NewUserMerchant {
     }
 
     pub async fn check_if_already_exists_in_db(&self, state: SessionState) -> UserResult<()> {
+        let merchant_id = self.get_merchant_id();
+        let key_store_master_key = state.store.get_master_key().to_vec().into();
         if state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                &self.get_merchant_id(),
-                &state.store.get_master_key().to_vec().into(),
-            )
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .is_ok()
         {
@@ -545,18 +544,19 @@ impl NewUserMerchant {
             return Err(UserErrors::InternalServerError.into());
         };
 
+        let key_store_master_key = state.store.get_master_key().to_vec().into();
         let merchant_key_store = state
-            .store
+            .accounts_store
             .get_merchant_key_store_by_merchant_id(
                 &merchant_account_response.merchant_id,
-                &state.store.get_master_key().to_vec().into(),
+                &key_store_master_key,
             )
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
         let merchant_account = state
-            .store
+            .accounts_store
             .find_merchant_account_by_merchant_id(
                 &merchant_account_response.merchant_id,
                 &merchant_key_store,
@@ -593,18 +593,19 @@ impl NewUserMerchant {
             ..Default::default()
         };
 
+        let key_store_master_key = state.store.get_master_key().to_vec().into();
         let merchant_key_store = state
-            .store
+            .accounts_store
             .get_merchant_key_store_by_merchant_id(
                 &merchant_account_response.id,
-                &state.store.get_master_key().to_vec().into(),
+                &key_store_master_key,
             )
             .await
             .change_context(UserErrors::InternalServerError)
             .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
         let merchant_account = state
-            .store
+            .accounts_store
             .find_merchant_account_by_merchant_id(
                 &merchant_account_response.id,
                 &merchant_key_store,
@@ -692,16 +693,23 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserMerchant {
     }
 }
 
-impl TryFrom<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for NewUserMerchant {
+impl
+    TryFrom<(
+        user_api::CreateInternalUserRequest,
+        id_type::OrganizationId,
+        id_type::MerchantId,
+    )> for NewUserMerchant
+{
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(
-        value: (user_api::CreateInternalUserRequest, id_type::OrganizationId),
+        (request, org_id, merchant_id): (
+            user_api::CreateInternalUserRequest,
+            id_type::OrganizationId,
+            id_type::MerchantId,
+        ),
     ) -> UserResult<Self> {
-        let merchant_id = id_type::MerchantId::get_internal_user_merchant_id(
-            consts::user_role::INTERNAL_USER_MERCHANT_ID,
-        );
-        let new_organization = NewUserOrganization::from(value);
+        let new_organization = NewUserOrganization::from((request, org_id));
 
         Ok(Self {
             company_name: None,
@@ -929,12 +937,10 @@ impl NewUser {
                         platform_merchant_id: merchant_id.clone(),
                     };
 
+                let organization_id = self.new_merchant.new_organization.get_organization_id();
                 state
                     .accounts_store
-                    .update_organization_by_org_id(
-                        &self.new_merchant.new_organization.get_organization_id(),
-                        org_update,
-                    )
+                    .update_organization_by_org_id(&organization_id, org_update)
                     .await
                     .change_context(UserErrors::InternalServerError)
                     .attach_printable("Failed to update organization with platform_merchant_id")?;
@@ -1035,22 +1041,31 @@ impl TryFrom<NewUser> for storage_user::UserNew {
     }
 }
 
-impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUser {
+impl TryFrom<(user_api::SignUpWithMerchantIdRequest, bool)> for NewUser {
     type Error = error_stack::Report<UserErrors>;
 
-    fn try_from(value: user_api::SignUpWithMerchantIdRequest) -> UserResult<Self> {
+    fn try_from(
+        (value, accept_password): (user_api::SignUpWithMerchantIdRequest, bool),
+    ) -> UserResult<Self> {
         let email = value.email.clone().try_into()?;
         let name = UserName::new(value.name.clone())?;
-        let password = NewUserPassword {
-            password: UserPassword::new(value.password.clone())?,
-            is_temporary: false,
-        };
+        let password = value
+            .password
+            .clone()
+            .filter(|_| accept_password)
+            .map(|password| {
+                UserPassword::new(password).map(|password| NewUserPassword {
+                    password,
+                    is_temporary: false,
+                })
+            })
+            .transpose()?;
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
             name,
             email,
-            password: Some(password),
+            password,
             new_merchant,
         })
     }
@@ -1094,24 +1109,30 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUser {
     }
 }
 
-impl TryFrom<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for NewUser {
+impl
+    TryFrom<(
+        user_api::CreateInternalUserRequest,
+        id_type::OrganizationId,
+        id_type::MerchantId,
+    )> for NewUser
+{
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(
-        (value, org_id): (user_api::CreateInternalUserRequest, id_type::OrganizationId),
+        (value, org_id, merchant_id): (
+            user_api::CreateInternalUserRequest,
+            id_type::OrganizationId,
+            id_type::MerchantId,
+        ),
     ) -> UserResult<Self> {
         let email = value.email.clone().try_into()?;
         let name = UserName::new(value.name.clone())?;
-        let password = NewUserPassword {
-            password: UserPassword::new(value.password.clone())?,
-            is_temporary: false,
-        };
-        let new_merchant = NewUserMerchant::try_from((value, org_id))?;
+        let new_merchant = NewUserMerchant::try_from((value, org_id, merchant_id))?;
 
         Ok(Self {
             name,
             email,
-            password: Some(password),
+            password: None,
             new_merchant,
         })
     }
@@ -1177,15 +1198,10 @@ impl UserFromStorage {
         self.0.user_id.as_str()
     }
 
-    pub fn compare_password(&self, candidate: &Secret<String>) -> UserResult<()> {
-        if let Some(password) = self.0.password.as_ref() {
-            match password::is_correct_password(candidate, password) {
-                Ok(true) => Ok(()),
-                Ok(false) => Err(UserErrors::InvalidCredentials.into()),
-                Err(e) => Err(e),
-            }
-        } else {
-            Err(UserErrors::InvalidCredentials.into())
+    pub fn compare_password(&self, candidate: &Secret<String>) -> UserResult<bool> {
+        match self.0.password.as_ref() {
+            Some(password) => password::is_correct_password(candidate, password),
+            None => Ok(false),
         }
     }
 

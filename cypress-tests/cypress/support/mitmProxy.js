@@ -16,14 +16,14 @@
 
 const JS_IFRAME_CONNECTORS = {
   stripe: {
-    path: "redirect/response",
+    path: "redirect/response/stripe",
     params: (gs) => ({
       payment_intent: gs.get("connectorTransactionID"),
       redirect_status: "succeeded",
     }),
   },
   stripeconnect: {
-    path: "redirect/response",
+    path: "redirect/response/stripe",
     params: (gs) => ({
       payment_intent: gs.get("connectorTransactionID"),
       redirect_status: "succeeded",
@@ -135,134 +135,147 @@ export function mockRecordBankRedirect(
 
 // ── Replay helpers ───────────────────────────────────────────────────────────
 
-function replayRedirectBody(saved, paymentId, merchantId, notificationUrl) {
-  const hyperswitchUrl =
-    Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
-  if (saved && saved.__redirect_method === "GET") {
-    const qs = new URLSearchParams(saved.__query || {}).toString();
-    const base = saved.__redirect_segment
-      ? `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${saved.__redirect_segment}`
-      : notificationUrl;
-    cy.request({
-      method: "GET",
-      url: qs ? `${base}?${qs}` : base,
-      failOnStatusCode: false,
-      followRedirect: false,
-    });
-  } else if (saved) {
-    const postBody =
-      saved.__redirect_method === "POST" && saved.__body ? saved.__body : saved;
-    const postUrl = saved.__redirect_segment
-      ? `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${saved.__redirect_segment}`
-      : notificationUrl;
-    cy.request({
-      method: "POST",
-      url: postUrl,
-      form: true,
-      body: postBody,
-      failOnStatusCode: false,
-      followRedirect: false,
-    });
-  } else {
-    cy.then(() => {
-      if (Cypress._buildRequestId) Cypress._buildRequestId();
-    });
-  }
+function callbackSegment(url) {
+  return new URL(url).pathname
+    .replace(/\/redirect\/token\/[^/]+\//, "/redirect/")
+    .split("/redirect/")[1]
+    ?.split("/callback/")[0];
 }
 
-function replayJsConnectorRedirect(
-  jsConnector,
-  saved,
-  paymentId,
-  merchantId,
-  globalState
-) {
-  const hyperswitchUrl =
-    Cypress.env("HYPERSWITCH_URL") || "http://localhost:8080";
-  if (saved && saved.__redirect_method === "GET" && saved.__redirect_segment) {
-    const url = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${saved.__redirect_segment}`;
-    const qs = new URLSearchParams(saved.__query || {}).toString();
-    cy.request({
-      method: "GET",
-      url: qs ? `${url}?${qs}` : url,
-      failOnStatusCode: false,
-      followRedirect: false,
+function resolveCallbackUrl(globalState, saved, pageCallbacks = []) {
+  const segment = saved?.__redirect_segment
+    ?.replace(/^redirect\/(?:token\/[^/]+\/)?/, "")
+    .split("/callback/")[0];
+  const paymentId = globalState.get("paymentID");
+  const merchantId = globalState.get("merchantId");
+  const selectUrl = (urls) => {
+    const matches = [...new Set(urls)].filter((url) => {
+      const path = new URL(url).pathname;
+      return (
+        path.startsWith(
+          `/payments/${paymentId}/${merchantId}/redirect/token/`
+        ) &&
+        (!segment || callbackSegment(url) === segment)
+      );
     });
-  } else {
-    const returnUrl = `${hyperswitchUrl}/payments/${paymentId}/${merchantId}/${jsConnector.path}/${globalState.get("connectorId")}`;
-    const params = jsConnector.params(globalState);
-    const hasValues = Object.values(params).every(
-      (v) => v !== undefined && v !== null
-    );
-    if (hasValues) {
-      const qs = new URLSearchParams(params).toString();
-      cy.request({
-        method: "GET",
-        url: `${returnUrl}?${qs}`,
-        failOnStatusCode: false,
-        followRedirect: false,
-      });
-    } else {
-      cy.then(() => {
-        if (Cypress._buildRequestId) Cypress._buildRequestId();
-      });
-    }
+    expect(
+      matches,
+      "one fresh router-issued callback for this payment"
+    ).to.have.length(1);
+    return matches[0];
+  };
+
+  const matchingPageCallbacks = pageCallbacks.filter(
+    (url) => !segment || callbackSegment(url) === segment
+  );
+  if (matchingPageCallbacks.length) {
+    return cy.wrap(selectUrl(matchingPageCallbacks), { log: false });
   }
+
+  const adminUrl = Cypress.env("PROXY_ADMIN_URL");
+  expect(adminUrl, "replay proxy admin URL").to.be.a("string").and.not.be.empty;
+  return cy
+    .request({
+      url: `${adminUrl}/callbacks`,
+      qs: { payment_id: paymentId, merchant_id: merchantId },
+      log: false,
+    })
+    .then((response) => selectUrl(response.body.urls));
 }
 
 function replayRedirect(
   connectorId,
   globalState,
   redirectBodyFile,
-  notificationUrl
+  pageCallbacks
 ) {
-  const paymentId = globalState.get("paymentID");
-  const merchantId = globalState.get("merchantId");
   const jsConnector = JS_IFRAME_CONNECTORS[connectorId];
+  return cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
+    if (!saved && !jsConnector) {
+      if (Cypress._buildRequestId) Cypress._buildRequestId();
+      return;
+    }
+    const params = jsConnector?.params(globalState);
+    if (!saved && params && Object.values(params).some((v) => v == null)) {
+      if (Cypress._buildRequestId) Cypress._buildRequestId();
+      return;
+    }
 
-  if (jsConnector) {
-    cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
-      replayJsConnectorRedirect(
-        jsConnector,
-        saved,
-        paymentId,
-        merchantId,
-        globalState
-      );
+    // Cassette metadata identifies the route and connector payload only. The
+    // token must come from this run's redirect page or outbound connector call.
+    const route = saved?.__redirect_segment
+      ? saved
+      : {
+          __redirect_segment:
+            jsConnector?.path || `redirect/complete/${connectorId}`,
+        };
+    return resolveCallbackUrl(globalState, route, pageCallbacks).then((url) => {
+      const method = saved?.__redirect_method || (jsConnector ? "GET" : "POST");
+      const callback = new URL(url);
+      if (method === "GET") {
+        const query = { ...(saved?.__query || {}), ...params };
+        Object.entries(query).forEach(([key, value]) => {
+          callback.searchParams.set(key, value);
+        });
+      }
+      return cy
+        .request({
+          method,
+          url: callback.toString(),
+          ...(method === "POST" && {
+            form: true,
+            body: saved?.__body || saved,
+          }),
+          followRedirect: false,
+          failOnStatusCode: false,
+          retryOnNetworkFailure: false,
+          log: false,
+        })
+        .then((response) => {
+          expect(
+            response.status,
+            "fresh callback must authenticate"
+          ).to.be.within(200, 399);
+          if (response.headers.location) {
+            globalState.set("redirectReturnUrl", response.headers.location);
+          }
+        });
     });
-    return;
-  }
-
-  cy.task("readFileOrNull", redirectBodyFile).then((saved) => {
-    replayRedirectBody(saved, paymentId, merchantId, notificationUrl);
   });
 }
 
 export function mockReplay3ds(globalState, connectorId, nextActionUrl) {
-  const baseUrl = globalState.get("baseUrl");
-  const paymentId = globalState.get("paymentID");
-  const merchantId = globalState.get("merchantId");
   const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
   const seq = nextRedirectSeq(testIdHash);
   const redirectBodyFile = getRedirectBodyFile(connectorId, testIdHash, seq);
-  const notificationUrl = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`;
 
-  cy.request({
-    url: nextActionUrl,
-    failOnStatusCode: false,
-    followRedirect: false,
-  });
-  replayRedirect(connectorId, globalState, redirectBodyFile, notificationUrl);
+  return cy
+    .request({
+      url: nextActionUrl,
+      failOnStatusCode: false,
+      followRedirect: false,
+      retryOnNetworkFailure: false,
+      log: false,
+    })
+    .then((page) => {
+      const document = new DOMParser().parseFromString(page.body, "text/html");
+      const callbacks = [
+        document.body.getAttribute("data-callback-url"),
+        document.body.getAttribute("data-complete-callback-url"),
+      ].filter(Boolean);
+      return replayRedirect(
+        connectorId,
+        globalState,
+        redirectBodyFile,
+        callbacks
+      );
+    });
 }
 
 export function mockReplayBankRedirect(globalState, connectorId) {
-  const baseUrl = globalState.get("baseUrl");
-  const paymentId = globalState.get("paymentID");
-  const merchantId = globalState.get("merchantId");
   const testIdHash = Cypress.env("currentTestIdHash") || "unknown";
   const seq = nextRedirectSeq(testIdHash);
   const redirectBodyFile = getRedirectBodyFile(connectorId, testIdHash, seq);
-  const notificationUrl = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/complete/${connectorId}`;
 
-  replayRedirect(connectorId, globalState, redirectBodyFile, notificationUrl);
+  return replayRedirect(connectorId, globalState, redirectBodyFile);
 }

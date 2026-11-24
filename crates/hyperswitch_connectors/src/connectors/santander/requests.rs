@@ -233,9 +233,22 @@ pub struct SantanderPixCancelRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum SantanderPixAutomaticoCobrCancelStatus {
+    Cancelada,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SantanderPixAutomaticoCobrCancelRequest {
+    pub status: SantanderPixAutomaticoCobrCancelStatus,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SantanderPaymentsCancelRequest {
     PixQR(SantanderPixCancelRequest),
+    PixAutomaticoCobr(SantanderPixAutomaticoCobrCancelRequest),
     Boleto(SantanderBoletoCancelRequest),
 }
 

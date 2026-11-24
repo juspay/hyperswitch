@@ -23,6 +23,7 @@ pub struct VerifyConnectorData {
 impl VerifyConnectorData {
     fn get_payment_authorize_data(&self) -> types::PaymentsAuthorizeData {
         types::PaymentsAuthorizeData {
+            router_notification_url: None,
             payment_method_data: domain::PaymentMethodData::Card(self.card_details.clone()),
             email: None,
             customer_name: None,
@@ -75,6 +76,7 @@ impl VerifyConnectorData {
             billing_descriptor: None,
             is_account_funded_transaction: None,
             recipient_details: None,
+            sender_details: None,
             business_country: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
@@ -82,6 +84,7 @@ impl VerifyConnectorData {
             installment_details: None,
             connector_intent_metadata: None,
             enable_avs_check: None,
+            enable_account_name_verification: None,
         }
     }
 

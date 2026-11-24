@@ -18,6 +18,7 @@ pub enum ApplicationResponse<R> {
     PaymentLinkForm(Box<PaymentLinkAction>),
     FileData((Vec<u8>, mime::Mime)),
     JsonWithHeaders((R, Vec<(String, hyperswitch_masking::Maskable<String>)>)),
+    Xml(String),
     GenericLinkForm(Box<GenericLinks>),
     /// `response` contains the HTTP response sent back to the connector; `metadata` is consumed
     /// by `server_wrap_util` for the ApiEvent log.
@@ -36,6 +37,7 @@ pub enum WebhookResponse<R> {
     TextPlain(String),
     FileData((Vec<u8>, mime::Mime)),
     JsonWithHeaders((R, Vec<(String, hyperswitch_masking::Maskable<String>)>)),
+    Xml(String),
 }
 
 impl<R> From<WebhookResponse<R>> for ApplicationResponse<R> {
@@ -46,6 +48,7 @@ impl<R> From<WebhookResponse<R>> for ApplicationResponse<R> {
             WebhookResponse::TextPlain(s) => Self::TextPlain(s),
             WebhookResponse::FileData((v, m)) => Self::FileData((v, m)),
             WebhookResponse::JsonWithHeaders((r, h)) => Self::JsonWithHeaders((r, h)),
+            WebhookResponse::Xml(x) => Self::Xml(x),
         }
     }
 }
@@ -71,6 +74,7 @@ impl<R> ApplicationResponse<R> {
             | Self::Form(_)
             | Self::PaymentLinkForm(_)
             | Self::FileData(_)
+            | Self::Xml(_)
             | Self::GenericLinkForm(_)
             | Self::StatusOk => Err(common_utils::errors::ValidationError::InvalidValue {
                 message: "expected either Json or JsonWithHeaders Response".to_string(),
@@ -96,6 +100,7 @@ impl_api_event_type!(Miscellaneous, (GenericLinkFormData));
 #[derive(Debug, PartialEq)]
 pub struct RedirectionFormData {
     pub redirect_form: crate::router_response_types::RedirectForm,
+    pub callback_url: Option<hyperswitch_masking::Secret<String>>,
     pub payment_method_data: Option<PaymentMethodData>,
     pub amount: String,
     pub currency: String,

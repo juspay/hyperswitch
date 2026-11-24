@@ -93,7 +93,7 @@ impl DummyConnectorPaymentAttempt {
         self,
         status: DummyConnectorStatus,
         next_action: Option<DummyConnectorNextAction>,
-        return_url: Option<String>,
+        return_url: Option<Secret<String>>,
     ) -> DummyConnectorPaymentData {
         DummyConnectorPaymentData {
             attempt_id: self.attempt_id,
@@ -116,7 +116,7 @@ pub struct DummyConnectorPaymentRequest {
     pub amount: i64,
     pub currency: Currency,
     pub payment_method_data: DummyConnectorPaymentMethodData,
-    pub return_url: Option<String>,
+    pub return_url: Option<Secret<String>>,
     pub connector: DummyConnectors,
 }
 
@@ -295,7 +295,7 @@ pub struct DummyConnectorPaymentData {
     pub payment_method_type: DummyConnectorPaymentMethodType,
     pub connector: DummyConnectors,
     pub next_action: Option<DummyConnectorNextAction>,
-    pub return_url: Option<String>,
+    pub return_url: Option<Secret<String>>,
 }
 
 impl DummyConnectorPaymentData {

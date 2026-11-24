@@ -4,10 +4,7 @@ use common_utils::{ext_traits::Encode, types::MinorUnit};
 use diesel_models::enums as storage_enums;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{ext_traits::OptionExt, mandates};
-use router_env::{
-    logger,
-    tracing::{self, instrument},
-};
+use router_env::{logger, tracing::instrument};
 
 use crate::{
     consts,
@@ -44,7 +41,7 @@ fn accumulate_external_latency(total: Option<u128>, attempt: Option<u128>) -> Op
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
 #[cfg(feature = "v1")]
-pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
+pub async fn do_gsm_actions<F, ApiRequest, FData, D>(
     state: &app::SessionState,
     req_state: ReqState,
     payment_data: &mut D,
@@ -208,6 +205,8 @@ where
                             connector_routing_data.clone(),
                             payment_data,
                             &payment_method_info,
+                            &state.conf.mandates.cross_currency_mit_supported_connectors,
+                            &state.conf.pm_filters,
                         )?;
                         payment_data.set_mandate_id(mandates::MandateIds {
                             mandate_id: None,
