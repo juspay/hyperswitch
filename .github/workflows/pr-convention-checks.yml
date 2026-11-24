@@ -89,6 +89,7 @@ jobs:
           GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
           REPO_OWNER: ${{ github.event.repository.owner.login }}
           REPO_NAME: ${{ github.event.repository.name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           # GitHub does not provide information about linked issues for a pull request via the REST API.
           # This information is available only within the GraphQL API.
@@ -114,9 +115,9 @@ jobs:
           linked_issues="$(
             gh api graphql \
               --raw-field "query=${query}" \
-              --field 'owner=${REPO_OWNER}' \
-              --field 'repository=${REPO_NAME}' \
-              --field 'prNumber=${{ github.event.pull_request.number }}' \
+              --field "owner=${REPO_OWNER}" \
+              --field "repository=${REPO_NAME}" \
+              --field "prNumber=${PR_NUMBER}" \
               --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[] | "\(.repository.nameWithOwner)#\(.number)"'
           )"
 
