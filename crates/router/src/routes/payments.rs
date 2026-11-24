@@ -327,10 +327,23 @@ pub async fn payment_link_create(
 pub async fn recovery_payments_create(
     state: web::Data<app::AppState>,
     req: actix_web::HttpRequest,
-    json_payload: web::Json<payment_types::RecoveryPaymentsCreate>,
+    json_payload: web::Json<Box<serde_json::value::RawValue>>,
 ) -> impl Responder {
     let flow = Flow::RecoveryPaymentsCreate;
-    let mut payload = json_payload.into_inner();
+    let request_body = json_payload.into_inner();
+    let payload =
+        match serde_json::from_str::<payment_types::RecoveryPaymentsCreate>(request_body.get()) {
+            Ok(payload) => payload,
+            Err(error) => {
+                return actix_web::HttpResponse::from_error(
+                    crate::utils::error_parser::custom_json_error_handler(
+                        actix_web::error::JsonPayloadError::Deserialize(error),
+                        &req,
+                    ),
+                );
+            }
+        };
+    let request_body = Secret::new(request_body.get().to_owned());
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -343,6 +356,7 @@ pub async fn recovery_payments_create(
                 auth.platform,
                 auth.profile,
                 req_payload,
+                request_body.clone(),
             )
         },
         &auth::V2ApiKeyAuth {
@@ -2060,7 +2074,7 @@ pub async fn payments_cancel(
                         }
                 };
 
-                // Check if the payment status is RequiresCustomerAction and connector supports pre-authorize cancel
+                // Check whether the connector supports pre-authorize cancel for this payment attempt.
                 let supports_pre_authorize_cancel =
                     if let Some(ref connector_name_str) = payment_pre_fetched_info.payment_attempt.connector {
                         ConnectorData::get_connector_by_name(
@@ -2070,16 +2084,25 @@ pub async fn payments_cancel(
                             None,
                         )
                         .map(|connector_data| {
-                            connector_data.connector.is_pre_authorize_cancel_supported(payment_pre_fetched_info.payment_attempt.payment_method_type)
+                            connector_data.connector.is_pre_authorize_cancel_supported(
+                                hyperswitch_interfaces::api::CurrentFlowInfo::PreAuthorizeVoid {
+                                    payment_method_type: payment_pre_fetched_info
+                                        .payment_attempt
+                                        .payment_method_type,
+                                    attempt_status: payment_pre_fetched_info.payment_attempt.status,
+                                    is_mit_payment: payment_pre_fetched_info
+                                        .payment_attempt
+                                        .payment_method_id
+                                        .is_some(),
+                                },
+                            )
                         })
                         .unwrap_or(false)
                     } else {
                         false
                     };
 
-                if payment_pre_fetched_info.payment_intent.status == api_enums::IntentStatus::RequiresCustomerAction
-                    && supports_pre_authorize_cancel
-                {
+                if supports_pre_authorize_cancel {
                     Box::pin(payments::payments_core::<
                         api_types::PreAuthorizeVoid,
                         payment_types::PaymentsResponse,
@@ -2909,9 +2932,7 @@ async fn set_payment_confirm_metrics_context(
     ));
 
     state.payment_metrics_context = Some(context);
-    state
-        .store
-        .set_key_manager_state(KeyManagerState::from(&*state));
+    state.set_key_manager_state(KeyManagerState::from(&*state));
 
     context
 }

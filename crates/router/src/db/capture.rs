@@ -6,6 +6,7 @@ use crate::{
     types::storage::{self as types, enums},
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait CaptureInterface {
     async fn insert_capture(

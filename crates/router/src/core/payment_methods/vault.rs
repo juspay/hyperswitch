@@ -726,6 +726,20 @@ impl Vaultable for api::WalletPayout {
                     _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
                 }
             }
+            PaymentMethodType::GooglePay => {
+                match (value1.dpan, value1.expiry_month, value1.expiry_year) {
+                    (Some(dpan), Some(expiry_month), Some(expiry_year)) => {
+                        Self::GooglePayDecrypt(api_models::payouts::GooglePayDecrypt {
+                            application_primary_account_number: dpan,
+                            expiry_month,
+                            expiry_year,
+                            card_holder_name: value1.card_holder_name,
+                            card_network: value2.card_network,
+                        })
+                    }
+                    _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
+                }
+            }
             PaymentMethodType::Mifinity => Self::Mifinity(api_models::payouts::Mifinity {
                 destination_account: value1
                     .wallet_id

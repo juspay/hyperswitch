@@ -5,6 +5,7 @@ use api_models::payouts::PayoutVendorAccountDetails;
 use api_models::{
     payments,
     payments::{additional_info::WalletAdditionalDataForCard, ApplepayPaymentMethod},
+    sender::{IndividualSenderDetails, SenderDetails},
 };
 use base64::Engine;
 use cards::NetworkToken;
@@ -2872,7 +2873,7 @@ pub trait PaymentMethodPredicates {
 
 impl PaymentMethodPredicates for PaymentMethodData {
     fn is_card_payment(&self) -> bool {
-        matches!(self, Self::Card(_))
+        matches!(self, Self::Card(_) | Self::CardWithOptionalCVC(_))
     }
 }
 
@@ -3383,6 +3384,80 @@ impl PaymentsAuthenticateRequestData for PaymentsAuthenticateData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+}
+
+pub trait SenderDetailsData {
+    fn get_sender_address(&self) -> Result<&payments::AddressDetails, Error>;
+    fn get_optional_sender_phone_number(&self) -> Option<Secret<String>>;
+}
+
+impl SenderDetailsData for SenderDetails {
+    fn get_sender_address(&self) -> Result<&payments::AddressDetails, Error> {
+        self.get_address()
+            .ok_or_else(missing_field_err("sender_details.address"))
+    }
+    fn get_optional_sender_phone_number(&self) -> Option<Secret<String>> {
+        let phone = match self {
+            Self::Individual(individual) => individual.phone.as_ref(),
+            Self::Corporate(corporate) => corporate.phone.as_ref(),
+        };
+        phone.and_then(|phone| phone.number.clone())
+    }
+}
+
+pub trait IndividualSenderDetailsData {
+    fn get_sender_first_name(&self) -> Result<Secret<String>, Error>;
+    fn get_sender_last_name(&self) -> Result<Secret<String>, Error>;
+}
+
+impl IndividualSenderDetailsData for IndividualSenderDetails {
+    fn get_sender_first_name(&self) -> Result<Secret<String>, Error> {
+        self.first_name
+            .clone()
+            .ok_or_else(missing_field_err("sender_details.first_name"))
+    }
+    fn get_sender_last_name(&self) -> Result<Secret<String>, Error> {
+        self.last_name
+            .clone()
+            .ok_or_else(missing_field_err("sender_details.last_name"))
+    }
+}
+
+/// Getters for the address of an account funded transaction sender, with errors naming the
+/// `sender_details.address` fields.
+pub trait SenderAddressDetailsData {
+    fn get_sender_country(&self) -> Result<enums::CountryAlpha2, Error>;
+    fn get_sender_line1(&self) -> Result<Secret<String>, Error>;
+    fn get_sender_city(&self) -> Result<String, Error>;
+    fn get_sender_zip(&self) -> Result<Secret<String>, Error>;
+    fn get_sender_state(&self) -> Result<Secret<String>, Error>;
+}
+
+impl SenderAddressDetailsData for payments::AddressDetails {
+    fn get_sender_country(&self) -> Result<enums::CountryAlpha2, Error> {
+        self.country
+            .ok_or_else(missing_field_err("sender_details.address.country"))
+    }
+    fn get_sender_line1(&self) -> Result<Secret<String>, Error> {
+        self.line1
+            .clone()
+            .ok_or_else(missing_field_err("sender_details.address.line1"))
+    }
+    fn get_sender_city(&self) -> Result<String, Error> {
+        self.city
+            .clone()
+            .ok_or_else(missing_field_err("sender_details.address.city"))
+    }
+    fn get_sender_zip(&self) -> Result<Secret<String>, Error> {
+        self.zip
+            .clone()
+            .ok_or_else(missing_field_err("sender_details.address.zip"))
+    }
+    fn get_sender_state(&self) -> Result<Secret<String>, Error> {
+        self.state
+            .clone()
+            .ok_or_else(missing_field_err("sender_details.address.state"))
     }
 }
 
@@ -7764,6 +7839,7 @@ pub(crate) fn convert_setup_mandate_router_data_to_authorize_router_data(
         installment_details: None,
         is_account_funded_transaction: data.request.is_account_funded_transaction,
         recipient_details: data.request.recipient_details.clone(),
+        sender_details: data.request.sender_details.clone(),
         business_country: data.request.business_country,
         connector_intent_metadata: data.request.connector_intent_metadata.clone(),
         enable_avs_check: data.request.enable_avs_check,

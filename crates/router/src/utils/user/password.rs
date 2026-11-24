@@ -5,12 +5,21 @@ use argon2::{
     },
     Argon2,
 };
-use common_utils::errors::CustomResult;
+use common_utils::{
+    crypto::{self, GenerateDigest},
+    errors::CustomResult,
+};
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use rand::{seq::SliceRandom, Rng};
+use redis_interface::RedisKey;
 
-use crate::core::errors::UserErrors;
+use crate::{
+    consts,
+    core::errors::{UserErrors, UserResult},
+    routes::SessionState,
+    types::domain,
+};
 
 pub fn generate_password_hash(
     password: Secret<String>,
@@ -130,6 +139,79 @@ fn get_temp_password_inner() -> String {
         rng.gen_range('a'..='z'),
         rng.gen_range('0'..='9'),
     )
+}
+
+fn get_email_key(prefix: &str, email: &domain::UserEmail) -> UserResult<RedisKey> {
+    let email_hash = crypto::Sha256
+        .generate_digest(email.clone().get_secret().expose().as_bytes())
+        .change_context(UserErrors::InternalServerError)?;
+    Ok(format!("{prefix}{}", hex::encode(email_hash)).into())
+}
+
+fn get_signin_attempts_key(email: &domain::UserEmail) -> UserResult<RedisKey> {
+    get_email_key(consts::user::REDIS_PASSWORD_ATTEMPTS_PREFIX, email)
+}
+
+fn get_forgot_password_attempts_key(email: &domain::UserEmail) -> UserResult<RedisKey> {
+    get_email_key(consts::user::REDIS_FORGOT_PASSWORD_ATTEMPTS_PREFIX, email)
+}
+
+pub async fn get_signin_attempts_from_redis(
+    state: &SessionState,
+    email: &domain::UserEmail,
+) -> UserResult<i64> {
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
+    redis_conn
+        .get_key::<Option<i64>>(&get_signin_attempts_key(email)?)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .map(|v| v.unwrap_or(0))
+}
+
+pub async fn increment_signin_attempts_in_redis(
+    state: &SessionState,
+    email: &domain::UserEmail,
+) -> UserResult<i64> {
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
+    let key = get_signin_attempts_key(email)?;
+    let lock_duration_in_secs = state.conf.user.password_lock_duration_in_secs;
+
+    let attempts = redis_conn
+        .increment_key_with_expiry(&key, lock_duration_in_secs)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+    redis_conn
+        .set_expiry(&key, lock_duration_in_secs)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(attempts)
+}
+
+pub async fn delete_signin_attempts_from_redis(
+    state: &SessionState,
+    email: &domain::UserEmail,
+) -> UserResult<()> {
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
+    redis_conn
+        .delete_key(&get_signin_attempts_key(email)?)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .map(|_| ())
+}
+
+pub async fn increment_forgot_password_attempts_in_redis(
+    state: &SessionState,
+    email: &domain::UserEmail,
+) -> UserResult<i64> {
+    let redis_conn = super::get_redis_connection_for_global_tenant(state)?;
+    redis_conn
+        .increment_key_with_expiry(
+            &get_forgot_password_attempts_key(email)?,
+            state.conf.user.forgot_password_attempts_window_in_secs,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
 }
 
 #[cfg(all(test, feature = "deja"))]

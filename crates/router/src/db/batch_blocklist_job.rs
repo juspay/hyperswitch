@@ -80,6 +80,7 @@ fn apply_profile_clone_target_update(
     Ok(())
 }
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait BatchBlocklistJobInterface {
     async fn insert_batch_blocklist_job(
@@ -453,7 +454,7 @@ impl BatchBlocklistJobInterface for KafkaStore {
         &self,
         new: storage::BatchBlocklistJobNew,
     ) -> CustomResult<storage::BatchBlocklistJob, errors::StorageError> {
-        self.diesel_store.insert_batch_blocklist_job(new).await
+        BatchBlocklistJobInterface::insert_batch_blocklist_job(&self.diesel_store, new).await
     }
 
     #[instrument(skip_all)]
@@ -462,9 +463,12 @@ impl BatchBlocklistJobInterface for KafkaStore {
         id: &str,
         merchant_id: &str,
     ) -> CustomResult<storage::BatchBlocklistJob, errors::StorageError> {
-        self.diesel_store
-            .find_batch_blocklist_job_by_id_merchant_id(id, merchant_id)
-            .await
+        BatchBlocklistJobInterface::find_batch_blocklist_job_by_id_merchant_id(
+            &self.diesel_store,
+            id,
+            merchant_id,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -476,15 +480,15 @@ impl BatchBlocklistJobInterface for KafkaStore {
         limit: i64,
         offset: i64,
     ) -> CustomResult<Vec<storage::BatchBlocklistJob>, errors::StorageError> {
-        self.diesel_store
-            .list_batch_blocklist_jobs_by_merchant_id(
-                merchant_id,
-                profile_id,
-                job_type,
-                limit,
-                offset,
-            )
-            .await
+        BatchBlocklistJobInterface::list_batch_blocklist_jobs_by_merchant_id(
+            &self.diesel_store,
+            merchant_id,
+            profile_id,
+            job_type,
+            limit,
+            offset,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -494,9 +498,13 @@ impl BatchBlocklistJobInterface for KafkaStore {
         merchant_id: &str,
         update: storage::BatchBlocklistJobUpdate,
     ) -> CustomResult<storage::BatchBlocklistJob, errors::StorageError> {
-        self.diesel_store
-            .update_batch_blocklist_job_by_id_merchant_id(id, merchant_id, update)
-            .await
+        BatchBlocklistJobInterface::update_batch_blocklist_job_by_id_merchant_id(
+            &self.diesel_store,
+            id,
+            merchant_id,
+            update,
+        )
+        .await
     }
 
     async fn update_profile_clone_job_target(
@@ -506,9 +514,14 @@ impl BatchBlocklistJobInterface for KafkaStore {
         profile_id: &common_utils::id_type::ProfileId,
         update: storage::BlocklistProfileCloneTargetUpdate,
     ) -> CustomResult<storage::BatchBlocklistJob, errors::StorageError> {
-        self.diesel_store
-            .update_profile_clone_job_target(id, merchant_id, profile_id, update)
-            .await
+        BatchBlocklistJobInterface::update_profile_clone_job_target(
+            &self.diesel_store,
+            id,
+            merchant_id,
+            profile_id,
+            update,
+        )
+        .await
     }
 
     #[instrument(skip_all)]
@@ -518,8 +531,12 @@ impl BatchBlocklistJobInterface for KafkaStore {
         profile_id: Option<&common_utils::id_type::ProfileId>,
         job_type: Option<common_enums::BatchBlocklistJobType>,
     ) -> CustomResult<usize, errors::StorageError> {
-        self.diesel_store
-            .count_batch_blocklist_jobs_by_merchant_id(merchant_id, profile_id, job_type)
-            .await
+        BatchBlocklistJobInterface::count_batch_blocklist_jobs_by_merchant_id(
+            &self.diesel_store,
+            merchant_id,
+            profile_id,
+            job_type,
+        )
+        .await
     }
 }

@@ -119,7 +119,11 @@ impl ForeignTryFrom<domain::MerchantAccount> for MerchantAccountResponse {
             merchant_name: item.merchant_name,
             return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,
-            payment_response_hash_key: item.payment_response_hash_key,
+            payment_response_hash_key: item.payment_response_hash_key.map(|key| {
+                key.chars()
+                    .take(consts::PAYMENT_RESPONSE_HASH_KEY_PREFIX_LEN)
+                    .collect()
+            }),
             redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
             merchant_details: item.merchant_details,
             webhook_details: item.webhook_details.clone().map(ForeignInto::foreign_into),
@@ -213,7 +217,11 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             profile_name: item.profile_name,
             return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,
-            payment_response_hash_key: item.payment_response_hash_key,
+            payment_response_hash_key: item.payment_response_hash_key.map(|key| {
+                key.chars()
+                    .take(consts::PAYMENT_RESPONSE_HASH_KEY_PREFIX_LEN)
+                    .collect()
+            }),
             redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
             webhook_details: item.webhook_details.map(ForeignInto::foreign_into),
             metadata: item.metadata,
@@ -336,7 +344,11 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             profile_name: item.profile_name,
             return_url: item.return_url,
             enable_payment_response_hash: item.enable_payment_response_hash,
-            payment_response_hash_key: item.payment_response_hash_key,
+            payment_response_hash_key: item.payment_response_hash_key.map(|key| {
+                key.chars()
+                    .take(consts::PAYMENT_RESPONSE_HASH_KEY_PREFIX_LEN)
+                    .collect()
+            }),
             redirect_to_merchant_with_http_post: item.redirect_to_merchant_with_http_post,
             webhook_details: item.webhook_details.map(ForeignInto::foreign_into),
             metadata: item.metadata,
