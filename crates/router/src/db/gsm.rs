@@ -69,20 +69,17 @@ impl GsmInterface for Store {
             .map_err(|error| report!(errors::StorageError::from(error)))?;
 
         // The absence of this rule may be cached.
-        cache::redact_from_redis_and_publish(
+        clear_cached_gsm_rule(
             self,
-            [CacheKind::Gsm(
-                gsm_cache_key(
-                    &gsm_db_record.connector,
-                    &gsm_db_record.flow,
-                    &gsm_db_record.sub_flow,
-                    &gsm_db_record.code,
-                    &gsm_db_record.message,
-                )
-                .into(),
-            )],
+            gsm_cache_key(
+                &gsm_db_record.connector,
+                &gsm_db_record.flow,
+                &gsm_db_record.sub_flow,
+                &gsm_db_record.code,
+                &gsm_db_record.message,
+            ),
         )
-        .await?;
+        .await;
 
         hyperswitch_domain_models::gsm::GatewayStatusMap::try_from(gsm_db_record)
             .change_context(errors::StorageError::DeserializationFailed)
@@ -192,20 +189,18 @@ impl GsmInterface for Store {
         let conn = connection::pg_connection_write(self).await?;
         let gsm_update_data = diesel_models::gsm::GatewayStatusMappingUpdate::try_from(data)
             .change_context(errors::StorageError::SerializationFailed)?;
-        let gsm_db_record = cache::publish_and_redact(self, CacheKind::Gsm(key.into()), || async {
-            storage::GatewayStatusMap::update(
-                &conn,
-                connector,
-                flow,
-                sub_flow,
-                code,
-                message,
-                gsm_update_data,
-            )
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
-        })
-        .await?;
+        let gsm_db_record = storage::GatewayStatusMap::update(
+            &conn,
+            connector,
+            flow,
+            sub_flow,
+            code,
+            message,
+            gsm_update_data,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))?;
+        clear_cached_gsm_rule(self, key).await;
 
         hyperswitch_domain_models::gsm::GatewayStatusMap::try_from(gsm_db_record)
             .change_context(errors::StorageError::DeserializationFailed)
@@ -223,12 +218,26 @@ impl GsmInterface for Store {
     ) -> CustomResult<bool, errors::StorageError> {
         let key = gsm_cache_key(&connector, &flow, &sub_flow, &code, &message);
         let conn = connection::pg_connection_write(self).await?;
-        cache::publish_and_redact(self, CacheKind::Gsm(key.into()), || async {
+        let is_deleted =
             storage::GatewayStatusMap::delete(&conn, connector, flow, sub_flow, code, message)
                 .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
-        })
-        .await
+                .map_err(|error| report!(errors::StorageError::from(error)))?;
+        clear_cached_gsm_rule(self, key).await;
+        Ok(is_deleted)
+    }
+}
+
+/// Clears a gsm rule from the caches of every instance after it was written. The rule is written
+/// by then, so a failure to clear it is logged instead of failing the write, which did not depend
+/// on redis before the rules were cached; the entry then lapses with its time to live.
+async fn clear_cached_gsm_rule(store: &Store, key: String) {
+    if let Err(error) =
+        cache::redact_from_redis_and_publish(store, [CacheKind::Gsm(key.into())]).await
+    {
+        logger::error!(
+            ?error,
+            "Failed to clear a written gsm rule from the gsm cache"
+        );
     }
 }
 
