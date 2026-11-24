@@ -1041,9 +1041,7 @@ async fn build_event_context(
 
     Some(payments_grpc::EventContext {
         event_context: Some(payments_grpc::event_context::EventContext::Payment(
-            payments_grpc::PaymentEventContext {
-                capture_method,
-            },
+            payments_grpc::PaymentEventContext { capture_method },
         )),
     })
 }
