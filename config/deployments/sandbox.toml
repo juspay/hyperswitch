@@ -255,10 +255,19 @@ slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2aw
 [user]
 password_validity_in_days = 90
 two_factor_auth_expiry_in_secs = 300
+email_token_expiry_in_secs = 86400
+password_max_attempts = 5
+password_lock_duration_in_secs = 1800
+forgot_password_max_attempts = 5
+forgot_password_attempts_window_in_secs = 1800
 totp_issuer_name = "Hyperswitch Sandbox"
 base_url = "https://app.hyperswitch.io"
 force_two_factor_auth = false
 force_cookies = false
+signup_disabled = true
+signup_contact_email = "signup@example.com"
+accept_password_on_signup_with_merchant_id = false
+internal_merchant_id = "juspay000"
 
 [debit_routing_config]
 supported_currencies = "USD"

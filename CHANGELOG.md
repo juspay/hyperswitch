@@ -4,6 +4,72 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.24.0
+
+### Features
+
+- **payments:** Configure cross-currency MIT validation ([#15320](https://github.com/juspay/hyperswitch/pull/15320)) ([`a3d1382`](https://github.com/juspay/hyperswitch/commit/a3d1382bd677b2f599ace48193f75bb2e4e1227b))
+
+### Bug Fixes
+
+- **webhooks:** Preserve in-progress payment status ([#15253](https://github.com/juspay/hyperswitch/pull/15253)) ([`f3e28d5`](https://github.com/juspay/hyperswitch/commit/f3e28d5470dc5e7bd353fb04661909253177847a))
+
+### Testing
+
+- **cypress:** Create merchants with a known payment response hash key ([#15374](https://github.com/juspay/hyperswitch/pull/15374)) ([`a0cfd39`](https://github.com/juspay/hyperswitch/commit/a0cfd39ea04ba982e5af84a5852ae802b1b71b25))
+
+**Full Changelog:** [`2026.11.23.0...2026.11.24.0`](https://github.com/juspay/hyperswitch/compare/2026.11.23.0...2026.11.24.0)
+
+- - -
+
+## 2026.11.23.0
+
+### Features
+
+- **connector:**
+  - [Checkout] Make previous_id Optional to Support Passthrough MIT ([#15280](https://github.com/juspay/hyperswitch/pull/15280)) ([`0f198fb`](https://github.com/juspay/hyperswitch/commit/0f198fb7412b88ad0a3ee26ed9af6a77d8c52aaf))
+  - [Envoy] Implement Incoming Webhooks ([#14953](https://github.com/juspay/hyperswitch/pull/14953)) ([`6cc34d4`](https://github.com/juspay/hyperswitch/commit/6cc34d48d9710de22bbd5e4f9864166540473dbc))
+  - [Cybersource] Populate ECI and Commerce Indicator In 3DS Response ([#15219](https://github.com/juspay/hyperswitch/pull/15219)) ([`bc400b0`](https://github.com/juspay/hyperswitch/commit/bc400b0cf28bd86e9e5d1124f5503c2856d7f95f))
+- **connector-configs:** Add hyperswitch vault ([#15327](https://github.com/juspay/hyperswitch/pull/15327)) ([`e46825a`](https://github.com/juspay/hyperswitch/commit/e46825a38245f8856a084a44cb19cd67ad698805))
+- **payments:** [checkout][worldpay wpg] add sender_details for AFT with individual and corporate senders ([#14928](https://github.com/juspay/hyperswitch/pull/14928)) ([`74a8921`](https://github.com/juspay/hyperswitch/commit/74a8921f3ce2e105287584ff7f4eefad9becf88c))
+- **router:** Restrict tokenization to stripe split payments ([#15317](https://github.com/juspay/hyperswitch/pull/15317)) ([`ddfd93a`](https://github.com/juspay/hyperswitch/commit/ddfd93a663c5f10002cef7c6b20129430facbc87))
+- **users:**
+  - Lock password sign in after 5 consecutive failed attempts ([#15349](https://github.com/juspay/hyperswitch/pull/15349)) ([`7d0cee2`](https://github.com/juspay/hyperswitch/commit/7d0cee2c8250358fdcdb9d5fd6c3e7a71f576a59))
+  - Rate limit password sign in and forgot password per email ([#15356](https://github.com/juspay/hyperswitch/pull/15356)) ([`e45b576`](https://github.com/juspay/hyperswitch/commit/e45b57645b5365b2086a60873d43213898ef605f))
+  - Email a sign up contact address to request for invitation ([#15358](https://github.com/juspay/hyperswitch/pull/15358)) ([`7f0ad93`](https://github.com/juspay/hyperswitch/commit/7f0ad934c830da93568299f4e5a3d648ff31293c))
+
+### Bug Fixes
+
+- **connector:**
+  - [Nuvei] use request IP for token MITs ([#15297](https://github.com/juspay/hyperswitch/pull/15297)) ([`92c6d63`](https://github.com/juspay/hyperswitch/commit/92c6d63c393a582ed9976c47e311831b2d739ed9))
+  - [Ilixium] use production base url in production config ([#15330](https://github.com/juspay/hyperswitch/pull/15330)) ([`88c32f8`](https://github.com/juspay/hyperswitch/commit/88c32f802c7c974c33ff619aa9bf23c9b8ea2253))
+- **cypress:** Expect Ilixium's error message text in the failing flows ([#15307](https://github.com/juspay/hyperswitch/pull/15307)) ([`66311df`](https://github.com/juspay/hyperswitch/commit/66311dfd8c2ceeee810af9784bb4064a67ca561d))
+- **router:**
+  - Reject blank webhook verification secrets ([#15312](https://github.com/juspay/hyperswitch/pull/15312)) ([`f9407d5`](https://github.com/juspay/hyperswitch/commit/f9407d56ca14f4fdadbe337132626d3b90d43d7d))
+  - Limit payment response hash key exposure ([#15350](https://github.com/juspay/hyperswitch/pull/15350)) ([`b748596`](https://github.com/juspay/hyperswitch/commit/b748596a95b8af82c1c550ee30876e4c08d3cffc))
+- **router_env:** Prevent deadlock in JSON tracing formatter ([#14710](https://github.com/juspay/hyperswitch/pull/14710)) ([`3c0328a`](https://github.com/juspay/hyperswitch/commit/3c0328abc5cedf8b702a31938bb5ecebaf6d768d))
+
+### Refactors
+
+- **user:**
+  - Move email token expiry to user config ([#15336](https://github.com/juspay/hyperswitch/pull/15336)) ([`1b03f94`](https://github.com/juspay/hyperswitch/commit/1b03f94d94369f7a1e42f9401337ad69fdc89d4f))
+  - Move internal user merchant id to config ([#15337](https://github.com/juspay/hyperswitch/pull/15337)) ([`93a54ca`](https://github.com/juspay/hyperswitch/commit/93a54cac71259cef062045415a3769d3ee0b3ef8))
+  - Remove password from internal signup and gate it on signup with merchant id ([#15348](https://github.com/juspay/hyperswitch/pull/15348)) ([`4239ba6`](https://github.com/juspay/hyperswitch/commit/4239ba6efd8d48f8e2f0afe8d1dd16bb195cdb4d))
+
+### Testing
+
+- **cypress:**
+  - Update paypal shipping cost AMOUNT_MISMATCH error_message ([#15303](https://github.com/juspay/hyperswitch/pull/15303)) ([`5e1c782`](https://github.com/juspay/hyperswitch/commit/5e1c782c00bbff35edfdee6e1366892882f75090))
+  - Add stripe payout vendor metadata and end-to-end payout coverage ([#15187](https://github.com/juspay/hyperswitch/pull/15187)) ([`8e743d3`](https://github.com/juspay/hyperswitch/commit/8e743d368de6a22a9a69893ecdc5cdd33a50b19d))
+
+### Miscellaneous Tasks
+
+- **superposition:** Bumped superposition version to 0.120.0 ([#15318](https://github.com/juspay/hyperswitch/pull/15318)) ([`98d60f4`](https://github.com/juspay/hyperswitch/commit/98d60f4b6f081355524a704b1a64035a92dc72e8))
+
+**Full Changelog:** [`2026.11.20.0...2026.11.23.0`](https://github.com/juspay/hyperswitch/compare/2026.11.20.0...2026.11.23.0)
+
+- - -
+
 ## 2026.11.20.0
 
 ### Features
