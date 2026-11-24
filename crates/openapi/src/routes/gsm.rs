@@ -32,7 +32,7 @@ pub async fn create_gsm_rule() {}
     ),
     tag = "Gsm",
     operation_id = "Retrieve Gsm Rule",
-    security(("api_key" = [])),
+    security(("admin_api_key" = []), ("api_key" = [])),
 )]
 pub async fn get_gsm_rule() {}
 

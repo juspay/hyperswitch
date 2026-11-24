@@ -9,18 +9,9 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 const ADMIN_API_AUTH: auth::AdminApiAuth = auth::AdminApiAuth;
-#[cfg(feature = "v1")]
-const API_KEY_AUTH: auth::HeaderAuth<auth::ApiKeyAuth> = auth::HeaderAuth(auth::ApiKeyAuth {
-    allow_connected_scope_operation: false,
-    allow_platform_self_operation: false,
-});
 #[cfg(feature = "v2")]
 const ADMIN_API_AUTH: auth::V2AdminApiAuth = auth::V2AdminApiAuth;
-#[cfg(feature = "v2")]
-const API_KEY_AUTH: auth::V2ApiKeyAuth = auth::V2ApiKeyAuth {
-    allow_connected_scope_operation: false,
-    allow_platform_self_operation: false,
-};
+const ADMIN_OR_API_KEY_AUTH: auth::AdminApiAuthOrApiKeyAuth = auth::AdminApiAuthOrApiKeyAuth;
 /// Gsm - Create
 ///
 /// To create a Gsm Rule
@@ -74,7 +65,7 @@ pub async fn create_gsm_rule(
     ),
     tag = "Gsm",
     operation_id = "Retrieve Gsm Rule",
-    security(("api_key" = [])),
+    security(("admin_api_key" = []), ("api_key" = [])),
 )]
 #[instrument(skip_all, fields(flow = ?Flow::GsmRuleRetrieve))]
 pub async fn get_gsm_rule(
@@ -90,7 +81,7 @@ pub async fn get_gsm_rule(
         &req,
         gsm_retrieve_req,
         |state, _, gsm_retrieve_req, _| gsm::retrieve_gsm_rule(state, gsm_retrieve_req),
-        &API_KEY_AUTH,
+        &ADMIN_OR_API_KEY_AUTH,
         api_locking::LockAction::NotApplicable,
     ))
     .await

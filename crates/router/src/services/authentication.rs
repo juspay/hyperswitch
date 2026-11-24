@@ -1766,6 +1766,46 @@ where
         Ok(((), AuthenticationType::AdminApiKey))
     }
 }
+
+/// Authenticates with the admin API key, falling back to any merchant API key
+#[derive(Debug, Default)]
+pub struct AdminApiAuthOrApiKeyAuth;
+
+#[async_trait]
+impl<A> AuthenticateAndFetch<(), A> for AdminApiAuthOrApiKeyAuth
+where
+    A: SessionStateInfo + Send + Sync,
+{
+    async fn authenticate_and_fetch(
+        &self,
+        request_headers: &HeaderMap,
+        state: &A,
+    ) -> RouterResult<((), AuthenticationType)> {
+        match AdminApiAuth
+            .authenticate_and_fetch(request_headers, state)
+            .await
+        {
+            Ok(admin_auth) => Ok(admin_auth),
+            Err(_) => {
+                #[cfg(feature = "v1")]
+                let api_key_auth = HeaderAuth(ApiKeyAuth::default());
+                #[cfg(feature = "v2")]
+                let api_key_auth = V2ApiKeyAuth {
+                    allow_connected_scope_operation: false,
+                    allow_platform_self_operation: false,
+                };
+                AuthenticateAndFetch::<AuthenticationData, A>::authenticate_and_fetch(
+                    &api_key_auth,
+                    request_headers,
+                    state,
+                )
+                .await
+                .map(|(_, auth_type)| ((), auth_type))
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct AdminApiAuthWithMerchantIdFromRoute(pub id_type::MerchantId);
 
