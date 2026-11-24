@@ -770,6 +770,7 @@ export const connectorDetails = {
             worldpayxml: null,
             checkout: null,
             stripe: null,
+            jpmorgan: null,
           },
         },
       },
