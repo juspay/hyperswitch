@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use api_models::payments::RecoveryPaymentsCreate;
 use base64::Engine;
 use common_types::payments::{
@@ -14,10 +12,7 @@ use common_utils::{
     id_type, type_name,
     types::keymanager,
 };
-use diesel_models::{
-    business_profile::RevenueRecoveryConfig, process_tracker::business_status,
-    types::FeatureMetadata,
-};
+use diesel_models::{business_profile::RevenueRecoveryConfig, process_tracker::business_status};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payments::{get_next_retry_for_intent_status, PaymentIntent, PaymentIntentData},
@@ -45,8 +40,7 @@ use crate::{
         payments::{
             self,
             operations::{
-                payment_attempt_record::PaymentAttemptRecord, PaymentUpdateIntent, UpdateTracker,
-                ValidateStatusForOperation,
+                payment_attempt_record::PaymentAttemptRecord, ValidateStatusForOperation,
             },
         },
         webhooks::{
@@ -487,6 +481,7 @@ fn is_recovery_invoice_ended(invoice_status: common_enums::IntentStatus) -> bool
 async fn save_trigger_state(
     state: &SessionState,
     platform: &Platform,
+    profile: &domain::Profile,
     payment_intent: PaymentIntent,
     trigger_state: ExternalTriggerState,
     assigned_ab_algorithm: Option<common_enums::RevenueRecoveryABAlgorithm>,
@@ -510,41 +505,26 @@ async fn save_trigger_state(
         recovery_metadata.revenue_recovery_ab_routing =
             assigned_ab_algorithm.or(recovery_metadata.revenue_recovery_ab_routing);
 
-        // The update intent operation's write, on the invoice already in hand rather than a fresh
-        // read of it. Like the operation given only feature metadata, the update carries no
-        // addresses or order details, which leaves them as they are.
-        PaymentUpdateIntent.validate_status_for_operation(payment_intent.status)?;
-        let storage_scheme = platform.get_processor().get_storage_scheme();
-        let payment_data = PaymentIntentData {
-            flow: PhantomData::<api_types::PaymentUpdateIntent>,
-            payment_intent: PaymentIntent {
-                feature_metadata: Some(FeatureMetadata::convert_from(feature_metadata)),
-                modified_at: common_utils::date_time::now(),
-                updated_by: storage_scheme.inner().to_string(),
-                billing_address: None,
-                shipping_address: None,
-                order_details: None,
-                ..payment_intent
-            },
-            client_secret: None,
-            sessions_token: vec![],
-            vault_session_details: None,
-            connector_customer_id: None,
-        };
-        let dimensions = dimension_state::Dimensions::new()
-            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
-        Box::pin(PaymentUpdateIntent.update_trackers(
+        Box::pin(payments::payments_intent_operation_core::<
+            api_types::PaymentUpdateIntent,
+            _,
+            _,
+            PaymentIntentData<api_types::PaymentUpdateIntent>,
+        >(
             state,
             state.get_req_state(),
-            platform.get_processor(),
-            payment_data,
-            None,
+            platform.clone(),
+            profile.clone(),
+            payments::operations::PaymentUpdateIntent,
+            api_models::payments::PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
+                feature_metadata,
+                api_models::enums::UpdateActiveAttempt::NoAction,
+            ),
+            payment_intent.id,
             hyperswitch_domain_models::payments::HeaderPayload::default(),
-            &dimensions,
         ))
-        .await?;
-        Ok(())
+        .await
+        .map(|_| ())
     }
 }
 
@@ -1296,26 +1276,24 @@ async fn apply_recovery_request_to_invoice(
             .await
         }
         RecordedAttemptCheck::Record => {
-            let (attempt, recorded_invoice) =
-                RevenueRecoveryAttempt::record_recovery_request_attempt(
-                    request,
-                    state,
-                    &req_state,
-                    platform,
-                    profile,
-                    invoice,
-                    &RecoveryConnectorDetails::ReportedByMerchant {
-                        connector: tracking_data.connector.into(),
-                    },
-                    tracking_data.recovery_request_id.clone(),
-                )
-                .await
-                .map_err(|error| recovery_request_step_failed("record", error))?;
+            let attempt = RevenueRecoveryAttempt::record_recovery_request_attempt(
+                request,
+                state,
+                &req_state,
+                platform,
+                profile,
+                invoice,
+                &RecoveryConnectorDetails::ReportedByMerchant {
+                    connector: tracking_data.connector.into(),
+                },
+                tracking_data.recovery_request_id.clone(),
+            )
+            .await
+            .map_err(|error| recovery_request_step_failed("record", error))?;
             tracing::Span::current().record("attempt_id", attempt.attempt_id.get_string_repr());
             Box::pin(decide_after_recording(
                 context,
                 &invoice.payment_id,
-                Some(recorded_invoice),
                 &attempt,
                 previous_trigger_state.as_ref(),
                 is_existing_invoice,
@@ -1327,7 +1305,6 @@ async fn apply_recovery_request_to_invoice(
             Box::pin(decide_after_recording(
                 context,
                 &invoice.payment_id,
-                None,
                 &attempt,
                 previous_trigger_state.as_ref(),
                 is_existing_invoice,
@@ -1381,12 +1358,9 @@ fn check_recorded_attempt(
     }
 }
 
-/// `recorded_invoice` is the invoice as recording this request's transaction left it, when this run
-/// recorded it.
 async fn decide_after_recording(
     context: RecoveryRequestContext<'_>,
     payment_id: &id_type::GlobalPaymentId,
-    recorded_invoice: Option<PaymentIntent>,
     recovery_attempt: &RecoveryPaymentAttempt,
     previous_trigger_state: Option<&ExternalTriggerState>,
     is_existing_invoice: bool,
@@ -1399,7 +1373,6 @@ async fn decide_after_recording(
             Box::pin(decide_save_and_send(
                 context,
                 payment_id,
-                recorded_invoice,
                 recovery_attempt,
                 previous_trigger_state,
                 is_existing_invoice,
@@ -1442,7 +1415,6 @@ fn check_retry_eligibility(
 async fn decide_save_and_send(
     context: RecoveryRequestContext<'_>,
     payment_id: &id_type::GlobalPaymentId,
-    recorded_invoice: Option<PaymentIntent>,
     recovery_attempt: &RecoveryPaymentAttempt,
     previous_trigger_state: Option<&ExternalTriggerState>,
     is_existing_invoice: bool,
@@ -1456,13 +1428,9 @@ async fn decide_save_and_send(
         request,
         retry_config,
     } = context;
-    // Recording the transaction returned the invoice as it left it, so it is not read again.
-    let payment_intent = match recorded_invoice {
-        Some(recorded_invoice) => recorded_invoice,
-        None => read_invoice(state, platform, profile, payment_id)
-            .await
-            .map_err(|error| recovery_request_step_failed("invoice", error))?,
-    };
+    let payment_intent = read_invoice(state, platform, profile, payment_id)
+        .await
+        .map_err(|error| recovery_request_step_failed("invoice", error))?;
     let retry_count = payment_intent
         .get_revenue_recovery_retry_count()
         .ok_or(errors::ApiErrorResponse::InternalServerError)
@@ -1496,6 +1464,7 @@ async fn decide_save_and_send(
             save_trigger_state(
                 state,
                 platform,
+                profile,
                 payment_intent,
                 trigger_state,
                 assigned_ab_algorithm,
