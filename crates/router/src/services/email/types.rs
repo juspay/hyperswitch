@@ -7,7 +7,7 @@ use error_stack::ResultExt;
 use external_services::email::{EmailContents, EmailData, EmailError};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
-use crate::{configs, consts, routes::SessionState};
+use crate::{configs, routes::SessionState};
 #[cfg(feature = "olap")]
 use crate::{
     core::errors::{UserErrors, UserResult},
@@ -88,6 +88,13 @@ pub enum EmailBody {
         role_name: String,
         entity_type: String,
         lineage_info: String,
+        entity_name: String,
+        entity_logo_url: String,
+        background_color: String,
+        foreground_color: String,
+    },
+    SignupContact {
+        contact_email: String,
         entity_name: String,
         entity_logo_url: String,
         background_color: String,
@@ -285,6 +292,22 @@ Email         : {user_email}
                     foreground_color = foreground_color
                 )
             }
+            EmailBody::SignupContact {
+                contact_email,
+                entity_name,
+                entity_logo_url,
+                background_color,
+                foreground_color,
+            } => {
+                format!(
+                    include_str!("assets/signup_contact.html"),
+                    contact_email = contact_email,
+                    entity_name = entity_name,
+                    entity_logo_url = entity_logo_url,
+                    background_color = background_color,
+                    foreground_color = foreground_color
+                )
+            }
             EmailBody::AnalyticsReport {
                 report_name,
                 noun,
@@ -338,7 +361,8 @@ impl EmailToken {
         flow: domain::Origin,
         settings: &configs::Settings,
     ) -> UserResult<String> {
-        let expiration_duration = std::time::Duration::from_secs(consts::EMAIL_TOKEN_TIME_IN_SECS);
+        let expiration_duration =
+            std::time::Duration::from_secs(settings.user.email_token_expiry_in_secs);
         let exp = jwt::generate_exp(expiration_duration)?.as_secs();
         let token_payload = Self {
             email: email.get_secret().expose(),
@@ -762,6 +786,35 @@ impl EmailData for WelcomeToCommunity {
 
         Ok(EmailContents {
             subject: "Thank you for signing up on Hyperswitch Dashboard!".to_string(),
+            body: external_services::email::IntermediateString::new(body),
+            recipients: self.recipient_email.clone().into_inner().into(),
+        })
+    }
+}
+
+pub struct SignupContact {
+    pub recipient_email: domain::UserEmail,
+    pub contact_email: String,
+    pub theme_config: EmailThemeConfig,
+}
+
+#[async_trait::async_trait]
+impl EmailData for SignupContact {
+    async fn get_email_data(&self, _base_url: &str) -> CustomResult<EmailContents, EmailError> {
+        let body = html::get_html_body(EmailBody::SignupContact {
+            contact_email: self.contact_email.clone(),
+            entity_name: self.theme_config.entity_name.clone().into_inner(),
+            entity_logo_url: self
+                .theme_config
+                .entity_logo_url
+                .get_string_repr()
+                .to_string(),
+            background_color: self.theme_config.background_color.clone().into_inner(),
+            foreground_color: self.theme_config.foreground_color.clone().into_inner(),
+        });
+
+        Ok(EmailContents {
+            subject: format!("Sign up for {}", self.theme_config.entity_name.as_str()),
             body: external_services::email::IntermediateString::new(body),
             recipients: self.recipient_email.clone().into_inner().into(),
         })

@@ -4296,13 +4296,6 @@ key1 = "API Secret"
 [rapyd.connector_webhook_details]
 merchant_secret = "Source verification key"
 
-[rapyd.metadata.statement_descriptor]
-name = "statement_descriptor"
-label = "Statement descriptor"
-placeholder = "Enter the statement descriptor"
-required = false
-type = "Text"
-
 [rapyd.metadata.country_of_incorporation]
 name = "country_of_incorporation"
 label = "Rapyd country of incorporation"
@@ -8185,6 +8178,12 @@ key1 = "Username"
   payment_method_type = "bacs"
 [[envoy_payout.bank_transfer]]
   payment_method_type = "ach"
+
+[hyperswitch_vault]
+[hyperswitch_vault.connector_auth.SignatureKey]
+  api_key="API Key"
+  key1="Publishable Key"
+  api_secret="Profile ID"
 
 [vgs]
 [vgs.connector_auth.SignatureKey]

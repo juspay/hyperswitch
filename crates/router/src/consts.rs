@@ -52,6 +52,8 @@ pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose = consts::BASE64_
 
 pub(crate) const API_KEY_LENGTH: usize = 64;
 
+pub(crate) const PAYMENT_RESPONSE_HASH_KEY_PREFIX_LEN: usize = 4;
+
 // OID (Object Identifier) for the merchant ID field extension.
 pub(crate) const MERCHANT_ID_FIELD_EXTENSION_ID: &str = "1.2.840.113635.100.6.32";
 
@@ -76,9 +78,6 @@ pub const ROLE_BLACKLIST_PREFIX: &str = "BR_";
 
 pub const USER_IDLE_SESSION_PREFIX: &str = "IS_";
 pub const MIN_IDLE_SESSION_TIMEOUT_IN_SECS: u32 = 60;
-
-#[cfg(feature = "email")]
-pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
 
 #[cfg(feature = "email")]
 pub const EMAIL_TOKEN_BLACKLIST_PREFIX: &str = "BET_";
