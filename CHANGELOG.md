@@ -4,6 +4,24 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.18.0-hotfix1
+
+### Features
+
+- **users:** Rate limit password sign in and forgot password per email ([#15381](https://github.com/juspay/hyperswitch/pull/15381)) ([`156f22b`](https://github.com/juspay/hyperswitch/commit/156f22b95cb56a7bf56c36ff2fbff4065fdfe6db))
+
+### Bug Fixes
+
+- **connector:** Pass external 3DS transaction status to Checkout ([#15369](https://github.com/juspay/hyperswitch/pull/15369)) ([`c68556f`](https://github.com/juspay/hyperswitch/commit/c68556f1541260a6dd3e8700abf547b6477ad66c))
+
+### Miscellaneous Tasks
+
+- **superposition:** Bumped superposition version to 0.120.0 ([#15384](https://github.com/juspay/hyperswitch/pull/15384)) ([`5d59a87`](https://github.com/juspay/hyperswitch/commit/5d59a87ea4175add52da480a78e63957f7d35e51))
+
+**Full Changelog:** [`2026.11.18.0...2026.11.18.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.11.18.0...2026.11.18.0-hotfix1)
+
+- - -
+
 ## 2026.11.18.0
 
 ### Features
