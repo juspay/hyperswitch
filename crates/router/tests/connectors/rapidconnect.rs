@@ -13,7 +13,7 @@ impl utils::Connector for RapidconnectTest {
         use router::connector::Rapidconnect;
         utils::construct_connector_data_old(
             Box::new(Rapidconnect::new()),
-            types::Connector::Rapidconnect,
+            types::Connector::Plaid,
             api::GetToken::Connector,
             None,
         )
