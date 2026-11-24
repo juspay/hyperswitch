@@ -7,7 +7,12 @@ use hyperswitch_domain_models::{payments::HeaderPayload, platform::Processor};
 use hyperswitch_interfaces::{api::gateway::GatewayContext, errors::ConnectorError};
 
 use crate::{
-    core::{self, unified_connector_service::kill_switch::RolloutSettings},
+    core::{
+        self,
+        unified_connector_service::{
+            connector_config::ConnectorAccountIdentifiers, kill_switch::RolloutSettings,
+        },
+    },
     routes::SessionState,
 };
 
@@ -17,6 +22,7 @@ pub struct RouterGatewayContext {
     pub processor: Processor,
     pub header_payload: HeaderPayload,
     pub lineage_ids: LineageIds,
+    pub connector_account_identifiers: Option<ConnectorAccountIdentifiers>,
     #[cfg(feature = "v1")]
     pub merchant_connector_account: core::payments::helpers::MerchantConnectorAccountType,
     #[cfg(feature = "v2")]

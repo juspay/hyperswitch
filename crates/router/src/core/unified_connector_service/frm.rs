@@ -102,6 +102,7 @@ pub async fn call_unified_connector_service_for_frm_notification(
         merchant_connector_account,
         processor.get_account().get_id(),
         connector_name.clone(),
+        None,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to build UCS auth metadata for the FRM notification")?;

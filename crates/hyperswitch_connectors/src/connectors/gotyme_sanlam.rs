@@ -131,16 +131,10 @@ impl ConnectorCommon for GotymeSanlam {
     {
         let auth = gotyme_sanlam::GotymeSanlamAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![
-            (
-                headers::X_API_KEY.to_string(),
-                auth.api_key.peek().to_owned().into_masked(),
-            ),
-            (
-                headers::PROFILE_ID.to_string(),
-                auth.profile_id.peek().to_owned().into(),
-            ),
-        ])
+        Ok(vec![(
+            headers::X_API_KEY.to_string(),
+            auth.api_key.peek().to_owned().into_masked(),
+        )])
     }
 
     fn build_error_response(

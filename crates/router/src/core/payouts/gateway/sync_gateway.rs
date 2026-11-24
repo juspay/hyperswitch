@@ -61,6 +61,7 @@ where
         let rollout_settings = context.rollout_settings();
         let external_vault_proxy_metadata = context.payout_external_vault_proxy_metadata(state)?;
         let merchant_connector_account = context.merchant_connector_account;
+        let connector_account_identifiers = context.connector_account_identifiers;
         let processor = &context.processor;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
@@ -76,6 +77,7 @@ where
                 merchant_connector_account,
                 processor.get_account().get_id(),
                 router_data.connector.clone(),
+                connector_account_identifiers.as_ref(),
             )
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;

@@ -422,6 +422,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                 merchant_connector_account,
                 processor.get_account().get_id(),
                 self.connector.clone(),
+                None,
             )
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;
@@ -533,6 +534,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
                 merchant_connector_account.clone(),
                 processor.get_account().get_id(),
                 self.connector.clone(),
+                None,
             )
             .change_context(ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to construct request metadata")?;

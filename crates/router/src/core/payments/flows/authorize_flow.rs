@@ -1696,6 +1696,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
             merchant_connector_account,
             processor.get_account().get_id(),
             router_data.connector.clone(),
+            None,
         )
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to construct request metadata")?;
@@ -1834,6 +1835,7 @@ pub async fn call_unified_connector_service_pre_authenticate_proxy(
             merchant_connector_account,
             processor.get_account().get_id(),
             router_data.connector.clone(),
+            None,
         )
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to construct request metadata")?;
