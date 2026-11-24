@@ -75,7 +75,7 @@ jobs:
 
       - name: Install `swagger-cli`
         shell: bash
-        run: npm install -g @apidevtools/swagger-cli
+        run: npm install -g @apidevtools/swagger-cli@4.0.4
 
       - name: Validate the JSON file
         shell: bash
