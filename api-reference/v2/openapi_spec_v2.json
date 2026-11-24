@@ -6661,15 +6661,11 @@
                   }
                 ],
                 "nullable": true
-              },
-              "transaction_identifier": {
-                "type": "string",
-                "nullable": true
               }
             }
           }
         ],
-        "description": "Apple Pay create accepts existing wallet metadata or an encrypted token.\nFor decryption, supply payment_data, payment_method, and transaction_identifier together."
+        "description": "Apple Pay create accepts existing wallet metadata or an encrypted token.\nOnly payment_data is required for decryption; wallet metadata is optional."
       },
       "ApplePayCryptogramData": {
         "type": "object",
@@ -25350,6 +25346,14 @@
             "description": "The unique identifier of the Payment method",
             "example": "0a_pm_01926c58bc6e77c09e809964e72af8c8"
           },
+          "payment_method_token": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssociatedPaymentMethodTokenType"
+              }
+            ],
+            "nullable": true
+          },
           "merchant_id": {
             "type": "string",
             "description": "Unique identifier for a merchant",
@@ -25618,9 +25622,7 @@
       "PaymentMethodSessionApplePayData": {
         "type": "object",
         "required": [
-          "payment_data",
-          "payment_method",
-          "transaction_identifier"
+          "payment_data"
         ],
         "properties": {
           "payment_data": {
@@ -25628,10 +25630,12 @@
             "description": "Encrypted Apple Pay payment token. Decrypted input is not accepted here."
           },
           "payment_method": {
-            "$ref": "#/components/schemas/ApplepayPaymentMethod"
-          },
-          "transaction_identifier": {
-            "type": "string"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ApplepayPaymentMethod"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -32014,12 +32018,14 @@
                   "expiry_year": {
                     "type": "string"
                   },
-                  "payment_data": {
-                    "allOf": [
-                      {
-                        "$ref": "#/components/schemas/ApplePayCryptogramData"
-                      }
-                    ],
+                  "cryptogram": {
+                    "type": "string",
+                    "description": "Transaction cryptogram; null after one-time consumption or expiry.",
+                    "nullable": true
+                  },
+                  "eci": {
+                    "type": "string",
+                    "description": "ECI associated with the one-time transaction cryptogram.",
                     "nullable": true
                   }
                 }

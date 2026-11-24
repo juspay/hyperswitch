@@ -7274,6 +7274,22 @@ impl ApplePayData {
         Ok(json_wallet_data)
     }
 
+    #[cfg(feature = "v2")]
+    pub(crate) fn from_encoded_token(
+        payment_data: &hyperswitch_masking::Secret<String>,
+    ) -> CustomResult<Self, errors::ConnectorError> {
+        let decoded = BASE64_ENGINE.decode(payment_data.peek()).map_err(|error| {
+            report!(error).change_context(errors::ConnectorError::InvalidWalletToken {
+                wallet_name: "Apple Pay".to_string(),
+            })
+        })?;
+        serde_json::from_slice(&decoded).map_err(|error| {
+            report!(error).change_context(errors::ConnectorError::InvalidWalletToken {
+                wallet_name: "Apple Pay".to_string(),
+            })
+        })
+    }
+
     pub async fn decrypt(
         &self,
         payment_processing_certificate: &hyperswitch_masking::Secret<String>,

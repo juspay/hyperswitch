@@ -8637,14 +8637,22 @@ async fn decrypt_apple_pay_wallet_data(
     let apple_pay_data =
         ApplePayData::token_json(domain::WalletData::ApplePay(apple_pay_wallet_data.clone()))
             .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to parse apple pay token to json")?
-            .decrypt(
-                &payment_processing_details.payment_processing_certificate,
-                &payment_processing_details.payment_processing_certificate_key,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("failed to decrypt apple pay token")?;
+            .attach_printable("failed to parse apple pay token to json")?;
+    decrypt_apple_pay_data(payment_processing_details, &apple_pay_data).await
+}
+
+async fn decrypt_apple_pay_data(
+    payment_processing_details: &payments_api::PaymentProcessingDetails,
+    apple_pay_data: &ApplePayData,
+) -> CustomResult<common_types::payments::ApplePayPredecryptData, errors::ApiErrorResponse> {
+    let apple_pay_data = apple_pay_data
+        .decrypt(
+            &payment_processing_details.payment_processing_certificate,
+            &payment_processing_details.payment_processing_certificate_key,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to decrypt apple pay token")?;
 
     let apple_pay_predecrypt_internal = apple_pay_data
         .parse_value::<hyperswitch_domain_models::router_data::ApplePayPredecryptDataInternal>(
@@ -8667,14 +8675,17 @@ async fn decrypt_apple_pay_wallet_data(
 pub(crate) async fn decrypt_apple_pay_resource(
     resource_data: &serde_json::Value,
     resource_key: &Secret<serde_json::Value>,
-    apple_pay_wallet_data: &domain::ApplePayWalletData,
+    payment_data: &Secret<String>,
 ) -> RouterResult<common_types::payments::ApplePayPredecryptData> {
     let details = apple_pay_processing_details_from_resource(resource_data, resource_key).ok_or(
         errors::ApiErrorResponse::InvalidRequestData {
             message: "The linked Apple Pay resource has no certificate or private key".to_string(),
         },
     )?;
-    decrypt_apple_pay_wallet_data(&details, apple_pay_wallet_data).await
+    let apple_pay_data = ApplePayData::from_encoded_token(payment_data)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to parse apple pay token to json")?;
+    decrypt_apple_pay_data(&details, &apple_pay_data).await
 }
 
 fn apple_pay_processing_details_from_resource(

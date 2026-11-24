@@ -776,6 +776,7 @@ pub fn generate_payment_method_response(
         merchant_id: payment_method.merchant_id.to_owned(),
         customer_id,
         id: payment_method.id.to_owned(),
+        payment_method_token: None,
         payment_method_type: payment_method.get_payment_method_type(),
         payment_method_subtype: payment_method.get_payment_method_subtype(),
         created: Some(payment_method.created_at),
@@ -1865,20 +1866,20 @@ impl
                         application_primary_account_number,
                         expiry_month,
                         expiry_year,
-                        payment_data,
+                        cryptogram,
+                        eci,
                     } => domain::WalletData::ApplePay(domain::ApplePayWalletData {
                         payment_data: common_types::payments::ApplePayPaymentData::Decrypted(
                             common_types::payments::ApplePayPredecryptData {
                                 application_primary_account_number,
                                 application_expiration_month: expiry_month,
                                 application_expiration_year: expiry_year,
-                                payment_data: payment_data.unwrap_or(
-                                    common_types::payments::ApplePayCryptogramData {
-                                        // Legacy saved-wallet/MIT retrieval has no transaction cryptogram.
-                                        online_payment_cryptogram: Secret::new(String::new()),
-                                        eci_indicator: None,
-                                    },
-                                ),
+                                payment_data: common_types::payments::ApplePayCryptogramData {
+                                    online_payment_cryptogram: cryptogram
+                                        .filter(|value| !value.peek().trim().is_empty())
+                                        .get_required_value("Apple Pay cryptogram")?,
+                                    eci_indicator: eci,
+                                },
                                 device_manufacturer_identifier: None,
                             },
                         ),
