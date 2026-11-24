@@ -45,12 +45,13 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ steps.generate_token.outputs.token }}
+          persist-credentials: false
 
       - name: Check if the workflow is run on an allowed branch
         shell: bash
         run: |
-          if [[ "${{ github.ref }}" != "refs/heads/${ALLOWED_BRANCH_NAME}" ]]; then
-            echo "::error::This workflow is expected to be run from the '${ALLOWED_BRANCH_NAME}' branch. Current branch: '${{ github.ref }}'"
+          if [[ "${GITHUB_REF}" != "refs/heads/${ALLOWED_BRANCH_NAME}" ]]; then
+            echo "::error::This workflow is expected to be run from the '${ALLOWED_BRANCH_NAME}' branch. Current branch: '${GITHUB_REF}'"
             exit 1
           fi
 

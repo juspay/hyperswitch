@@ -22,14 +22,15 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ steps.generate_token.outputs.token }}
+          persist-credentials: false
 
       - name: Check if the input is valid tag
         shell: bash
         run: |
-          if [[ ${{github.ref}} =~ ^refs/tags/[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]+$ ]]; then
-            echo "::notice::${{github.ref}} is a CalVer tag."
+          if [[ ${GITHUB_REF} =~ ^refs/tags/[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]+$ ]]; then
+            echo "::notice::${GITHUB_REF} is a CalVer tag."
           else
-            echo "::error::${{github.ref}} is not a CalVer tag."
+            echo "::error::${GITHUB_REF} is not a CalVer tag."
             exit 1
           fi
 

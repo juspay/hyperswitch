@@ -42,10 +42,13 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ steps.generate_token.outputs.token }}
+          persist-credentials: false
 
       - name: Checkout repository for fork
         if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
         uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -88,6 +91,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -134,7 +139,9 @@ jobs:
       - name: Restore sccache cache from S3
         continue-on-error: true
         shell: bash
-        run: .github/scripts/sccache-restore-s3.sh check-msrv "${{ steps.cache_scope.outputs.scope }}"
+        run: .github/scripts/sccache-restore-s3.sh check-msrv "${CACHE_SCOPE}"
+        env:
+          CACHE_SCOPE: ${{ steps.cache_scope.outputs.scope }}
 
       - name: Run cargo check
         shell: bash
@@ -153,7 +160,9 @@ jobs:
         if: ${{ !cancelled() && steps.cache_scope.outputs.scope != '' }}
         continue-on-error: true
         shell: bash
-        run: .github/scripts/sccache-save-s3.sh check-msrv "${{ steps.cache_scope.outputs.scope }}"
+        run: .github/scripts/sccache-save-s3.sh check-msrv "${CACHE_SCOPE}"
+        env:
+          CACHE_SCOPE: ${{ steps.cache_scope.outputs.scope }}
 
   test:
     name: Run tests on stable toolchain
@@ -181,6 +190,8 @@ jobs:
       - name: Checkout repository for fork
         if: ${{ (github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name) }}
         uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Checkout repository with token
         if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
@@ -189,6 +200,7 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ steps.generate_token.outputs.token }}
+          persist-credentials: false
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -230,7 +242,9 @@ jobs:
       - name: Restore sccache cache from S3
         continue-on-error: true
         shell: bash
-        run: .github/scripts/sccache-restore-s3.sh test "${{ steps.cache_scope.outputs.scope }}"
+        run: .github/scripts/sccache-restore-s3.sh test "${CACHE_SCOPE}"
+        env:
+          CACHE_SCOPE: ${{ steps.cache_scope.outputs.scope }}
 
       - name: Install just
         uses: taiki-e/install-action@v2.90.8
@@ -274,7 +288,9 @@ jobs:
         if: ${{ !cancelled() && steps.cache_scope.outputs.scope != '' }}
         continue-on-error: true
         shell: bash
-        run: .github/scripts/sccache-save-s3.sh test "${{ steps.cache_scope.outputs.scope }}"
+        run: .github/scripts/sccache-save-s3.sh test "${CACHE_SCOPE}"
+        env:
+          CACHE_SCOPE: ${{ steps.cache_scope.outputs.scope }}
 
   typos:
     name: Spell check
@@ -282,6 +298,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Spell check
         uses: crate-ci/typos@master
@@ -292,6 +310,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Spell check specific directories
         uses: crate-ci/typos@v1.48.0
@@ -322,6 +342,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install mold linker
         uses: rui314/setup-mold@v1
@@ -363,7 +385,9 @@ jobs:
       - name: Restore sccache cache from S3
         continue-on-error: true
         shell: bash
-        run: .github/scripts/sccache-restore-s3.sh check-v2 "${{ steps.cache_scope.outputs.scope }}"
+        run: .github/scripts/sccache-restore-s3.sh check-v2 "${CACHE_SCOPE}"
+        env:
+          CACHE_SCOPE: ${{ steps.cache_scope.outputs.scope }}
 
       - name: Install just
         uses: taiki-e/install-action@v2.90.8
@@ -394,4 +418,6 @@ jobs:
         if: ${{ !cancelled() && steps.cache_scope.outputs.scope != '' }}
         continue-on-error: true
         shell: bash
-        run: .github/scripts/sccache-save-s3.sh check-v2 "${{ steps.cache_scope.outputs.scope }}"
+        run: .github/scripts/sccache-save-s3.sh check-v2 "${CACHE_SCOPE}"
+        env:
+          CACHE_SCOPE: ${{ steps.cache_scope.outputs.scope }}

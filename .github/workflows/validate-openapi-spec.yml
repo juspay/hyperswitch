@@ -32,6 +32,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
+          persist-credentials: false
 
       - name: Checkout PR with token
         if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
@@ -40,12 +41,14 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
           token: ${{ steps.generate_token.outputs.token }}
+          persist-credentials: false
 
       - name: Checkout merge group HEAD commit
         if: ${{ github.event_name == 'merge_group' }}
         uses: actions/checkout@v7.0.1
         with:
           ref: ${{ github.event.merge_group.head_sha }}
+          persist-credentials: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
