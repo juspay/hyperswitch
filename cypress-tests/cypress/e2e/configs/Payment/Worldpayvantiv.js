@@ -268,6 +268,47 @@ export const connectorDetails = {
         },
       },
     },
+    MITWithProcessorPaymentToken: {
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    MITManualCaptureWithProcessorPaymentToken: {
+      Request: {
+        amount: 5000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          amount: 5000,
+        },
+      },
+    },
+    CaptureProcessorPaymentTokenMIT: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
+      Request: {
+        amount_to_capture: 5000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 5000,
+        },
+      },
+    },
     ZeroAuthMandate: {
       Request: {
         amount: 0,

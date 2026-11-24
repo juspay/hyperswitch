@@ -4504,6 +4504,14 @@ Cypress.Commands.add(
           if (response.body.payment_method_id) {
             globalState.set("paymentMethodId", response.body.payment_method_id);
           }
+          globalState.set(
+            "connectorMandateId",
+            response.body.connector_mandate_id
+          );
+          globalState.set(
+            "networkTransactionId",
+            response.body.network_transaction_id
+          );
           // Store the actual setup_future_usage value from the response
           globalState.set(
             "actualSetupFutureUsage",
@@ -6530,6 +6538,116 @@ Cypress.Commands.add(
             throw new Error(
               `Invalid capture method ${response.body.capture_method}`
             );
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "mitUsingProcessorPaymentToken",
+  (
+    requestBody,
+    data,
+    confirm,
+    capture_method,
+    globalState,
+    includeNetworkTransactionId = true
+  ) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task(
+        "cli_log",
+        "TRIGGER_SKIP enabled, skipping mitUsingProcessorPaymentToken"
+      );
+      return;
+    }
+
+    const configInfo = execConfig(validatedConfigs);
+    const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
+    const merchantConnectorId = globalState.get(
+      `${configInfo.merchantConnectorPrefix}Id`
+    );
+    const processorPaymentToken = globalState.get("connectorMandateId");
+    const networkTransactionId = globalState.get("networkTransactionId");
+    const recurringDetails = requestBody.recurring_details?.data;
+    const tokenDetails = recurringDetails?.processor_payment_token_details;
+
+    expect(processorPaymentToken, "processor payment token from CIT").to.be.a(
+      "string"
+    ).and.not.be.empty;
+    expect(merchantConnectorId, "merchant_connector_id").to.be.a("string").and
+      .not.be.empty;
+    expect(tokenDetails, "processor_payment_token_details").to.exist;
+
+    const processorPaymentTokenDetails = { ...tokenDetails };
+    if (includeNetworkTransactionId) {
+      expect(networkTransactionId, "network_transaction_id from CIT").to.be.a(
+        "string"
+      ).and.not.be.empty;
+      processorPaymentTokenDetails.network_transaction_id =
+        networkTransactionId;
+    } else {
+      delete processorPaymentTokenDetails.network_transaction_id;
+    }
+
+    for (const key in reqData) {
+      requestBody[key] = reqData[key];
+    }
+
+    requestBody.confirm = confirm;
+    requestBody.capture_method = capture_method;
+    requestBody.customer_id = globalState.get("customerId");
+    requestBody.profile_id = profileId;
+    requestBody.recurring_details.data = {
+      ...recurringDetails,
+      processor_payment_token: processorPaymentToken,
+      merchant_connector_id: merchantConnectorId,
+      processor_payment_token_details: processorPaymentTokenDetails,
+    };
+
+    globalState.set("paymentAmount", requestBody.amount);
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+      body: requestBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          globalState.set("paymentID", response.body.payment_id);
+          expect(
+            response.body.connector_transaction_id,
+            "connector_transaction_id"
+          ).to.not.be.null;
+          expect(
+            response.body.merchant_connector_id,
+            "merchant_connector_id"
+          ).to.equal(merchantConnectorId);
+          expect(
+            response.body.connector_mandate_id,
+            "connector_mandate_id"
+          ).to.equal(processorPaymentToken);
+
+          for (const key in resData.body) {
+            expect(resData.body[key], [key]).to.equal(response.body[key]);
           }
         } else {
           defaultErrorHandler(response, resData);
