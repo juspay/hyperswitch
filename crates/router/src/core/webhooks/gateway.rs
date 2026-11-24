@@ -554,7 +554,7 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                     }));
 
                 let ack_response = match handle_response.event_ack_response {
-                    Some(ack) => ucs_ack_to_webhook_response(ack),
+                    Some(ack) => ucs_ack_to_webhook_response(ack)?,
                     None => ctx
                         .connector
                         .get_webhook_api_response(
@@ -1070,7 +1070,7 @@ async fn build_event_context(
 
 fn ucs_ack_to_webhook_response(
     ack: payments_grpc::EventAckResponse,
-) -> WebhookResponse<serde_json::Value> {
+) -> RouterResult<WebhookResponse<serde_json::Value>> {
     let payments_grpc::EventAckResponse {
         status_code,
         headers,
@@ -1079,9 +1079,11 @@ fn ucs_ack_to_webhook_response(
 
     if body.is_empty() {
         return u16::try_from(status_code)
-            .ok()
-            .filter(|status_code| *status_code != 0)
-            .map_or_else(WebhookResponse::default, WebhookResponse::StatusCode);
+            .map(WebhookResponse::StatusCode)
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable_lazy(|| {
+                format!("Invalid status code {status_code} in UCS webhook ack")
+            });
     }
 
     let masked_headers: Vec<(String, hyperswitch_masking::Maskable<String>)> = headers
@@ -1090,15 +1092,15 @@ fn ucs_ack_to_webhook_response(
         .collect();
 
     if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&body) {
-        return if masked_headers.is_empty() {
+        return Ok(if masked_headers.is_empty() {
             WebhookResponse::Json(value)
         } else {
             WebhookResponse::JsonWithHeaders((value, masked_headers))
-        };
+        });
     }
 
-    match String::from_utf8(body.clone()) {
+    Ok(match String::from_utf8(body.clone()) {
         Ok(text) => WebhookResponse::TextPlain(text),
         Err(_) => WebhookResponse::FileData((body, mime::APPLICATION_OCTET_STREAM)),
-    }
+    })
 }
