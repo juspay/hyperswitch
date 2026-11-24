@@ -935,7 +935,7 @@ async fn network_token_incoming_webhooks_core(
         .await?;
 
     Ok((
-        WebhookResponse::default(),
+        WebhookResponse::StatusCode(200),
         webhook_resp_tracker,
         serialized_request,
         merchant_id.clone(),
