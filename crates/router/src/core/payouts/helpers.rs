@@ -1248,6 +1248,7 @@ pub fn is_payout_terminal_state(status: api_enums::PayoutStatus) -> bool {
             | api_enums::PayoutStatus::Pending
             | api_enums::PayoutStatus::Initiated
             | api_enums::PayoutStatus::RequiresFulfillment
+            | api_enums::PayoutStatus::RequiresReview
     )
 }
 
