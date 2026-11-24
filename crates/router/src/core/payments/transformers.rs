@@ -4678,6 +4678,7 @@ where
         let masked_sender_details = payment_intent
             .get_sender_details()
             .map(api_models::sender::SenderDetailsResponse::from);
+        let customer_acceptance = payment_attempt.get_customer_acceptance();
         let payments_response = api::PaymentsResponse {
             // Populated only for server integrations, by the update-context enrichment.
             payment_method_list: None,
@@ -4711,6 +4712,7 @@ where
             captures: captures_response,
             mandate_id,
             mandate_data,
+            customer_acceptance,
             setup_future_usage,
             off_session: payment_intent.off_session,
             capture_on: None,
@@ -5191,6 +5193,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
         let masked_sender_details = pi
             .get_sender_details()
             .map(api_models::sender::SenderDetailsResponse::from);
+        let customer_acceptance = pa.get_customer_acceptance();
         Self {
             // Populated only for server integrations, by the update-context enrichment.
             payment_method_list: None,
@@ -5276,6 +5279,7 @@ impl ForeignFrom<(storage::PaymentIntent, storage::PaymentAttempt)> for api::Pay
             captures: None,
             mandate_id: None,
             mandate_data: None,
+            customer_acceptance,
             off_session: None,
             capture_on: None,
             payment_token: None,
