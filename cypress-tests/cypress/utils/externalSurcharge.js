@@ -148,6 +148,35 @@ export const runSurchargePayment = (
   return state;
 };
 
+// Captures only part of the order amount, with the connector's own PartialCapture
+// config. The surcharge is not part of what is captured.
+export const capturePartialAmount = (globalState) => {
+  cy.captureCallTest(
+    Cypress._.cloneDeep(fixtures.captureBody),
+    cardData(globalState, "PartialCapture"),
+    globalState
+  );
+};
+
+// Retrieves the payment after a capture and checks the surcharge is still there
+// and how much was received: "net_amount" for a full capture, or the amount of a
+// partial one. Connectors that answer "processing" to a capture report the amount
+// later, so for them only the surcharge is checked.
+export const retrieveAfterCapture = (
+  globalState,
+  { captureFlow, expectedReceived }
+) => {
+  const data = cardData(globalState, "ExternalSurchargeRetrieve");
+  const captureStatus = cardData(globalState, captureFlow)?.Response?.body
+    ?.status;
+  const settled = ["succeeded", "partially_captured"].includes(captureStatus);
+
+  cy.retrievePaymentCallTest({
+    globalState,
+    data: settled ? { ...data, ExpectAmountReceived: expectedReceived } : data,
+  });
+};
+
 // Captures the whole charged total (order amount + surcharge).
 export const captureFullAmount = (globalState) => {
   const data = cardData(globalState, "ExternalSurchargeManualCapture");

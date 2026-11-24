@@ -5235,7 +5235,11 @@ Cypress.Commands.add(
     unconfirmedPayment = false,
     allKeysRequired = false,
   }) => {
-    const { Configs: configs = {}, Response: resData = {} } = data || {};
+    const {
+      Configs: configs = {},
+      Response: resData = {},
+      ExpectAmountReceived: expectAmountReceived,
+    } = data || {};
 
     const configInfo = execConfig(validateConfig(configs));
     const payment_id = globalState.get("paymentID");
@@ -5287,6 +5291,16 @@ Cypress.Commands.add(
               response.body,
               globalState,
               resData.body.surcharge_details
+            );
+          }
+
+          // The amount received after a capture: a number, or "net_amount" when
+          // everything that was charged (the surcharge included) must be received.
+          if (expectAmountReceived !== undefined) {
+            expect(response.body.amount_received, "amount_received").to.equal(
+              expectAmountReceived === "net_amount"
+                ? response.body.net_amount
+                : expectAmountReceived
             );
           }
 

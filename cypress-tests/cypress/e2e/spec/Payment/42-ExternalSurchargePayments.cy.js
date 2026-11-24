@@ -2,8 +2,10 @@ import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import {
   captureFullAmount,
+  capturePartialAmount,
   cardData,
   isSurchargeServiceAvailable,
+  retrieveAfterCapture,
   runSurchargePayment,
   shouldSkipExternalSurcharge,
 } from "../../../utils/externalSurcharge";
@@ -85,16 +87,48 @@ describe("External surcharge - payments", () => {
         captureFullAmount(globalState);
       });
 
-      cy.step("Retrieve Payment (the surcharge is persisted)", () => {
+      cy.step(
+        "Retrieve Payment (the surcharge is persisted and all of it was received)",
+        () => {
+          if (!state.shouldContinue) {
+            cy.task("cli_log", "Skipping step: Retrieve Payment");
+            return;
+          }
+          retrieveAfterCapture(globalState, {
+            captureFlow: "Capture",
+            expectedReceived: "net_amount",
+          });
+        }
+      );
+    });
+
+    it("Create Payment Intent -> Eligibility -> Confirm -> Partial Capture -> Retrieve Payment", () => {
+      const state = runSurchargePayment(globalState, {
+        captureMethod: "manual",
+      });
+
+      cy.step("Capture only part of the order amount", () => {
         if (!state.shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          cy.task("cli_log", "Skipping step: Partial Capture");
           return;
         }
-        cy.retrievePaymentCallTest({
-          globalState,
-          data: cardData(globalState, "ExternalSurchargeRetrieve"),
-        });
+        capturePartialAmount(globalState);
       });
+
+      cy.step(
+        "Retrieve Payment (only the captured amount was received)",
+        () => {
+          if (!state.shouldContinue) {
+            cy.task("cli_log", "Skipping step: Retrieve Payment");
+            return;
+          }
+          retrieveAfterCapture(globalState, {
+            captureFlow: "PartialCapture",
+            expectedReceived: cardData(globalState, "PartialCapture").Request
+              .amount_to_capture,
+          });
+        }
+      );
     });
   });
 });
