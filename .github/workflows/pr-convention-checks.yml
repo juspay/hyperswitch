@@ -161,6 +161,7 @@ jobs:
           permission-metadata: read
 
       - name: Get files changed
+        id: files_changed
         env:
           GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -179,19 +180,21 @@ jobs:
             openapi_changes='true'
           fi
 
-          echo "migration_and_schema_changes=${migration_and_schema_changes}" >> "${GITHUB_ENV}"
-          echo "openapi_changes=${openapi_changes}" >> "${GITHUB_ENV}"
+          echo "migration_and_schema_changes=${migration_and_schema_changes}" >> "${GITHUB_OUTPUT}"
+          echo "openapi_changes=${openapi_changes}" >> "${GITHUB_OUTPUT}"
 
       - name: Add/Remove 'M-database-changes' based on Migration or Schema changes
         shell: bash
         env:
           GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
           REPO_NAME: ${{ github.event.repository.full_name }}
+          MIGRATION_AND_SCHEMA_CHANGES: ${{ steps.files_changed.outputs.migration_and_schema_changes }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          if ${{ env.migration_and_schema_changes == 'true' }}; then
-            gh --repo ${REPO_NAME} pr edit --add-label 'M-database-changes' ${{ github.event.pull_request.number }}
+          if [[ "${MIGRATION_AND_SCHEMA_CHANGES}" == "true" ]]; then
+            gh --repo ${REPO_NAME} pr edit --add-label 'M-database-changes' ${PR_NUMBER}
           else
-            gh --repo ${REPO_NAME} pr edit --remove-label 'M-database-changes' ${{ github.event.pull_request.number }}
+            gh --repo ${REPO_NAME} pr edit --remove-label 'M-database-changes' ${PR_NUMBER}
           fi
 
       - name: Add/Remove 'M-api-contract-changes' based on OpenAPI Spec changes
@@ -199,9 +202,11 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
           REPO_NAME: ${{ github.event.repository.full_name }}
+          OPENAPI_CHANGES: ${{ steps.files_changed.outputs.openapi_changes }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          if ${{ env.openapi_changes == 'true' }}; then
-            gh --repo ${REPO_NAME} pr edit --add-label 'M-api-contract-changes' ${{ github.event.pull_request.number }}
+          if [[ "${OPENAPI_CHANGES}" == "true" ]]; then
+            gh --repo ${REPO_NAME} pr edit --add-label 'M-api-contract-changes' ${PR_NUMBER}
           else
-            gh --repo ${REPO_NAME} pr edit --remove-label 'M-api-contract-changes' ${{ github.event.pull_request.number }}
+            gh --repo ${REPO_NAME} pr edit --remove-label 'M-api-contract-changes' ${PR_NUMBER}
           fi
