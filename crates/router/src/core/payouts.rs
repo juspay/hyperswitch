@@ -3943,6 +3943,7 @@ pub async fn make_payout_data(
                 .is_some_and(|request_profile_id| request_profile_id != &payouts.profile_id),
             "Payout profile does not match the existing payout",
         )?;
+        validator::validate_payout_method_source(request, payouts.payout_method_id.as_deref())?;
     }
 
     let payout_attempt_id =
