@@ -2102,6 +2102,7 @@ impl EventClass {
                 EventType::PayoutExpired,
                 EventType::PayoutReversed,
                 EventType::PayoutNotPermitted,
+                EventType::PayoutReviewRequired,
             ]),
             Self::Subscriptions => HashSet::from([EventType::InvoicePaid]),
             #[cfg(feature = "v2")]
@@ -2178,6 +2179,8 @@ pub enum EventType {
     PayoutReversed,
     #[cfg(feature = "payouts")]
     PayoutNotPermitted,
+    #[cfg(feature = "payouts")]
+    PayoutReviewRequired,
     InvoicePaid,
     SurchargePaymentSucceeded,
     SurchargeRefundSucceeded,
@@ -9373,6 +9376,8 @@ pub enum PayoutStatus {
     RequiresConfirmation,
     RequiresPayoutMethodData,
     RequiresFulfillment,
+    /// The payout is awaiting manual acceptance or rejection.
+    RequiresReview,
     RequiresVendorAccountCreation,
 }
 
