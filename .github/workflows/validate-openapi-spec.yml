@@ -75,17 +75,13 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Install `swagger-cli`
-        shell: bash
-        run: npm install -g @apidevtools/swagger-cli@4.0.4
-
       - name: Validate the JSON file
         shell: bash
-        run: swagger-cli validate ./api-reference/v1/openapi_spec_v1.json
+        run: npx --yes @apidevtools/swagger-cli@4.0.4 validate ./api-reference/v1/openapi_spec_v1.json
 
       - name: Validate the JSON file for V2
         shell: bash
-        run: swagger-cli validate ./api-reference/v2/openapi_spec_v2.json
+        run: npx --yes @apidevtools/swagger-cli@4.0.4 validate ./api-reference/v2/openapi_spec_v2.json
 
       - name: Commit the JSON file if it is not up-to-date
         # PR originated from same repository
