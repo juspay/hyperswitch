@@ -6665,7 +6665,7 @@
             }
           }
         ],
-        "description": "Apple Pay create accepts existing wallet metadata or an encrypted token.\nOnly payment_data is required for decryption; wallet metadata is optional."
+        "description": "Apple Pay create accepts existing wallet metadata or an encrypted token.\nFor decryption, supply payment_data, payment_method"
       },
       "ApplePayCryptogramData": {
         "type": "object",
