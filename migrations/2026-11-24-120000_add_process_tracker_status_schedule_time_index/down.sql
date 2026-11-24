@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS process_tracker_status_schedule_time_index;
