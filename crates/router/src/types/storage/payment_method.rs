@@ -74,7 +74,7 @@ pub struct WalletTokenData {
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WalletTokenData {
-    pub payment_method_id: id_type::GlobalPaymentMethodId,
+    pub payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
     pub storage_type: enums::StorageType,
 }
 
@@ -181,7 +181,7 @@ impl PaymentTokenData {
 
     #[cfg(feature = "v2")]
     pub fn wallet_token(
-        payment_method_id: id_type::GlobalPaymentMethodId,
+        payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
         storage_type: enums::StorageType,
     ) -> Self {
         Self::WalletToken(WalletTokenData {

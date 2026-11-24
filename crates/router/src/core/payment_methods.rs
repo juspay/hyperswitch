@@ -6785,7 +6785,7 @@ pub async fn retrieve_payment_method(
             {
                 *payment_data = vault::consume_google_pay_cryptogram(
                     &state,
-                    &payment_method_id_or_token.payment_method_id,
+                    &pm.payment_method_id,
                     platform.get_provider().get_key_store(),
                 )
                 .await?;
