@@ -9,7 +9,10 @@ use hyperswitch_domain_models::{
 use router_env::logger;
 use time::PrimitiveDateTime;
 
-use crate::{consts, core::payments::helpers, routes::SessionState};
+use crate::{
+    consts, core::payments::helpers, routes::SessionState,
+    types::storage::revenue_recovery_redis_operation::PreviousAttemptDetails,
+};
 
 pub struct RetryOutcomeEvent {
     pub key: RetryStatsClusterKey,
@@ -25,8 +28,9 @@ impl RetryOutcomeEvent {
         issuer_dim: Dim<String>,
         success: bool,
         created_at: PrimitiveDateTime,
+        previous_failure_at: Option<PrimitiveDateTime>,
     ) -> Self {
-        let slots = EventSlots::from_utc(created_at);
+        let slots = EventSlots::from_utc(created_at, previous_failure_at);
         let delta = StatsDelta::for_event(slots, success);
 
         Self {
@@ -36,36 +40,36 @@ impl RetryOutcomeEvent {
         }
     }
 
-    /// Build an event from the retry's freshly resolved attempt and the previous
-    /// attempt's standardised error code, resolved once at ingestion time (see
-    /// [`resolve_standardised_error_code`]) and carried on the workflow tracking data, so
-    /// the recorder never re-reads the previous attempt from the payments store. A `None`
-    /// code maps to the `Unknown` error-code dimension.
+    /// Build an event from the retry's attempt and its card's last failure before it, read off
+    /// the card record before this retry's result is written to it.
     pub fn from_attempt(
         payment_attempt: &PaymentAttempt,
-        standardised_error_code: Option<StandardisedCode>,
+        card_last_failure: Option<PreviousAttemptDetails>,
         success: bool,
     ) -> Self {
-        Self::from_retry_outcome(payment_attempt.created_at, standardised_error_code, success)
+        Self::from_retry_outcome(payment_attempt.created_at, card_last_failure, success)
     }
 
-    /// Build an event from when a retry ran, the previous attempt's standardised error code and
-    /// whether the retry succeeded. A `None` code maps to the `Unknown` error-code dimension.
+    /// Build an event from when a retry ran, its card's last failure before it and whether the
+    /// retry succeeded. That failure's code is the error-code dimension (`Unknown` when the
+    /// card has no stored failure or GSM had no code for it), and its time sets `delta_hours`.
     pub fn from_retry_outcome(
         created_at: PrimitiveDateTime,
-        standardised_error_code: Option<StandardisedCode>,
+        card_last_failure: Option<PreviousAttemptDetails>,
         success: bool,
     ) -> Self {
-        let error_code_dim = match standardised_error_code {
-            Some(code) => Dim::Val(code),
-            None => Dim::Unknown,
-        };
+        let error_code_dim =
+            match card_last_failure.and_then(|failure| failure.standardised_error_code) {
+                Some(code) => Dim::Val(code),
+                None => Dim::Unknown,
+            };
         Self::build(
             error_code_dim,
             Dim::Unknown,
             Dim::Unknown,
             success,
             created_at,
+            card_last_failure.map(|failure| failure.attempted_at),
         )
     }
 }

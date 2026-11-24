@@ -42,7 +42,8 @@ use crate::{
         storage::{
             revenue_recovery as storage_revenue_recovery,
             revenue_recovery_redis_operation::{
-                PaymentProcessorTokenDetails, PaymentProcessorTokenStatus, RedisTokenManager,
+                PaymentProcessorTokenDetails, PaymentProcessorTokenStatus, PreviousAttemptDetails,
+                RedisTokenManager,
             },
         },
         transformers::ForeignFrom,
@@ -999,11 +1000,12 @@ impl RevenueRecoveryAttempt {
         if recovery_attempt.attempt_status.is_terminal_status() && is_on_invoice_card {
             retry_stats::RetryOutcomeEvent::from_retry_outcome(
                 recovery_attempt.created_at,
-                payment_intent
-                    .feature_metadata
-                    .as_ref()
-                    .and_then(|feature_metadata| feature_metadata.revenue_recovery.as_ref())
-                    .and_then(|recovery_metadata| recovery_metadata.last_failure_code),
+                RedisTokenManager::get_previous_attempt_details(
+                    state,
+                    &self.0.connector_customer_id,
+                    self.0.processor_payment_method_token.as_deref(),
+                )
+                .await,
                 matches!(
                     recovery_attempt.attempt_status,
                     common_enums::AttemptStatus::Charged
@@ -1305,6 +1307,11 @@ impl RevenueRecoveryAttempt {
         // Extract required fields from the revenue recovery attempt data
         let connector_customer_id = revenue_recovery_attempt_data.connector_customer_id.clone();
 
+        let previous_attempt_details = error_code.as_ref().map(|_| PreviousAttemptDetails {
+            standardised_error_code: recovery_attempt.standardised_error_code,
+            attempted_at: recovery_attempt.created_at,
+        });
+
         let attempt_id = recovery_attempt.attempt_id.clone();
         let token_unit = PaymentProcessorTokenStatus {
             error_code,
@@ -1332,6 +1339,7 @@ impl RevenueRecoveryAttempt {
             is_active: Some(true), // Tokens created from recovery attempts are active by default
             account_update_history: None, // No prior account update history exists for freshly ingested tokens
             decision_threshold: None,
+            previous_attempt_details,
         };
 
         // Make the Redis call to store tokens

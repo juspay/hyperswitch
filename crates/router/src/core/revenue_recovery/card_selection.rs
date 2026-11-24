@@ -153,6 +153,7 @@ mod tests {
                     is_active: Some(card.active),
                     account_update_history: None,
                     decision_threshold: None,
+                    previous_attempt_details: None,
                 };
                 (
                     payment_processor_token.to_string(),

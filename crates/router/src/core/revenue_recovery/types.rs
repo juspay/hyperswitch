@@ -116,7 +116,6 @@ impl RevenueRecoveryPaymentIntentStatus {
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
         payment_attempt: PaymentAttempt,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
-        prev_attempt_error_code: Option<common_enums::StandardisedCode>,
     ) -> Result<(), errors::ProcessTrackerError> {
         let connector_customer_id = payment_intent
             .extract_connector_customer_id_from_payment_intent()
@@ -164,7 +163,12 @@ impl RevenueRecoveryPaymentIntentStatus {
                 // Record the psync-resolved retry outcome into revenue_recovery_retry_stats.
                 retry_stats::RetryOutcomeEvent::from_attempt(
                     &payment_attempt,
-                    prev_attempt_error_code,
+                    storage::revenue_recovery_redis_operation::RedisTokenManager::get_previous_attempt_details(
+                        state,
+                        &connector_customer_id,
+                        used_token.as_deref(),
+                    )
+                    .await,
                     true,
                 )
                 .record(state)
@@ -187,6 +191,7 @@ impl RevenueRecoveryPaymentIntentStatus {
                 let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                     state,
                     &connector_customer_id,
+                    &None,
                     &None,
                     &None,
                     used_token.as_deref(),
@@ -264,6 +269,7 @@ impl RevenueRecoveryPaymentIntentStatus {
                     &connector_customer_id,
                     &None,
                     &None,
+                    &None,
                     used_token.as_deref(),
                 )
                 .await;
@@ -312,7 +318,12 @@ impl RevenueRecoveryPaymentIntentStatus {
 
                 retry_stats::RetryOutcomeEvent::from_attempt(
                     &payment_attempt,
-                    prev_attempt_error_code,
+                    storage::revenue_recovery_redis_operation::RedisTokenManager::get_previous_attempt_details(
+                        state,
+                        &connector_customer_id,
+                        used_token.as_deref(),
+                    )
+                    .await,
                     false,
                 )
                 .record(state)
@@ -336,12 +347,19 @@ impl RevenueRecoveryPaymentIntentStatus {
                     .await
                     .ok();
 
+                // Written with the failed status by the payments core.
+                let previous_attempt_details =
+                    storage::revenue_recovery_redis_operation::PreviousAttemptDetails::from(
+                        &psync_response.payment_attempt,
+                    );
+
                 // update the status of token in redis
                 let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                     state,
                     &connector_customer_id,
                     &error_code,
                     &is_hard_decline,
+                    &Some(previous_attempt_details),
                     used_token.as_deref(),
                 )
                 .await;
@@ -354,12 +372,6 @@ impl RevenueRecoveryPaymentIntentStatus {
                 )
                 .await;
 
-                // Written with the failed status by the payments core.
-                let reopened_standardised_error_code = psync_response
-                    .payment_attempt
-                    .error
-                    .as_ref()
-                    .and_then(|error| error.standardised_code);
                 Box::pin(reopen_calculate_workflow_on_payment_failure(
                     state,
                     &process_tracker,
@@ -368,7 +380,7 @@ impl RevenueRecoveryPaymentIntentStatus {
                     payment_intent,
                     revenue_recovery_payment_data,
                     psync_response.payment_attempt.get_id(),
-                    reopened_standardised_error_code,
+                    previous_attempt_details.standardised_error_code,
                 ))
                 .await?;
             }
@@ -392,7 +404,6 @@ impl RevenueRecoveryPaymentIntentStatus {
                     &process_tracker,
                     revenue_recovery_metadata,
                     revenue_recovery_payment_data,
-                    prev_attempt_error_code,
                 ))
                 .await?;
             }
@@ -511,8 +522,16 @@ impl Decision {
 pub enum Action {
     SyncPayment(PaymentAttempt),
     RetryPayment(PrimitiveDateTime),
-    TerminalFailure(PaymentAttempt),
-    SuccessfulPayment(PaymentAttempt),
+    /// The failed retry, and its card's last failure before it
+    TerminalFailure(
+        PaymentAttempt,
+        Option<storage::revenue_recovery_redis_operation::PreviousAttemptDetails>,
+    ),
+    /// The successful retry, and its card's last failure before it
+    SuccessfulPayment(
+        PaymentAttempt,
+        Option<storage::revenue_recovery_redis_operation::PreviousAttemptDetails>,
+    ),
     PartialCharged,
     ReviewPayment,
     ManualReviewAction,
@@ -535,6 +554,8 @@ impl Action {
             .extract_connector_customer_id_from_payment_intent()
             .change_context(errors::RecoveryError::ValueNotFound)
             .attach_printable("Failed to extract customer ID from payment intent")?;
+
+        let card_last_failure = scheduled_token.previous_attempt_details;
 
         let response = revenue_recovery_core::api::call_proxy_api(
             state,
@@ -626,6 +647,7 @@ impl Action {
                         &connector_customer_id,
                         &None,
                         &None,
+                        &None,
                         Some(&scheduled_token.payment_processor_token_details.payment_processor_token),
                     )
                     .await;
@@ -659,6 +681,7 @@ impl Action {
 
                         Ok(Self::SuccessfulPayment(
                             payment_data.payment_attempt.clone(),
+                            card_last_failure,
                         ))
                     }
                     RevenueRecoveryPaymentIntentStatus::PartialCharged => {
@@ -677,6 +700,7 @@ impl Action {
                         let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                         state,
                         &connector_customer_id,
+                        &None,
                         &None,
                         &None,
                         Some(&scheduled_token.payment_processor_token_details.payment_processor_token),
@@ -740,11 +764,18 @@ impl Action {
                         .await
                         .ok();
 
+                        // The code was written with the failed status by the payments core.
+                        let previous_attempt_details =
+                            storage::revenue_recovery_redis_operation::PreviousAttemptDetails::from(
+                                &payment_data.payment_attempt,
+                            );
+
                         let _update_connector_customer_id = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                         state,
                         &connector_customer_id,
                         &error_code,
                         &is_hard_decline,
+                        &Some(previous_attempt_details),
                         Some(&scheduled_token
                             .payment_processor_token_details
                             .payment_processor_token)
@@ -760,13 +791,7 @@ impl Action {
     )
     .await;
 
-                        // Reopen calculate workflow on payment failure. The code was written with
-                        // the failed status by the payments core.
-                        let reopened_standardised_error_code = payment_data
-                            .payment_attempt
-                            .error
-                            .as_ref()
-                            .and_then(|error| error.standardised_code);
+                        // Reopen calculate workflow on payment failure
                         Box::pin(reopen_calculate_workflow_on_payment_failure(
                             state,
                             process,
@@ -775,12 +800,15 @@ impl Action {
                             payment_intent,
                             revenue_recovery_payment_data,
                             latest_attempt_id,
-                            reopened_standardised_error_code,
+                            previous_attempt_details.standardised_error_code,
                         ))
                         .await?;
 
                         // Return terminal failure to finish the current execute workflow
-                        Ok(Self::TerminalFailure(payment_data.payment_attempt.clone()))
+                        Ok(Self::TerminalFailure(
+                            payment_data.payment_attempt.clone(),
+                            card_last_failure,
+                        ))
                     }
 
                     RevenueRecoveryPaymentIntentStatus::Processing => {
@@ -898,10 +926,10 @@ impl Action {
                 .change_context(errors::RecoveryError::PaymentCallFailed)?;
                 Ok(())
             }
-            Self::TerminalFailure(payment_attempt) => {
+            Self::TerminalFailure(payment_attempt, card_last_failure) => {
                 retry_stats::RetryOutcomeEvent::from_attempt(
                     payment_attempt,
-                    prev_attempt_error_code,
+                    *card_last_failure,
                     false,
                 )
                 .record(state)
@@ -918,10 +946,10 @@ impl Action {
                 // TODO: Add support for retrying failed outgoing recordback webhooks
                 Ok(())
             }
-            Self::SuccessfulPayment(payment_attempt) => {
+            Self::SuccessfulPayment(payment_attempt, card_last_failure) => {
                 retry_stats::RetryOutcomeEvent::from_attempt(
                     payment_attempt,
-                    prev_attempt_error_code,
+                    *card_last_failure,
                     true,
                 )
                 .record(state)
@@ -1015,10 +1043,18 @@ impl Action {
                         .change_context(errors::RecoveryError::ValueNotFound)
                         .attach_printable("Failed to extract customer ID from payment intent")?;
 
+                    let card_last_failure = storage::revenue_recovery_redis_operation::RedisTokenManager::get_previous_attempt_details(
+                        state,
+                        &connector_customer_id,
+                        used_token.as_deref(),
+                    )
+                    .await;
+
                     // update the status of token in redis
                     let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                     state,
                     &connector_customer_id,
+                    &None,
                     &None,
                     &None,
                     used_token.as_deref(),
@@ -1034,7 +1070,7 @@ impl Action {
                     )
                     .await;
 
-                    Ok(Self::SuccessfulPayment(payment_attempt))
+                    Ok(Self::SuccessfulPayment(payment_attempt, card_last_failure))
                 }
                 RevenueRecoveryPaymentIntentStatus::PartialCharged => {
                     let connector_customer_id = payment_intent
@@ -1046,6 +1082,7 @@ impl Action {
                     let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                     state,
                     &connector_customer_id,
+                    &None,
                     &None,
                     &None,
                     used_token.as_deref(),
@@ -1067,11 +1104,26 @@ impl Action {
                             .await
                             .ok();
 
+                    // The synced attempt, not the `payment_attempt` passed in: that copy predates
+                    // the sync, so it lacks the code written with the sync's status update.
+                    let previous_attempt_details =
+                        storage::revenue_recovery_redis_operation::PreviousAttemptDetails::from(
+                            &payment_data.payment_attempt,
+                        );
+
+                    let card_last_failure = storage::revenue_recovery_redis_operation::RedisTokenManager::get_previous_attempt_details(
+                        state,
+                        &connector_customer_id,
+                        used_token.as_deref(),
+                    )
+                    .await;
+
                     let _update_error_code = storage::revenue_recovery_redis_operation::RedisTokenManager::update_payment_processor_token_error_code_from_process_tracker(
                             state,
                             &connector_customer_id,
                             &error_code,
                             &is_hard_decline,
+                            &Some(previous_attempt_details),
                             used_token.as_deref(),
                         )
                         .await;
@@ -1085,13 +1137,6 @@ impl Action {
                     .await;
 
                     // Reopen calculate workflow on payment failure
-                    // The synced attempt, not the `payment_attempt` passed in: that copy predates
-                    // the sync, so it lacks the code written with the sync's status update.
-                    let reopened_standardised_error_code = payment_data
-                        .payment_attempt
-                        .error
-                        .as_ref()
-                        .and_then(|error| error.standardised_code);
                     Box::pin(reopen_calculate_workflow_on_payment_failure(
                         state,
                         process,
@@ -1100,11 +1145,14 @@ impl Action {
                         payment_intent,
                         revenue_recovery_payment_data,
                         payment_attempt.get_id(),
-                        reopened_standardised_error_code,
+                        previous_attempt_details.standardised_error_code,
                     ))
                     .await?;
 
-                    Ok(Self::TerminalFailure(payment_attempt.clone()))
+                    Ok(Self::TerminalFailure(
+                        payment_attempt.clone(),
+                        card_last_failure,
+                    ))
                 }
 
                 RevenueRecoveryPaymentIntentStatus::Processing => {
@@ -1130,7 +1178,6 @@ impl Action {
         psync_task_process: &storage::ProcessTracker,
         revenue_recovery_metadata: &mut PaymentRevenueRecoveryMetadata,
         revenue_recovery_payment_data: &storage::revenue_recovery::RevenueRecoveryPaymentData,
-        prev_attempt_error_code: Option<common_enums::StandardisedCode>,
     ) -> Result<(), errors::ProcessTrackerError> {
         logger::info!("Entering psync_response_handler");
 
@@ -1197,12 +1244,12 @@ impl Action {
                 Ok(())
             }
 
-            Self::TerminalFailure(payment_attempt) => {
+            Self::TerminalFailure(payment_attempt, card_last_failure) => {
                 // TODO: Add support for retrying failed outgoing recordback webhooks
                 // finish the current psync task
                 retry_stats::RetryOutcomeEvent::from_attempt(
                     payment_attempt,
-                    prev_attempt_error_code,
+                    *card_last_failure,
                     false,
                 )
                 .record(state)
@@ -1217,11 +1264,11 @@ impl Action {
                     .attach_printable("Failed to update the process tracker")?;
                 Ok(())
             }
-            Self::SuccessfulPayment(payment_attempt) => {
+            Self::SuccessfulPayment(payment_attempt, card_last_failure) => {
                 // finish the current psync task
                 retry_stats::RetryOutcomeEvent::from_attempt(
                     payment_attempt,
-                    prev_attempt_error_code,
+                    *card_last_failure,
                     true,
                 )
                 .record(state)
@@ -1353,7 +1400,7 @@ impl Action {
         match schedule_time {
             Some(schedule_time) => Ok(Self::RetryPayment(schedule_time)),
 
-            None => Ok(Self::TerminalFailure(payment_attempt.clone())),
+            None => Ok(Self::TerminalFailure(payment_attempt.clone(), None)),
         }
     }
 }
