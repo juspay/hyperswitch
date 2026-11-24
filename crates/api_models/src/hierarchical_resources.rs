@@ -10,16 +10,11 @@ pub struct GenerateHierarchicalResourceRequest {
     pub google_pay: Option<GooglePayResourceRequest>,
 }
 
-#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize, utoipa::ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum GooglePayResourceMode {
-    Direct,
-}
-
+/// Configuration for generating a Google Pay DIRECT resource.
+/// DIRECT mode is implicit; callers supply only their Google merchant ID.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, utoipa::ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GooglePayResourceRequest {
-    pub mode: GooglePayResourceMode,
     pub google_merchant_id: String,
 }
 

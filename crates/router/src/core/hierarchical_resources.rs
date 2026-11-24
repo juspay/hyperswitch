@@ -314,7 +314,6 @@ struct GooglePayPublicKeyData<'a> {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct GooglePayDisplayData {
-    mode: api_resources::GooglePayResourceMode,
     google_merchant_id: String,
     public_key: String,
     protocol_version: String,
@@ -324,7 +323,6 @@ struct GooglePayDisplayData {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct GooglePayResourceData {
     merchant_id: id_type::MerchantId,
-    mode: api_resources::GooglePayResourceMode,
     google_merchant_id: String,
     public_key: String,
     protocol_version: String,
@@ -342,7 +340,6 @@ impl GooglePayResourceData {
 impl From<GooglePayResourceData> for GooglePayDisplayData {
     fn from(data: GooglePayResourceData) -> Self {
         Self {
-            mode: data.mode,
             google_merchant_id: data.google_merchant_id,
             public_key: data.public_key,
             protocol_version: data.protocol_version,
@@ -451,7 +448,6 @@ impl HierarchicalResourceHandler for GooglePayResource {
         .attach_printable("Failed to encrypt generated Google Pay private key")?;
         let resource_data = GooglePayResourceData {
             merchant_id: merchant_account.get_id().clone(),
-            mode: configuration.mode,
             google_merchant_id: configuration.google_merchant_id.clone(),
             public_key,
             protocol_version: consts::PROTOCOL.to_string(),
@@ -500,7 +496,6 @@ impl HierarchicalResourceHandler for GooglePayResource {
     fn display_schema() -> Secret<serde_json::Value> {
         Secret::new(serde_json::json!({
             "google_merchant_id": "Google Merchant ID",
-            "mode": "Tokenization mode",
             "public_key": "Public key",
             "protocol_version": "Protocol version",
             "recipient_id": "Recipient ID"
