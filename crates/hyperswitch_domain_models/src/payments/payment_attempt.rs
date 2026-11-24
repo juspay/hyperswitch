@@ -2335,6 +2335,7 @@ pub enum PaymentAttemptUpdate {
     IncrementalAuthorizationAmountUpdate {
         net_amount: NetAmount,
         amount_capturable: MinorUnit,
+        connector_metadata: Option<Value>,
     },
     AuthenticationUpdate {
         status: storage_enums::AttemptStatus,
@@ -2914,9 +2915,11 @@ impl PaymentAttemptUpdate {
             Self::IncrementalAuthorizationAmountUpdate {
                 net_amount,
                 amount_capturable,
+                connector_metadata,
             } => DieselPaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
                 amount: net_amount.get_order_amount(),
                 amount_capturable,
+                connector_metadata,
             },
             Self::AuthenticationUpdate {
                 status,

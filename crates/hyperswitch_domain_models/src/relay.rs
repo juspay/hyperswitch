@@ -255,6 +255,7 @@ impl RelayUpdate {
                     status,
                     error_code,
                     error_message,
+                    ..
                 } => match error_code {
                     Some(error_code) => Ok(Self::ErrorUpdate {
                         error_code: error_code.clone(),

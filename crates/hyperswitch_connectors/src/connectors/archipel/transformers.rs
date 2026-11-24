@@ -1313,6 +1313,7 @@ impl<F>
 
         Ok(Self {
             response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                connector_metadata: None,
                 status,
                 error_code,
                 error_message,

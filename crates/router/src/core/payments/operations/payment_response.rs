@@ -1181,7 +1181,9 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
         {
             Err(_) => (None, None),
             Ok(types::PaymentsResponseData::IncrementalAuthorizationResponse {
-                status, ..
+                status,
+                connector_metadata,
+                ..
             }) => {
                 if status == AuthorizationStatus::Success {
                     (
@@ -1198,6 +1200,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                                     None,
                                 ),
                                 amount_capturable: incremental_authorization_details.total_amount,
+                                // Set when the connector issues a new authorization id that later flows must use
+                                connector_metadata,
                             },
                         ),
                         Some(
@@ -1270,6 +1274,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsIncrementalAu
                 error_code,
                 error_message,
                 connector_authorization_id,
+                ..
             }) => Ok(storage::AuthorizationUpdate::StatusUpdate {
                 status: status.clone(),
                 error_code: error_code.clone(),

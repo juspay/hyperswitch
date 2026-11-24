@@ -112,6 +112,7 @@ pub enum PaymentsResponseData {
         connector_authorization_id: Option<String>,
         error_code: Option<String>,
         error_message: Option<String>,
+        connector_metadata: Option<serde_json::Value>,
     },
     PostProcessingResponse {
         session_token: Option<api_models::payments::OpenBankingSessionToken>,

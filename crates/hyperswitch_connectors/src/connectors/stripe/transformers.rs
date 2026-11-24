@@ -3951,6 +3951,7 @@ impl<F>
         let status = common_enums::AuthorizationStatus::from(item.response.status);
         Ok(Self {
             response: Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                connector_metadata: None,
                 status,
                 error_code: None,
                 error_message: None,

@@ -354,6 +354,9 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
                 .map(|data| payments_grpc::StripeAdditionalInformation {
                     error_on_requires_action: data.error_on_requires_action,
                 }),
+            user_data1: None,
+            user_data2: None,
+            user_data3: None,
         }
     }
 }
@@ -5596,7 +5599,8 @@ impl transformers::ForeignTryFrom<payments_grpc::CardNetwork> for common_enums::
             payments_grpc::CardNetwork::EftposAustralia => Ok(Self::EftposAustralia),
             payments_grpc::CardNetwork::GeCapital => Ok(Self::GeCapital),
             payments_grpc::CardNetwork::Uatp => Ok(Self::Uatp),
-            payments_grpc::CardNetwork::Unspecified => {
+            // No MyDebit network in Hyperswitch
+            payments_grpc::CardNetwork::Mydebit | payments_grpc::CardNetwork::Unspecified => {
                 Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)?
             }
         }
@@ -8086,6 +8090,17 @@ impl transformers::ForeignTryFrom<payments_grpc::PaymentServiceIncrementalAuthor
         } else {
             Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
                 status: AuthorizationStatus::foreign_from(response.status()),
+                connector_metadata: response.connector_feature_data.clone().and_then(|secret| {
+                    serde_json::from_str(&secret.expose())
+                        .map_err(|e| {
+                            tracing::warn!(
+                                serialization_error = ?e,
+                                "Failed to parse connector_metadata as JSON value"
+                            );
+                            e
+                        })
+                        .ok()
+                }),
                 connector_authorization_id: response.connector_authorization_id,
                 error_code: response.error.as_ref().and_then(|error_info| {
                     error_info

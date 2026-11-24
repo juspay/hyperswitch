@@ -811,6 +811,7 @@ pub enum PaymentAttemptUpdate {
     IncrementalAuthorizationAmountUpdate {
         amount: MinorUnit,
         amount_capturable: MinorUnit,
+        connector_metadata: Option<serde_json::Value>,
     },
     AuthenticationUpdate {
         status: storage_enums::AttemptStatus,
@@ -4203,6 +4204,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
             PaymentAttemptUpdate::IncrementalAuthorizationAmountUpdate {
                 amount,
                 amount_capturable,
+                connector_metadata,
             } => Self {
                 amount: Some(amount),
                 modified_at: common_utils::date_time::now(),
@@ -4222,7 +4224,7 @@ impl From<PaymentAttemptUpdate> for PaymentAttemptUpdateInternal {
                 browser_info: None,
                 payment_token: None,
                 error_code: None,
-                connector_metadata: None,
+                connector_metadata,
                 payment_method_data: None,
                 payment_method_type: None,
                 payment_experience: None,

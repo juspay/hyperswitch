@@ -4564,12 +4564,14 @@ impl<F, T>
         Ok(Self {
             response: match item.response.error_information {
                 Some(error) => Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                    connector_metadata: None,
                     status: common_enums::AuthorizationStatus::Failure,
                     error_code: error.reason,
                     error_message: error.message,
                     connector_authorization_id: None,
                 }),
                 None => Ok(PaymentsResponseData::IncrementalAuthorizationResponse {
+                    connector_metadata: None,
                     status: item.response.status.into(),
                     error_code: None,
                     error_message: None,
