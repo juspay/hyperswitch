@@ -154,8 +154,8 @@ pub trait TelephoneOrderAdapter {
     /// from it, so a retry collides instead of charging again. `None` means no such protection.
     fn idempotency_reference(request: &Self::Request) -> Option<&str>;
 
-    /// Where the provider carries the IVR's [`Parameters`]. A reference, so a provider holding
-    /// those ids as typed fields would need a `Cow` or a typed getter instead.
+    /// Where the provider carries the IVR's [`Parameters`]. A reference: the ids read out of it
+    /// are cloned by the few callers that need them owned.
     fn parameters(request: &Self::Request) -> Option<&Parameters>;
 
     /// Maps the provider's own fields — amount, payment method, descriptors — onto the payment.
@@ -179,28 +179,17 @@ pub trait TelephoneOrderAdapter {
     ) -> Box<dyn AuthenticateAndFetch<AuthenticationData, SessionState>> {
         Box::new(ApiKeyBasicAuthWithMerchantIdFromRoute {
             merchant_id,
-            profile_id: extract_id(
-                Self::parameters(request).and_then(|parameters| parameters.profile_id.as_deref()),
-                "profile_id",
-            )
-            // An unusable id is rejected with `INVALID_REQUEST` in `charge`.
-            .ok()
-            .flatten(),
+            profile_id: Self::parameters(request)
+                .and_then(|parameters| parameters.profile_id.clone()),
         })
     }
 
     /// The payment id this request becomes, settled in one place because the route locks on it and
     /// the core puts it on the payment. `parameters.payment_id` wins; else [`derive_payment_id`].
-    fn resolve_payment_id(
-        request: &Self::Request,
-    ) -> Result<Option<common_utils::id_type::PaymentId>, Failure> {
-        extract_id(
-            Self::parameters(request).and_then(|parameters| parameters.payment_id.as_deref()),
-            "payment_id",
-        )
-        .map(|supplied| {
-            supplied.or_else(|| Self::idempotency_reference(request).and_then(derive_payment_id))
-        })
+    fn resolve_payment_id(request: &Self::Request) -> Option<common_utils::id_type::PaymentId> {
+        Self::parameters(request)
+            .and_then(|parameters| parameters.payment_id.clone())
+            .or_else(|| Self::idempotency_reference(request).and_then(derive_payment_id))
     }
 
     /// Answers the provider with a failure, leaving a log line behind to explain it.
@@ -227,10 +216,14 @@ pub trait TelephoneOrderAdapter {
     ) -> RouterResponse<Self::Response> {
         let transaction_reference = Self::transaction_reference(&request);
 
-        let payments_request = Self::resolve_payment_id(&request)
-            .and_then(|payment_id| build_context(&auth, Self::parameters(&request), payment_id))
-            .and_then(|context| Self::build_payments_request(&request, context))
-            .and_then(finalize_payments_request);
+        let context = build_context(
+            &auth,
+            Self::parameters(&request),
+            Self::resolve_payment_id(&request),
+        );
+
+        let payments_request =
+            Self::build_payments_request(&request, context).and_then(finalize_payments_request);
 
         let outcome = match payments_request {
             Err(failure) => Err(failure),
@@ -344,91 +337,41 @@ where
     })
 }
 
-/// Reads the ids the IVR passed through. The profile was resolved by authentication, the payment
-/// id by [`TelephoneOrderAdapter::resolve_payment_id`] — which the route needed first, to lock on.
+/// Reads the parameters the IVR passed through. Nothing is parsed here: [`Parameters`] holds these
+/// as their own types, so an unusable one failed the request's deserialization at the route. The
+/// profile was resolved by authentication, the payment id by
+/// [`TelephoneOrderAdapter::resolve_payment_id`] — which the route needed first, to lock on.
 fn build_context(
     auth: &AuthenticationData,
     parameters: Option<&Parameters>,
     payment_id: Option<common_utils::id_type::PaymentId>,
-) -> Result<Context, Failure> {
-    Ok(Context {
-        profile_id: resolve_profile_id(auth, parameters)?,
+) -> Context {
+    Context {
+        // The profile authentication settled, which is the one the IVR named when it named one:
+        // `parameters.profile_id` reaches auth through the adapter's `authenticator`.
+        profile_id: auth
+            .profile
+            .as_ref()
+            .map(|profile| profile.get_id().clone()),
         payment_id,
-        // A convenience: an unusable one is dropped rather than failing the charge.
-        customer_id: extract_id(
-            parameters.and_then(|parameters| parameters.customer_id.as_deref()),
-            "customer_id",
-        )
-        .inspect_err(|failure| {
-            logger::warn!(
-                "Ignoring unusable customer_id from telephone order parameters: {}",
-                failure.message
-            )
-        })
-        .ok()
-        .flatten(),
-        capture_method: resolve_capture_method(parameters)?,
+        customer_id: parameters.and_then(|parameters| parameters.customer_id.clone()),
+        capture_method: parameters
+            .and_then(|parameters| parameters.capture_method)
+            .map(common_enums::CaptureMethod::from),
         metadata: build_metadata(parameters),
-    })
+    }
 }
 
-/// The profile the IVR named, as authentication resolved it. Parsed again here so a mangled id is
-/// rejected rather than dropped by the route and replaced by the default profile.
-fn resolve_profile_id(
-    auth: &AuthenticationData,
-    parameters: Option<&Parameters>,
-) -> Result<Option<common_utils::id_type::ProfileId>, Failure> {
-    extract_id::<common_utils::id_type::ProfileId>(
-        parameters.and_then(|parameters| parameters.profile_id.as_deref()),
-        "profile_id",
-    )?;
-
-    Ok(auth
-        .profile
-        .as_ref()
-        .map(|profile| profile.get_id().clone()))
-}
-
-fn resolve_capture_method(
-    parameters: Option<&Parameters>,
-) -> Result<Option<common_enums::CaptureMethod>, Failure> {
-    parameters
-        .and_then(|parameters| parameters.capture_method.as_deref())
-        .map(|value| match value {
-            "automatic" => Ok(common_enums::CaptureMethod::Automatic),
-            "manual" => Ok(common_enums::CaptureMethod::Manual),
-            other => Err(Failure::new(
-                error_codes::INVALID_REQUEST,
-                format!("parameters.capture_method must be `automatic` or `manual`, not `{other}`"),
-            )),
-        })
-        .transpose()
-}
-
-/// Parses one Hyperswitch id. An unusable value is rejected, not ignored.
-fn extract_id<I>(value: Option<&str>, field: &str) -> Result<Option<I>, Failure>
-where
-    I: TryFrom<std::borrow::Cow<'static, str>>,
-    <I as TryFrom<std::borrow::Cow<'static, str>>>::Error: std::fmt::Display,
-{
-    value
-        .map(|value| {
-            I::try_from(std::borrow::Cow::Owned(value.to_owned())).map_err(|error| {
-                Failure::new(
-                    error_codes::INVALID_REQUEST,
-                    format!("parameters.{field} is not a valid {field}: {error}"),
-                )
-            })
-        })
-        .transpose()
-}
-
-/// Carries the IVR's parameters through to the payment, for reconciliation. Lands in
-/// `payment_intent.metadata` unmasked — returned by payments retrieve, sent in webhooks.
+/// Carries the merchant's own parameters through to the payment, for reconciliation. Lands in
+/// `payment_intent.metadata` unmasked — returned by payments retrieve, sent in webhooks. The four
+/// Hyperswitch reads are left out: the payment carries those itself, as its `payment_id`,
+/// `profile_id`, `customer_id` and `capture_method`.
 fn build_metadata(parameters: Option<&Parameters>) -> Option<serde_json::Value> {
-    let parameters = parameters.filter(|parameters| !parameters.is_empty())?;
+    let extra = parameters
+        .map(|parameters| &parameters.extra)
+        .filter(|extra| !extra.is_empty())?;
 
-    serde_json::to_value(parameters)
+    serde_json::to_value(extra)
         .inspect_err(|error| {
             logger::warn!("Could not serialize telephone order parameters into metadata: {error:?}")
         })

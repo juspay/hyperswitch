@@ -49234,6 +49234,14 @@
           }
         }
       },
+      "TelephoneOrderCaptureMethod": {
+        "type": "string",
+        "description": "Specifies how the authorization is captured.",
+        "enum": [
+          "automatic",
+          "manual"
+        ]
+      },
       "TelephoneOrderParameters": {
         "allOf": [
           {
@@ -49257,20 +49265,22 @@
               },
               "customer_id": {
                 "type": "string",
-                "description": "An unusable value is dropped, not rejected.",
+                "description": "The customer this payment belongs to.",
                 "example": "cus_1234",
                 "nullable": true
               },
               "capture_method": {
-                "type": "string",
-                "description": "`automatic` (the default) or `manual`.",
-                "example": "manual",
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/TelephoneOrderCaptureMethod"
+                  }
+                ],
                 "nullable": true
               }
             }
           }
         ],
-        "description": "The IVR's `<Parameter>` tags. The four Hyperswitch reads are named; the rest are the merchant's\nand ride along into the payment's `metadata`. Keys are lowercase: Twilio lowercases parameter\nnames, so a camelCase one never matches and lands in the passthrough instead.\n\nValues stay `String` so a bad one fails the charge with an `error_code` in a `200`, rather than\nfailing deserialization and answering with an HTTP error the provider cannot read."
+        "description": "The IVR's `<Parameter>` tags. The four read by Hyperswitch are named below; the rest ride along\ninto the payment's `metadata`. Keys must be lowercase — Twilio lowercases parameter names, so a\ncamelCase one lands in the passthrough instead."
       },
       "ThirdPartySdkSessionResponse": {
         "type": "object",
