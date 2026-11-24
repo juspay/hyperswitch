@@ -427,7 +427,9 @@ impl SuperpositionProxyFlow for ListDefaultConfigsQuery {
             .set_count(self.count)
             .set_page(self.page)
             .set_all(self.all)
-            .set_name(self.name))
+            // Superposition >= 0.120 treats `name` as an exact-key list; the substring
+            // match that `name` used to perform now lives under `search`.
+            .set_search(self.name))
     }
 
     async fn execute(
