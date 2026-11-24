@@ -3994,8 +3994,8 @@ pub async fn make_payout_data(
             };
             let payment_method_type = ShouldAllowPayouts::get_resolved_payment_method_type(
                 requested_method_data,
-                payout_attempt.additional_payout_method_data.as_ref(),
                 payment_method.as_ref(),
+                payout_attempt.additional_payout_method_data.as_ref(),
             );
             ShouldAllowPayouts::ensure_payouts_enabled(
                 state,

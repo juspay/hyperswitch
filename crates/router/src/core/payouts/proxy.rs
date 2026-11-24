@@ -218,8 +218,8 @@ impl ExternalVaultPayout<'_> {
             Some(input.profile.get_id()),
             ShouldAllowPayouts::get_resolved_payment_method_type(
                 None,
-                None,
                 Some(&input.payment_method),
+                None,
             ),
         )
         .await?;

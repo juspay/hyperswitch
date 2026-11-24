@@ -352,8 +352,8 @@ pub async fn validate_create_request(
         req.payout_method_data
             .as_ref()
             .or(payout_method_data.as_ref()),
-        None,
         payment_method.as_ref(),
+        None,
     );
     ShouldAllowPayouts::ensure_payouts_enabled(
         state,
