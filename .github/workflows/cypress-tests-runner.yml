@@ -448,7 +448,7 @@ jobs:
         run: |
           # Start the server in the background
 
-          target/debug/router >> "${{ env.SERVER_LOG_PATH }}" 2>&1 &
+          target/debug/router >> "${SERVER_LOG_PATH}" 2>&1 &
           SERVER_PID=$!
           echo "PID=${SERVER_PID}" >> $GITHUB_ENV
 
@@ -708,7 +708,7 @@ jobs:
         run: |
           # Start the server in the background
 
-          target/debug/router >> "${{ env.SERVER_LOG_PATH }}" 2>&1 &
+          target/debug/router >> "${SERVER_LOG_PATH}" 2>&1 &
           SERVER_PID=$!
           echo "PID=${SERVER_PID}" >> $GITHUB_ENV
 
@@ -735,7 +735,7 @@ jobs:
         run: |
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
 
-          kill "${{ env.PID }}"
+          kill "${PID}"
 
       - name: Upload server logs on failure
         if: failure()
@@ -1430,10 +1430,10 @@ jobs:
           # Apply seeded Superposition config quickly in CI (default is 300s).
           ROUTER__SUPERPOSITION__POLLING_INTERVAL: 10
         run: |
-          touch "${{ env.SERVER_LOG_PATH }}"
+          touch "${SERVER_LOG_PATH}"
           # Start the server in the background
 
-          target/debug/router >> "${{ env.SERVER_LOG_PATH }}" 2>&1 &
+          target/debug/router >> "${SERVER_LOG_PATH}" 2>&1 &
           SERVER_PID=$!
           echo "PID=${SERVER_PID}" >> $GITHUB_ENV
 
@@ -1459,7 +1459,7 @@ jobs:
         run: |
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
 
-          kill "${{ env.PID }}"
+          kill "${PID}"
 
       - name: Upload server logs on failure
         if: env.RUN_TESTS == 'true' && failure()
@@ -1687,8 +1687,8 @@ jobs:
           scripts/execute_cypress.sh
 
           # Cleanup
-          kill "${{ env.PID }}"
-          kill "${{ env.MOCK_PID }}"
+          kill "${PID}"
+          kill "${MOCK_PID}"
 
       - name: Upload Cypress test results for Alpha Connectors
         if: env.RUN_TESTS == 'true' && failure()
@@ -1949,7 +1949,7 @@ jobs:
       - name: Stop running server
         if: ${{ env.RUN_TESTS == 'true' && (success() || failure()) }}
         run: |
-          kill "${{ env.PID }}"
+          kill "${PID}"
 
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()

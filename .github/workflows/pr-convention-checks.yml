@@ -156,6 +156,7 @@ jobs:
           client-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
           owner: ${{ github.event.repository.owner.login }}
+          repositories: ${{ github.event.repository.name }}
           permission-pull-requests: write
           permission-metadata: read
 
