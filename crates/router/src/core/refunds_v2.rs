@@ -146,13 +146,12 @@ pub async fn trigger_refund_to_gateway(
     diesel_refund::Refund,
     Option<hyperswitch_masking::Secret<String>>,
 )> {
-    let db = &*state.store;
-
     let mca_id = payment_attempt.get_attempt_merchant_connector_account_id()?;
 
     let storage_scheme = processor.get_account().storage_scheme;
 
-    let mca = db
+    let mca = state
+        .accounts_store
         .find_merchant_connector_account_by_id(&mca_id, processor.get_key_store())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -202,7 +201,7 @@ pub async fn trigger_refund_to_gateway(
         &router_data,
         None,
         &default_gateway_context,
-        None,
+        Some(hyperswitch_interfaces::api::CurrentFlowInfo::Execute),
     ))
     .await?;
 
@@ -328,7 +327,7 @@ pub async fn internal_trigger_refund_to_gateway(
         &router_data,
         None,
         &default_gateway_context,
-        None,
+        Some(hyperswitch_interfaces::api::CurrentFlowInfo::Execute),
     ))
     .await?;
 
@@ -858,8 +857,6 @@ pub async fn sync_refund_with_gateway(
     diesel_refund::Refund,
     Option<hyperswitch_masking::Secret<String>>,
 )> {
-    let db = &*state.store;
-
     let connector_id = refund.connector.to_string();
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -872,7 +869,8 @@ pub async fn sync_refund_with_gateway(
 
     let mca_id = payment_attempt.get_attempt_merchant_connector_account_id()?;
 
-    let mca = db
+    let mca = state
+        .accounts_store
         .find_merchant_connector_account_by_id(&mca_id, processor.get_key_store())
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -908,7 +906,7 @@ pub async fn sync_refund_with_gateway(
         &router_data,
         None,
         &default_gateway_context,
-        None,
+        Some(hyperswitch_interfaces::api::CurrentFlowInfo::Execute),
     ))
     .await?;
 
@@ -1008,7 +1006,7 @@ pub async fn internal_sync_refund_with_gateway(
         &router_data,
         None,
         &default_gateway_context,
-        None,
+        Some(hyperswitch_interfaces::api::CurrentFlowInfo::Execute),
     ))
     .await?;
 

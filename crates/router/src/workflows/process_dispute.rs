@@ -42,13 +42,16 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
             .clone()
             .parse_value("ProcessDisputePTData")?;
 
-        let provider_key_store = db
+        let key_store_master_key = db.get_master_key().to_vec().into();
+        let provider_key_store = state
+            .accounts_store
             .get_merchant_key_store_by_merchant_id(
                 &tracking_data.merchant_id,
-                &db.get_master_key().to_vec().into(),
+                &key_store_master_key,
             )
             .await?;
-        let provider_account = db
+        let provider_account = state
+            .accounts_store
             .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &provider_key_store)
             .await?;
 
@@ -56,13 +59,13 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
             .processor_merchant_id
             .as_ref()
             .unwrap_or(&tracking_data.merchant_id);
-        let processor_key_store = db
-            .get_merchant_key_store_by_merchant_id(
-                processor_merchant_id,
-                &db.get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = db.get_master_key().to_vec().into();
+        let processor_key_store = state
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(processor_merchant_id, &key_store_master_key)
             .await?;
-        let processor_account = db
+        let processor_account = state
+            .accounts_store
             .find_merchant_account_by_merchant_id(processor_merchant_id, &processor_key_store)
             .await?;
 
@@ -82,7 +85,7 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
         .await?;
 
         let business_profile = state
-            .store
+            .accounts_store
             .find_business_profile_by_profile_id(
                 platform.get_processor().get_key_store(),
                 &payment_attempt.profile_id,

@@ -517,6 +517,7 @@ pub struct PaymentMethodWithRawData {
     pub vault_payment_method_token_data: Option<VaultPaymentMethodData>,
 }
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait PaymentMethodInterface {
     type Error;

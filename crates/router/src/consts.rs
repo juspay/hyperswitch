@@ -52,6 +52,8 @@ pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose = consts::BASE64_
 
 pub(crate) const API_KEY_LENGTH: usize = 64;
 
+pub(crate) const PAYMENT_RESPONSE_HASH_KEY_PREFIX_LEN: usize = 4;
+
 // OID (Object Identifier) for the merchant ID field extension.
 pub(crate) const MERCHANT_ID_FIELD_EXTENSION_ID: &str = "1.2.840.113635.100.6.32";
 
@@ -76,9 +78,6 @@ pub const ROLE_BLACKLIST_PREFIX: &str = "BR_";
 
 pub const USER_IDLE_SESSION_PREFIX: &str = "IS_";
 pub const MIN_IDLE_SESSION_TIMEOUT_IN_SECS: u32 = 60;
-
-#[cfg(feature = "email")]
-pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
 
 #[cfg(feature = "email")]
 pub const EMAIL_TOKEN_BLACKLIST_PREFIX: &str = "BET_";
@@ -610,11 +609,11 @@ pub mod superposition {
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
     /// UCS rollout configuration key (contains RolloutConfig with percentage, URLs, etc.)
-    pub const UCS_ROLLOUT_CONFIG: &str = "ucs_rollout_config";
+    pub const UCS_ROLLOUT_CONFIG: &str = "ucs.rollout_config";
     /// Global request-failure threshold for the UCS shadow kill switch.
-    pub const UCS_SHADOW_KILL_SWITCH_THRESHOLD: &str = "ucs_shadow_kill_switch_threshold";
+    pub const UCS_SHADOW_KILL_SWITCH_THRESHOLD: &str = "ucs.shadow_kill_switch_threshold";
     /// UCS enabled configuration key (controls UCS mode: disabled, enabled, shadow_disabled)
-    pub const UCS_ENABLED: &str = "ucs_enabled";
+    pub const UCS_ENABLED: &str = "ucs.enabled";
     /// checkout sdk configuration
     pub const CHECKOUT_SDK: &str = "checkout_sdk";
     /// Pre-FRM failure handling mode

@@ -13,6 +13,7 @@ use crate::{
 
 type StorageResult<T> = CustomResult<T, errors::StorageError>;
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait RoutingAlgorithmInterface {
     async fn insert_routing_algorithm(

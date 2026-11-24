@@ -172,13 +172,16 @@ pub async fn execute_notification(
     let attributes = notify_attributes();
 
     let db = &*state.store;
-    let key_store = db
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .accounts_store
         .get_merchant_key_store_by_merchant_id(
             &tracking_data.processor_merchant_id,
-            &db.get_master_key().to_vec().into(),
+            &key_store_master_key,
         )
         .await?;
-    let merchant_account = db
+    let merchant_account = state
+        .accounts_store
         .find_merchant_account_by_merchant_id(&tracking_data.processor_merchant_id, &key_store)
         .await?;
     let processor_account = ProcessorMerchantAccount::from_untagged(merchant_account.clone());

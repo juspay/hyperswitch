@@ -25,7 +25,7 @@ use common_utils::{
     consts::DISCOUNT_PERCENTAGE_PRECISION_LENGTH,
     crypto,
     errors::ValidationError,
-    ext_traits::{ConfigExt, Encode, ValueExt},
+    ext_traits::{ConfigExt, Encode, SecretStringExt, ValueExt},
     hashing::HashedString,
     id_type,
     new_type::MaskedBankAccount,
@@ -41,7 +41,10 @@ pub use self::recipient::{
     MaskedRecipientAccount, MaskedRecipientBankAccount, MaskedRecipientDetails, RecipientAccount,
     RecipientBankAccount, RecipientDetails,
 };
-use crate::customers::CustomerDocumentDetails;
+use crate::{
+    customers::CustomerDocumentDetails,
+    sender::{SenderDetails, SenderDetailsResponse},
+};
 
 #[cfg(any(feature = "v1", feature = "v2"))]
 pub(crate) fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
@@ -394,6 +397,10 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = Option<RecipientDetails>)]
     pub recipient_details: Option<RecipientDetails>,
 
+    /// Details of the party providing the funds in an account funded transaction.
+    #[schema(value_type = Option<SenderDetails>)]
+    pub sender_details: Option<SenderDetails>,
+
     /// Request address verification using the billing address for supported card payments.
     #[schema(default = false, example = true)]
     pub enable_avs_check: Option<bool>,
@@ -593,6 +600,10 @@ pub struct PaymentsUpdateIntentRequest {
     #[schema(value_type = Option<RecipientDetails>)]
     pub recipient_details: Option<RecipientDetails>,
 
+    /// Details of the party providing the funds in an account funded transaction.
+    #[schema(value_type = Option<SenderDetails>)]
+    pub sender_details: Option<SenderDetails>,
+
     /// Request address verification using the billing address for supported card payments.
     /// Omit this field on updates or confirmation to preserve the existing setting.
     #[schema(default = false, example = true)]
@@ -635,6 +646,7 @@ impl PaymentsUpdateIntentRequest {
             enable_partial_authorization: None,
             is_account_funded_transaction: None,
             recipient_details: None,
+            sender_details: None,
             enable_avs_check: None,
             enable_account_name_verification: None,
         }
@@ -794,6 +806,11 @@ pub struct PaymentsIntentResponse {
     #[schema(value_type = Option<MaskedRecipientDetails>)]
     pub recipient_details: Option<MaskedRecipientDetails>,
 
+    /// Partially masked details of the party providing the funds in an account funded
+    /// transaction. The sender's date of birth is never returned.
+    #[schema(value_type = Option<SenderDetailsResponse>)]
+    pub sender_details: Option<SenderDetailsResponse>,
+
     /// Whether address verification was requested for this payment.
     #[schema(example = true)]
     pub enable_avs_check: Option<bool>,
@@ -813,6 +830,11 @@ pub struct RevenueRecoveryGetIntentResponse {
     /// The recovery status of the payment
     #[schema(value_type = RecoveryStatus, example = "scheduled")]
     pub status: common_enums::RecoveryStatus,
+
+    /// When to trigger the next retry of the invoice. Sent when the merchant triggers its retries and has reported a transaction made off session with the customer absent.
+    #[schema(value_type = Option<RecoveryNextRetry>)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_retry: Option<common_payments_types::RecoveryNextRetry>,
 
     /// The amount details for the payment
     pub amount_details: AmountDetailsResponse,
@@ -1697,6 +1719,11 @@ pub struct PaymentsRequest {
     #[remove_in(PaymentsConfirmRequest)]
     pub recipient_details: Option<RecipientDetails>,
 
+    /// Details of the party providing the funds in an account funded transaction.
+    #[schema(value_type = Option<SenderDetails>)]
+    #[remove_in(PaymentsConfirmRequest)]
+    pub sender_details: Option<SenderDetails>,
+
     /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
     #[schema(value_type = Option<Tokenization>, example = "tokenize_at_psp")]
     pub tokenization: Option<enums::Tokenization>,
@@ -2387,6 +2414,7 @@ pub struct PaymentAttemptRecordResponse {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Serialize, Clone, ToSchema)]
+#[schema(title = "Fully Managed Recovery")]
 pub struct RecoveryPaymentsResponse {
     /// Unique identifier of the invoice in Hyperswitch against which the transaction has been recorded.
     #[schema(
@@ -2412,6 +2440,68 @@ pub struct RecoveryPaymentsResponse {
     pub merchant_reference_id: Option<id_type::PaymentReferenceId>,
 }
 
+/// A transaction reported under Schedule Only Recovery (`revenue_recovery_trigger_model` is
+/// `external_triggers`), accepted to be recorded right after the answer.
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+#[schema(title = "Schedule Only Recovery")]
+pub struct RecoveryRequestAccepted {
+    /// Unique identifier of the invoice in the merchant's billing system against which the
+    /// transaction is being recorded.
+    #[schema(
+        value_type = String,
+        min_length = 30,
+        max_length = 30,
+        example = "invoice_mbabizu24mvu3mela5njyh"
+    )]
+    pub merchant_reference_id: id_type::PaymentReferenceId,
+
+    /// Unique identifier of the transaction at the payment connector.
+    #[schema(example = "993672945374576J")]
+    pub connector_transaction_id: String,
+}
+
+/// The answer to a reported transaction, which depends on whether the profile uses Fully Managed
+/// Recovery or Schedule Only Recovery.
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+#[serde(untagged)]
+pub enum RecoveryPaymentsCreateResponse {
+    /// Under Fully Managed Recovery, the transaction is recorded before the answer.
+    Recorded(RecoveryPaymentsResponse),
+    /// Under Schedule Only Recovery, the transaction is recorded after the answer.
+    Accepted(RecoveryRequestAccepted),
+}
+
+/// The next retry of an invoice under Schedule Only Recovery, where the merchant triggers the
+/// retries, sent by webhook after each transaction the merchant reports.
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, Clone, ToSchema)]
+pub struct RecoveryRetryWebhookDetails {
+    /// Unique identifier of the invoice in Hyperswitch.
+    #[schema(
+        min_length = 30,
+        max_length = 30,
+        example = "pay_mbabizu24mvu3mela5njyhpit4",
+        value_type = String,
+    )]
+    pub id: id_type::GlobalPaymentId,
+
+    /// Unique identifier of the invoice in the merchant's billing system.
+    #[schema(
+        value_type = String,
+        min_length = 30,
+        max_length = 30,
+        example = "invoice_mbabizu24mvu3mela5njyh"
+    )]
+    pub merchant_reference_id: id_type::PaymentReferenceId,
+
+    /// When to trigger the next retry, or why none is scheduled.
+    #[schema(value_type = RecoveryNextRetry)]
+    #[serde(flatten)]
+    pub next_retry: common_payments_types::RecoveryNextRetry,
+}
+
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, PartialEq, ToSchema)]
 pub struct PaymentAttemptFeatureMetadata {
@@ -2428,6 +2518,19 @@ pub struct PaymentAttemptRevenueRecoveryData {
     // stripe specific field used to identify duplicate attempts.
     #[schema(value_type = Option<String>, example = "ch_123abc456def789ghi012klmn")]
     pub charge_id: Option<String>,
+    /// Whether the customer was present for the transaction of this attempt, as reported. Absent
+    /// when it was not reported, and on attempts recorded before this was kept.
+    #[schema(value_type = Option<PresenceOfCustomerDuringPayment>, example = "absent")]
+    pub customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
+    /// How the payment method of this attempt's transaction is set up for future use, as reported.
+    /// Absent when it was not reported, and on attempts recorded before this was kept.
+    #[schema(value_type = Option<FutureUsage>, example = "off_session")]
+    pub setup_future_usage: Option<common_enums::FutureUsage>,
+    /// Id of the recovery request that recorded this transaction, for a transaction the merchant
+    /// reported on a profile whose retries it triggers.
+    #[schema(value_type = Option<String>, example = "revenue_recovery_6JkQbHp7Wbq3cXUtvTqV")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recovery_request_id: Option<String>,
 }
 
 #[derive(
@@ -6806,6 +6909,15 @@ pub struct AddressDetails {
 }
 
 impl AddressDetails {
+    /// The address with surrounding whitespace removed from the first and last names.
+    pub fn with_trimmed_names(self) -> Self {
+        Self {
+            first_name: self.first_name.and_then(SecretStringExt::trim_to_non_empty),
+            last_name: self.last_name.and_then(SecretStringExt::trim_to_non_empty),
+            ..self
+        }
+    }
+
     pub fn get_optional_full_name(&self) -> Option<Secret<String>> {
         match (self.first_name.as_ref(), self.last_name.as_ref()) {
             (Some(first_name), Some(last_name)) => Some(Secret::new(format!(
@@ -8209,6 +8321,11 @@ pub struct PaymentsResponse {
     #[schema(value_type = Option<MaskedRecipientDetails>)]
     pub recipient_details: Option<MaskedRecipientDetails>,
 
+    /// Partially masked details of the party providing the funds in an account funded
+    /// transaction. The sender's date of birth is never returned.
+    #[schema(value_type = Option<SenderDetailsResponse>)]
+    pub sender_details: Option<SenderDetailsResponse>,
+
     /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
     #[schema(value_type = Option<Tokenization>,example="skip_psp")]
     pub tokenization: Option<enums::Tokenization>,
@@ -8800,6 +8917,10 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<RecipientDetails>)]
     pub recipient_details: Option<RecipientDetails>,
 
+    /// Details of the party providing the funds in an account funded transaction.
+    #[schema(value_type = Option<SenderDetails>)]
+    pub sender_details: Option<SenderDetails>,
+
     /// Request address verification using the billing address for supported card payments.
     /// Omit this field on updates or confirmation to preserve the existing setting.
     #[schema(default = false, example = true)]
@@ -8845,6 +8966,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             enable_partial_authorization: request.enable_partial_authorization,
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: request.recipient_details.clone(),
+            sender_details: request.sender_details.clone(),
             enable_avs_check: request.enable_avs_check,
             enable_account_name_verification: request.enable_account_name_verification,
             mit_category: None,
@@ -14433,6 +14555,14 @@ pub struct PaymentRevenueRecoveryMetadata {
     #[schema(value_type = Option<RevenueRecoveryABAlgorithm>, example = "adaptive_retry")]
     #[serde(default)]
     pub revenue_recovery_ab_routing: Option<common_enums::RevenueRecoveryABAlgorithm>,
+    /// Recovery state of an invoice whose retries the merchant triggers.
+    #[schema(value_type = Option<ExternalTriggerState>)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external_trigger_state: Option<common_payments_types::ExternalTriggerState>,
+    /// Standardised error code of the last failed transaction of the invoice. The result of the next transaction is counted against it in the cluster data.
+    #[schema(value_type = Option<StandardisedCode>)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_failure_code: Option<common_enums::StandardisedCode>,
 }
 
 #[cfg(feature = "v2")]
@@ -14573,8 +14703,8 @@ pub struct PaymentsAttemptRecordRequest {
     pub transaction_created_at: Option<PrimitiveDateTime>,
 
     /// payment method token at payment processor end.
-    #[schema(value_type = String, example = "1234567890")]
-    pub processor_payment_method_token: String,
+    #[schema(value_type = Option<String>, example = "1234567890")]
+    pub processor_payment_method_token: Option<String>,
 
     /// customer id at payment connector for which mandate is attached.
     #[schema(value_type = String, example = "cust_12345")]
@@ -14605,6 +14735,10 @@ pub struct PaymentsAttemptRecordRequest {
     #[schema(example = "Chase")]
     /// Card Issuer
     pub card_issuer: Option<String>,
+
+    /// Standardised error code of the attempt, when it failed.
+    #[schema(value_type = Option<StandardisedCode>)]
+    pub standardised_error_code: Option<common_enums::StandardisedCode>,
 }
 
 // Serialize is required because the api event requires Serialize to be implemented
@@ -14627,15 +14761,23 @@ pub struct RecoveryPaymentsCreate {
     /// Error details of a failed transaction.
     pub error: Option<ErrorDetails>,
 
-    /// Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header. Required when the `revenue_recovery_trigger_model` of the profile is `internal_triggers`, and ignored when it is `external_triggers`.
+    /// Unique identifier assigned by Hyperswitch for the custom billing connector account. The account must belong to the profile passed in the `X-Profile-Id` header. Required under Fully Managed Recovery (`revenue_recovery_trigger_model` is `internal_triggers`), and ignored under Schedule Only Recovery (`external_triggers`).
     #[schema(value_type = Option<String>, example = "mca_1234567890")]
     pub billing_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
-    /// Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header. Required when the `revenue_recovery_trigger_model` of the profile is `internal_triggers`, and ignored when it is `external_triggers`.
+    /// Unique identifier assigned by Hyperswitch for the payment connector account, such as Stripe, on which the transaction was processed. The account must belong to the profile passed in the `X-Profile-Id` header. Required under Fully Managed Recovery (`revenue_recovery_trigger_model` is `internal_triggers`), and ignored under Schedule Only Recovery (`external_triggers`).
     #[schema(value_type = Option<String>, example = "mca_1234567890")]
     pub payment_merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
-    /// Payment processor on which the transaction was processed. Required when the `revenue_recovery_trigger_model` of the profile is `external_triggers`, and ignored when it is `internal_triggers`, where the processor comes from `payment_merchant_connector_id`.
+    /// The merchant's own identifier for the billing connector account of the invoice. Accepted, and not used yet.
+    #[schema(value_type = Option<String>, example = "billing_account_main")]
+    pub merchant_reference_billing_connector_id: Option<String>,
+
+    /// The merchant's own identifier for the payment connector account on which the transaction was processed. Accepted, and not used yet.
+    #[schema(value_type = Option<String>, example = "payment_account_us")]
+    pub merchant_reference_payment_connector_id: Option<String>,
+
+    /// Payment processor on which the transaction was processed. Required under Schedule Only Recovery (`revenue_recovery_trigger_model` is `external_triggers`), and ignored under Fully Managed Recovery (`internal_triggers`), where the processor comes from `payment_merchant_connector_id`.
     #[schema(value_type = Option<RecoveryConnector>, example = "stripe")]
     pub connector: Option<common_payments_types::RecoveryConnector>,
 
@@ -14691,8 +14833,9 @@ pub struct RecoveryPaymentsCreate {
     #[schema(value_type = String, example = "993672945374576J")]
     pub connector_transaction_id: String,
 
-    /// Payment method token and card details at the payment processor's end.
-    pub payment_method_data: CustomRecoveryPaymentMethodData,
+    /// Payment method token and card details at the payment processor's end. Required unless the
+    /// customer is present and the payment is on session.
+    pub payment_method_data: Option<CustomRecoveryPaymentMethodData>,
 
     /// Allow partial authorization for this payment
     #[schema(value_type = Option<bool>, default = false)]
@@ -14701,6 +14844,18 @@ pub struct RecoveryPaymentsCreate {
     /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500 characters long. Metadata is useful for storing additional, structured information on an object.
     #[schema(value_type = Option<Object>, example = r#"{ "udf1": "some-value", "udf2": "some-value" }"#)]
     pub metadata: Option<pii::SecretSerdeValue>,
+}
+
+#[cfg(feature = "v2")]
+impl RecoveryPaymentsCreate {
+    /// Who started the reported transaction, when the request says both whether the customer was
+    /// present and how the payment method is set up for future use.
+    pub fn get_transaction_initiator(&self) -> Option<common_enums::TransactionInitiator> {
+        Some(common_enums::TransactionInitiator::new(
+            self.customer_present?,
+            self.setup_future_usage?,
+        ))
+    }
 }
 
 /// Error details for the payment

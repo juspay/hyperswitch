@@ -9,6 +9,7 @@ use crate::{
     services::Store,
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait UserAuthenticationMethodInterface {
     async fn insert_user_authentication_method(

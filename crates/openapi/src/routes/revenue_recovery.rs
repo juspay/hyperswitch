@@ -39,7 +39,7 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
         content = RecoveryPaymentsCreate,
         examples(
             (
-                "Record a failed transaction and schedule a retry" = (
+                "Fully Managed Recovery" = (
                     value = json!({
                         "amount_details": {
                             "order_amount": 6540,
@@ -91,7 +91,7 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
                 )
             ),
             (
-                "Record a failed transaction on a profile with external triggers" = (
+                "Schedule Only Recovery" = (
                     value = json!({
                         "amount_details": {
                             "order_amount": 6540,
@@ -150,15 +150,31 @@ pub async fn revenue_recovery_pt_retrieve_api() {}
     responses(
         (
             status = 200,
-            description = "Revenue Recovery Transaction Recorded Successfully",
-            body = RecoveryPaymentsResponse,
-            example = json!({
-                "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
-                "intent_status": "failed",
-                "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
-            })
+            description = "The transaction is recorded (Fully Managed Recovery), or accepted to be recorded right after the answer (Schedule Only Recovery)",
+            body = RecoveryPaymentsCreateResponse,
+            examples(
+                (
+                    "Fully Managed Recovery" = (
+                        summary = "Fully Managed Recovery",
+                        value = json!({
+                            "id": "12_pay_01a3868d94a471219b5c4bc71638e2zc",
+                            "intent_status": "failed",
+                            "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh"
+                        })
+                    )
+                ),
+                (
+                    "Schedule Only Recovery" = (
+                        summary = "Schedule Only Recovery",
+                        value = json!({
+                            "merchant_reference_id": "invoice_mbabizu24mvu3mela5njyh",
+                            "connector_transaction_id": "993672945374576J"
+                        })
+                    )
+                ),
+            )
         ),
-        (status = 400, description = "Missing or invalid mandatory fields, or the invoice takes no more transactions", body = GenericErrorResponseOpenApi),
+        (status = 400, description = "Missing or invalid mandatory fields, or, under Fully Managed Recovery, the invoice takes no more transactions", body = GenericErrorResponseOpenApi),
         (status = 404, description = "Resource missing"),
         (status = 500, description = "Internal server error"),
     ),

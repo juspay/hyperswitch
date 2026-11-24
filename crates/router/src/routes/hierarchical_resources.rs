@@ -32,7 +32,7 @@ async fn resolve_profile_from_header(
 ) -> Result<crate::types::domain::Profile, error_stack::Report<errors::ApiErrorResponse>> {
     let processor = auth_data.platform.get_processor();
     state
-        .store
+        .accounts_store
         .find_business_profile_by_merchant_id_profile_id(
             processor.get_key_store(),
             processor.get_account().get_id(),
