@@ -77,6 +77,7 @@ function renderStatusDetails(payoutDetails) {
       break;
     case "initiated":
     case "requires_fulfillment":
+    case "requires_review":
     case "pending":
       statusInfo.statusImageSrc =
         "https://live.hyperswitch.io/payment-link-assets/pending.png";

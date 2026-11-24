@@ -24414,6 +24414,7 @@
           "payout_expired",
           "payout_reversed",
           "payout_not_permitted",
+          "payout_review_required",
           "invoice_paid",
           "surcharge_payment_succeeded",
           "surcharge_refund_succeeded"
@@ -36985,6 +36986,14 @@
             ],
             "nullable": true
           },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
+              }
+            ],
+            "nullable": true
+          },
           "setup_future_usage": {
             "allOf": [
               {
@@ -38934,6 +38943,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MandateData"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
               }
             ],
             "nullable": true
@@ -41661,6 +41678,7 @@
           "requires_confirmation",
           "requires_payout_method_data",
           "requires_fulfillment",
+          "requires_review",
           "requires_vendor_account_creation"
         ]
       },
