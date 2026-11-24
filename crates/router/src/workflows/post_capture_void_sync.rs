@@ -46,14 +46,17 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
             .tracking_data
             .clone()
             .parse_value("PaymentsPostCaptureVoidSyncTrackingData")?;
-        let key_store = db
+        let key_store_master_key = db.get_master_key().to_vec().into();
+        let key_store = state
+            .accounts_store
             .get_merchant_key_store_by_merchant_id(
                 &tracking_data.merchant_id,
-                &db.get_master_key().to_vec().into(),
+                &key_store_master_key,
             )
             .await?;
 
-        let merchant_account = db
+        let merchant_account = state
+            .accounts_store
             .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &key_store)
             .await?;
 

@@ -17,6 +17,29 @@ use crate::{
     core::revenue_recovery::schedule::StaticLadderProgress, db::StorageInterface,
     routes::SessionState, types, workflows::revenue_recovery,
 };
+/// What the recovery request workflow needs to process one transaction the merchant reported.
+/// Process tracker data is stored and logged in clear, so the request is kept encrypted with the
+/// merchant's key, and only identifiers are kept in clear, for debugging.
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+pub struct RecoveryRequestTrackingData {
+    /// Id of the recovery request, which the id of its process tracker job is built from: one for
+    /// each transaction of an invoice in a profile.
+    pub recovery_request_id: String,
+    pub merchant_id: id_type::MerchantId,
+    pub profile_id: id_type::ProfileId,
+    pub merchant_reference_id: id_type::PaymentReferenceId,
+    pub connector_transaction_id: String,
+    pub connector: common_types::payments::RecoveryConnector,
+    /// When the API accepted the recovery request.
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub received_at: time::PrimitiveDateTime,
+    /// Version of the stored request's format, which a run checks before reading the request.
+    pub request_version: u8,
+    /// The request exactly as the merchant sent it, encrypted with the merchant's key and base64
+    /// encoded.
+    pub encrypted_request: String,
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct RevenueRecoveryWorkflowTrackingData {
     pub merchant_id: id_type::MerchantId,
@@ -51,12 +74,29 @@ pub struct RevenueRecoveryPaymentData {
     pub retry_algorithm: enums::RevenueRecoveryAlgorithmType,
     pub psync_data: Option<PaymentStatusData<types::api::PSync>>,
 }
+
+/// The merchant and profile an invoice belongs to.
+#[derive(Clone, Copy)]
+pub struct RecoveryMerchantContext<'a> {
+    pub merchant_account: &'a merchant_account::MerchantAccount,
+    pub key_store: &'a merchant_key_store::MerchantKeyStore,
+    pub profile: &'a business_profile::Profile,
+}
+
 impl RevenueRecoveryPaymentData {
+    pub fn get_merchant_context(&self) -> RecoveryMerchantContext<'_> {
+        RecoveryMerchantContext {
+            merchant_account: &self.merchant_account,
+            key_store: &self.key_store,
+            profile: &self.profile,
+        }
+    }
+
     pub async fn get_schedule_time_based_on_retry_type(
         &self,
         state: &SessionState,
         merchant_id: &id_type::MerchantId,
-        retry_count: i32,
+        retry_count: u32,
         payment_attempt: &PaymentAttempt,
         payment_intent: &PaymentIntent,
         is_hard_decline: bool,

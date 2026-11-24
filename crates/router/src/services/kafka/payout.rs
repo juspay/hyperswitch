@@ -22,6 +22,7 @@ pub struct KafkaPayout<'a> {
     pub return_url: Option<&'a String>,
     pub entity_type: storage_enums::PayoutEntityType,
     pub metadata: Option<pii::SecretSerdeValue>,
+    pub purpose: Option<storage_enums::PayoutPurpose>,
     #[serde(with = "time::serde::timestamp")]
     pub created_at: OffsetDateTime,
     #[serde(with = "time::serde::timestamp")]
@@ -63,6 +64,7 @@ impl<'a> KafkaPayout<'a> {
             return_url: payouts.return_url.as_ref(),
             entity_type: payouts.entity_type,
             metadata: payouts.metadata.clone(),
+            purpose: payouts.purpose,
             created_at: payouts.created_at.assume_utc(),
             last_modified_at: payouts.last_modified_at.assume_utc(),
             attempt_count: payouts.attempt_count,

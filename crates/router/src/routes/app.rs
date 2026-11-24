@@ -120,7 +120,7 @@ use crate::{
     configs::{secrets_transformers, Settings},
     core::configs::payment_callback::PaymentCallbackConfig,
     db::kafka_store::{KafkaStore, TenantID},
-    errors::RouterResult,
+    errors::{self, RouterResult},
     routes::{hypersense as hypersense_routes, three_ds_decision_rule},
 };
 
@@ -176,14 +176,34 @@ impl scheduler::SchedulerSessionState for SessionState {
         self.api_client.add_request_id(request_id.clone());
         self.store.add_request_id(request_id.to_string());
         self.global_store.add_request_id(request_id.to_string());
-        #[cfg(feature = "deja")]
-        {
-            self.accounts_store.add_request_id(request_id.to_string());
-        }
+        self.accounts_store.add_request_id(request_id.to_string());
         self.request_id.replace(request_id);
     }
 }
 impl SessionState {
+    /// Keep key-manager context in sync across the main and accounts stores.
+    pub fn set_key_manager_state(&mut self, key_manager_state: KeyManagerState) {
+        self.store.set_key_manager_state(key_manager_state.clone());
+        self.accounts_store.set_key_manager_state(key_manager_state);
+    }
+
+    pub(crate) fn get_webhook_registration_base_url(
+        &self,
+        connector_requires_mtls: bool,
+        mtls_verification_enabled: bool,
+    ) -> RouterResult<&str> {
+        if connector_requires_mtls && mtls_verification_enabled {
+            self.tenant.mtls_base_url.as_deref().ok_or_else(|| {
+                error_stack::Report::new(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                    "mtls_base_url must be configured when mTLS webhook verification is required and enabled",
+                )
+            })
+        } else {
+            Ok(&self.base_url)
+        }
+    }
+
     /// Resolve the runtime callback policy once for this request and its clones.
     pub async fn payment_callback_config(&self) -> RouterResult<&PaymentCallbackConfig> {
         self.payment_callback_config
@@ -251,6 +271,7 @@ pub trait SessionStateInfo {
     fn get_request_id(&self) -> Option<String>;
     fn add_request_id(&mut self, request_id: RequestId);
     fn start_read_ledger(&mut self, flow: String);
+    fn get_read_ledger(&self) -> Option<Arc<common_utils::read_ledger::ReadLedger>>;
     #[cfg(feature = "partial-auth")]
     fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])>;
     fn session_state(&self) -> SessionState;
@@ -274,6 +295,10 @@ impl SessionStateInfo for SessionState {
         self.store.attach_read_ledger(read_ledger);
     }
 
+    fn get_read_ledger(&self) -> Option<Arc<common_utils::read_ledger::ReadLedger>> {
+        self.store.get_read_ledger()
+    }
+
     fn store(&self) -> Box<dyn StorageInterface> {
         self.store.to_owned()
     }
@@ -290,10 +315,7 @@ impl SessionStateInfo for SessionState {
         self.api_client.add_request_id(request_id.clone());
         self.store.add_request_id(request_id.to_string());
         self.global_store.add_request_id(request_id.to_string());
-        #[cfg(feature = "deja")]
-        {
-            self.accounts_store.add_request_id(request_id.to_string());
-        }
+        self.accounts_store.add_request_id(request_id.to_string());
         self.request_id.replace(request_id);
     }
 
@@ -732,11 +754,9 @@ impl AppState {
         let tenant_conf = self.conf.multitenancy.get_tenant(tenant).ok_or_else(err)?;
         let mut event_handler = self.event_handler.clone();
         event_handler.add_tenant(tenant_conf);
-        let mut store = self.stores.get(tenant).ok_or_else(err)?.clone();
         let key_manager_state = KeyManagerState::foreign_from((self.as_ref(), tenant_conf.clone()));
-        store.set_key_manager_state(key_manager_state);
-        Ok(SessionState {
-            store,
+        let mut state = SessionState {
+            store: self.stores.get(tenant).ok_or_else(err)?.clone(),
             global_store: self.global_store.clone(),
             accounts_store: self.accounts_store.get(tenant).ok_or_else(err)?.clone(),
             conf: Arc::clone(&self.conf),
@@ -761,7 +781,9 @@ impl AppState {
             superposition_service: self.superposition_service.clone(),
             payment_metrics_context: None,
             payment_callback_config: Arc::default(),
-        })
+        };
+        state.set_key_manager_state(key_manager_state);
+        Ok(state)
     }
 
     pub fn process_env_mappings(

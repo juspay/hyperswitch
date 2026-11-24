@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hyperswitch.io/loadtest/worker-v1.schema.json",
+  "title": "Hyperswitch load worker protocol v1",
+  "$defs": {
+    "capacity": {"type":"object","required":["capacityTps","capacityVus"],"properties":{"capacityTps":{"type":"integer","minimum":1},"capacityVus":{"type":"integer","minimum":1}}},
+    "command": {"type":"object","required":["id","revision","kind","payload"],"properties":{"id":{"type":"string","format":"uuid"},"runId":{"type":["string","null"]},"revision":{"type":"integer","minimum":1},"kind":{"enum":["prepare","start","pause","resume","stop","upload"]},"payload":{"type":"object"}}}
+  }
+}

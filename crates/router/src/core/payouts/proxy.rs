@@ -450,7 +450,7 @@ impl ExternalVaultPayout<'_> {
         )?;
         let provider = platform.get_provider();
         let external_vault_mca = state
-            .store
+            .accounts_store
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                 provider.get_account().get_id(),
                 &vault_connector_id,

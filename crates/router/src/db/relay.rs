@@ -11,6 +11,7 @@ use crate::{
     services::Store,
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait RelayInterface {
     async fn insert_relay(
@@ -178,9 +179,7 @@ impl RelayInterface for KafkaStore {
         merchant_key_store: &domain::MerchantKeyStore,
         new: hyperswitch_domain_models::relay::Relay,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
-        self.diesel_store
-            .insert_relay(merchant_key_store, new)
-            .await
+        RelayInterface::insert_relay(&self.diesel_store, merchant_key_store, new).await
     }
 
     async fn update_relay(
@@ -189,9 +188,13 @@ impl RelayInterface for KafkaStore {
         current_state: hyperswitch_domain_models::relay::Relay,
         relay_update: hyperswitch_domain_models::relay::RelayUpdate,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
-        self.diesel_store
-            .update_relay(merchant_key_store, current_state, relay_update)
-            .await
+        RelayInterface::update_relay(
+            &self.diesel_store,
+            merchant_key_store,
+            current_state,
+            relay_update,
+        )
+        .await
     }
 
     async fn find_relay_by_id(
@@ -199,9 +202,7 @@ impl RelayInterface for KafkaStore {
         merchant_key_store: &domain::MerchantKeyStore,
         relay_id: &common_utils::id_type::RelayId,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
-        self.diesel_store
-            .find_relay_by_id(merchant_key_store, relay_id)
-            .await
+        RelayInterface::find_relay_by_id(&self.diesel_store, merchant_key_store, relay_id).await
     }
 
     async fn find_relay_by_profile_id_connector_reference_id(
@@ -210,12 +211,12 @@ impl RelayInterface for KafkaStore {
         profile_id: &common_utils::id_type::ProfileId,
         connector_reference_id: &str,
     ) -> CustomResult<hyperswitch_domain_models::relay::Relay, errors::StorageError> {
-        self.diesel_store
-            .find_relay_by_profile_id_connector_reference_id(
-                merchant_key_store,
-                profile_id,
-                connector_reference_id,
-            )
-            .await
+        RelayInterface::find_relay_by_profile_id_connector_reference_id(
+            &self.diesel_store,
+            merchant_key_store,
+            profile_id,
+            connector_reference_id,
+        )
+        .await
     }
 }

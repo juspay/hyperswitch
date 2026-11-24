@@ -4,7 +4,7 @@ use router_env::instrument;
 
 use crate::{
     core::errors::{self, RouterResponse, StorageErrorExt},
-    db::gsm::GsmInterface,
+    db::gsm::TrackedGsmInterface,
     services,
     types::transformers::{ForeignFrom, ForeignInto},
     SessionState,
@@ -16,7 +16,7 @@ pub async fn create_gsm_rule(
     gsm_rule: gsm_api_types::GsmCreateRequest,
 ) -> RouterResponse<gsm_api_types::GsmResponse> {
     let db = state.store.as_ref();
-    GsmInterface::add_gsm_rule(db, gsm_rule.foreign_into())
+    TrackedGsmInterface::add_gsm_rule(db, gsm_rule.foreign_into())
         .await
         .to_duplicate_response(errors::ApiErrorResponse::GenericDuplicateError {
             message: "GSM with given key already exists in our records".to_string(),
@@ -37,7 +37,7 @@ pub async fn retrieve_gsm_rule(
         code,
         message,
     } = gsm_request;
-    GsmInterface::find_gsm_rule(db, connector.to_string(), flow, sub_flow, code, message)
+    TrackedGsmInterface::find_gsm_rule(db, connector.to_string(), flow, sub_flow, code, message)
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "GSM with given key does not exist in our records".to_string(),
@@ -57,12 +57,18 @@ pub async fn update_gsm_rule(
     let sub_flow = gsm_request.sub_flow.clone();
     let message = gsm_request.message.clone();
 
-    let gsm_db_record =
-        GsmInterface::find_gsm_rule(db, connector.to_string(), flow, sub_flow, code, message)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
-                message: "GSM with given key does not exist in our records".to_string(),
-            })?;
+    let gsm_db_record = TrackedGsmInterface::find_gsm_rule(
+        db,
+        connector.to_string(),
+        flow,
+        sub_flow,
+        code,
+        message,
+    )
+    .await
+    .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+        message: "GSM with given key does not exist in our records".to_string(),
+    })?;
 
     let inferred_feature_info = <(
         common_enums::GsmFeature,
@@ -89,7 +95,7 @@ pub async fn update_gsm_rule(
         description,
         user_guidance_message,
     } = gsm_request;
-    GsmInterface::update_gsm_rule(
+    TrackedGsmInterface::update_gsm_rule(
         db,
         connector.to_string(),
         flow,
@@ -141,7 +147,7 @@ pub async fn delete_gsm_rule(
         code,
         message,
     } = gsm_request;
-    match GsmInterface::delete_gsm_rule(
+    match TrackedGsmInterface::delete_gsm_rule(
         db,
         connector.to_string(),
         flow.to_owned(),

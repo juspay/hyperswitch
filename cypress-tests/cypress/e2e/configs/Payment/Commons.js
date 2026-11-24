@@ -103,7 +103,7 @@ export const successfulNo3DSCardDetails = {
   card_cvc: "999",
 };
 
-// Card the Offer Engine saved-card flow (54-OfferEngine.cy.js) saves and
+// Card the Offer Engine saved-card flow (53-OfferEngine.cy.js) saves and
 // quotes. Kept apart from successfulNo3DSCardDetails, which the plain-card
 // offer flow already uses.
 export const offerEngineSavedCardDetails = {
@@ -4681,6 +4681,9 @@ export const connectorDetails = {
       Request: {
         currency: "USD",
         amount: 6500,
+        // 15 min: the spec reuses this intent across several Superposition
+        // updates, longer than the 60s profile expiry left by earlier specs.
+        session_expiry: 900,
       },
       Response: {
         status: 200,

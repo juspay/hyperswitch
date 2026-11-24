@@ -698,6 +698,23 @@ impl DatabaseBackedConfig for ClientSessionValidationEnabled {
 }
 
 config! {
+    superposition_key = SHOULD_PREFER_REQUEST_BILLING_OVER_SAVED_PM_BILLING,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for ShouldPreferRequestBillingOverSavedPmBilling {
+    const KEY: &'static str = "should_prefer_request_billing_over_saved_pm_billing";
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
     superposition_key = MAX_AUTO_PAYOUT_RETRIES,
     output = u32,
     default = 0u32,
@@ -952,6 +969,22 @@ impl DatabaseBackedConfig for RecoveryMaxRetryCount {
         dimensions
             .get_processor_merchant_id()
             .map(|merchant_id| format!("{}_{}", merchant_id.get_string_repr(), Self::KEY))
+    }
+}
+
+config! {
+    superposition_key = RECOVERY_MAX_HYBRID_CASCADING_RETRY_COUNT,
+    output = u32,
+    default = 0,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for RecoveryMaxHybridCascadingRetryCount {
+    const KEY: &'static str = "recovery_max_hybrid_cascading_retry_count";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
     }
 }
 

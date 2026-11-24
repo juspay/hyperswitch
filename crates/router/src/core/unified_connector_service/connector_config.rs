@@ -71,9 +71,10 @@ pub struct AdyenMetadata {
     endpoint_prefix: Option<Secret<String>>,
 }
 
-/// Checkout payout configuration stored on the merchant connector account.
+/// Checkout payment and payout configuration stored on the merchant connector account.
 #[derive(Debug, serde::Deserialize)]
 pub struct CheckoutMetadata {
+    /// Optional Checkout client ID used to derive the account-specific API subdomain.
     connector_client_id: Option<Secret<String>>,
     /// Checkout currency account (`ca_...`) used as the payout `source.id`.
     connector_currency_account_id: Option<Secret<String>>,
@@ -804,6 +805,11 @@ pub enum ConnectorSpecificConfig {
         rank: Secret<String>,
         key: Secret<String>,
         merchant_id: Secret<String>,
+    },
+    /// Payhound connector configuration
+    Payhound {
+        api_key: Secret<String>,
+        api_secret: Secret<String>,
     },
     /// Barclaycard connector configuration
     Barclaycard {
@@ -2034,6 +2040,21 @@ impl
                     merchant_id: key2.clone(),
                 }),
                 _ => Err(err("Paybox requires MultiAuthKey auth type")),
+            },
+            Connector::Payhound => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1: _,
+                    api_secret,
+                } => Ok(Self::Payhound {
+                    api_key: api_key.clone(),
+                    api_secret: api_secret.clone(),
+                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payhound {
+                    api_key: api_key.clone(),
+                    api_secret: key1.clone(),
+                }),
+                _ => Err(err("Payhound requires BodyKey or SignatureKey auth type")),
             },
             Connector::Paytm => match auth {
                 ConnectorAuthType::SignatureKey {

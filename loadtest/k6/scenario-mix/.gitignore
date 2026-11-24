@@ -1,0 +1,11 @@
+/bin/
+/fixtures/
+/runs/
+/config.json
+/provision-config.json
+merchants.json*
+provision-failures.json
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.generated.js

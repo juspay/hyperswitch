@@ -1,0 +1,2 @@
+ALTER TABLE payouts
+DROP COLUMN IF EXISTS purpose;
