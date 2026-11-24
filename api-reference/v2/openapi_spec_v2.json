@@ -13440,6 +13440,42 @@
           }
         }
       },
+      "CorporateSenderDetailsResponse": {
+        "type": "object",
+        "description": "A partially masked view of `CorporateSenderDetails`, safe to return in API responses.",
+        "required": [
+          "company_name"
+        ],
+        "properties": {
+          "company_name": {
+            "type": "string",
+            "description": "The sender's legal company name.",
+            "example": "Acme Ltd"
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "phone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedSenderPhoneDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "The sender's masked email address.",
+            "example": "tr******@acme.com",
+            "nullable": true
+          }
+        }
+      },
       "CountryAlpha2": {
         "type": "string",
         "enum": [
@@ -18567,6 +18603,46 @@
           }
         }
       },
+      "IndividualSenderDetailsResponse": {
+        "type": "object",
+        "description": "A partially masked view of `IndividualSenderDetails`, safe to return in API responses.",
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "description": "The sender's first name.",
+            "example": "John",
+            "nullable": true
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The sender's last name.",
+            "example": "Doe",
+            "nullable": true
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "phone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedSenderPhoneDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "The sender's masked email address.",
+            "example": "jo******@example.com",
+            "nullable": true
+          }
+        }
+      },
       "IndomaretVoucherData": {
         "type": "object",
         "properties": {
@@ -19529,6 +19605,24 @@
                 "$ref": "#/components/schemas/AddressDetails"
               }
             ],
+            "nullable": true
+          }
+        }
+      },
+      "MaskedSenderPhoneDetails": {
+        "type": "object",
+        "description": "A partially masked view of [`PhoneDetails`], safe to return in API responses.",
+        "properties": {
+          "number": {
+            "type": "string",
+            "description": "The sender's partially masked phone number.",
+            "example": "********89",
+            "nullable": true
+          },
+          "country_code": {
+            "type": "string",
+            "description": "The country code of the sender's phone number.",
+            "example": "+44",
             "nullable": true
           }
         }
@@ -26787,6 +26881,14 @@
             ],
             "nullable": true
           },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetails"
+              }
+            ],
+            "nullable": true
+          },
           "enable_avs_check": {
             "type": "boolean",
             "description": "Request address verification using the billing address for supported card payments.",
@@ -27196,6 +27298,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MaskedRecipientDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetailsResponse"
               }
             ],
             "nullable": true
@@ -27710,6 +27820,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RecipientDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetails"
               }
             ],
             "nullable": true
@@ -28244,6 +28362,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RecipientDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetails"
               }
             ],
             "nullable": true
@@ -30786,7 +30912,8 @@
           "payment_response_hash_key": {
             "type": "string",
             "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
-            "nullable": true
+            "nullable": true,
+            "minLength": 32
           },
           "redirect_to_merchant_with_http_post": {
             "type": "boolean",
@@ -31109,8 +31236,10 @@
           },
           "payment_response_hash_key": {
             "type": "string",
-            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
-            "nullable": true
+            "description": "The first 4 characters of the hash key used to sign webhooks and redirect responses.",
+            "example": "xkkd",
+            "nullable": true,
+            "maxLength": 4
           },
           "redirect_to_merchant_with_http_post": {
             "type": "boolean",
@@ -34958,6 +35087,56 @@
           }
         ],
         "description": "Details of the party providing the funds.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "SenderDetailsResponse": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IndividualSenderDetailsResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "individual"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CorporateSenderDetailsResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "corporate"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "description": "A partially masked view of `SenderDetails`, safe to return in API responses. The sender's\ndate of birth is never returned.",
         "discriminator": {
           "propertyName": "type"
         }

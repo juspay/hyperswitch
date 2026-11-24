@@ -122,6 +122,11 @@ CYPRESS_CONNECTOR="connector_id" npm run cypress:ci
    # modular customer / saved card steps in
    # `Payment/54-ConnectorAgnosticMandates`.
    export PM_SERVICE_URL="pm_service_url"
+
+   # Optional. The tests create merchants with a built-in payment response hash
+   # key (at least 32 characters) because API responses expose only its first
+   # four characters. Set this to use a different key.
+   export CYPRESS_PAYMENT_RESPONSE_HASH_KEY="merchant_payment_response_hash_key_of_32_chars_or_more"
    ```
 
 > [!IMPORTANT]

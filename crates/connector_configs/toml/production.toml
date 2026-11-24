@@ -8179,6 +8179,12 @@ key1 = "Username"
 [[envoy_payout.bank_transfer]]
   payment_method_type = "ach"
 
+[hyperswitch_vault]
+[hyperswitch_vault.connector_auth.SignatureKey]
+  api_key="API Key"
+  key1="Publishable Key"
+  api_secret="Profile ID"
+
 [vgs]
 [vgs.connector_auth.SignatureKey]
   api_key="Client Id"
