@@ -39,6 +39,7 @@ jobs:
         with:
           client-id: ${{ secrets.client_id }}
           private-key: ${{ secrets.app_private_key }}
+          permission-contents: write
 
       - name: Checkout repository
         uses: actions/checkout@v7.0.1
