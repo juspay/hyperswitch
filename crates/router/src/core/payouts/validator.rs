@@ -348,7 +348,7 @@ pub async fn validate_create_request(
         _ => Ok(None),
     }?;
 
-    let payment_method_type = ShouldAllowPayouts::payment_method_type(
+    let payment_method_type = ShouldAllowPayouts::get_resolved_payment_method_type(
         req.payout_method_data
             .as_ref()
             .or(payout_method_data.as_ref()),

@@ -13,14 +13,13 @@ use crate::{
 
 impl ShouldAllowPayouts {
     #[cfg(feature = "v1")]
-    pub(super) fn payment_method_type(
+    pub(super) fn get_resolved_payment_method_type(
         payout_method_data: Option<&crate::types::api::payouts::PayoutMethodData>,
         additional_data: Option<&common_utils::payout_method_utils::AdditionalPayoutMethodData>,
         payment_method: Option<&hyperswitch_domain_models::payment_methods::PaymentMethod>,
     ) -> Option<common_enums::PaymentMethodType> {
         payout_method_data
             .map(From::from)
-            .or_else(|| additional_data.map(From::from))
             .or_else(|| {
                 payment_method
                     .and_then(|payment_method| payment_method.get_payment_methods_data())
@@ -35,6 +34,7 @@ impl ShouldAllowPayouts {
                 payment_method
                     .and_then(|payment_method| payment_method.get_payment_method_subtype())
             })
+            .or_else(|| additional_data.map(From::from))
     }
 
     /// Allow payout mutations only when explicitly enabled for their available OMP and method type dimensions.

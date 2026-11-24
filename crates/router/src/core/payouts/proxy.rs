@@ -216,7 +216,11 @@ impl ExternalVaultPayout<'_> {
             state,
             platform,
             Some(input.profile.get_id()),
-            ShouldAllowPayouts::payment_method_type(None, None, Some(&input.payment_method)),
+            ShouldAllowPayouts::get_resolved_payment_method_type(
+                None,
+                None,
+                Some(&input.payment_method),
+            ),
         )
         .await?;
         self.ensure_proxy_transport_available()?;
