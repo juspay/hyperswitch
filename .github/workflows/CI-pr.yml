@@ -142,9 +142,9 @@ jobs:
       - name: Restore sccache cache from S3
         continue-on-error: true
         shell: bash
-        run: .github/scripts/sccache-restore-s3.sh check-msrv "${CACHE_SCOPE}"
         env:
           CACHE_SCOPE: ${{ steps.cache_scope.outputs.scope }}
+        run: .github/scripts/sccache-restore-s3.sh check-msrv "${CACHE_SCOPE}"
 
       - name: Run cargo check
         shell: bash
@@ -163,9 +163,9 @@ jobs:
         if: ${{ !cancelled() && steps.cache_scope.outputs.scope != '' }}
         continue-on-error: true
         shell: bash
-        run: .github/scripts/sccache-save-s3.sh check-msrv "${CACHE_SCOPE}"
         env:
           CACHE_SCOPE: ${{ steps.cache_scope.outputs.scope }}
+        run: .github/scripts/sccache-save-s3.sh check-msrv "${CACHE_SCOPE}"
 
   test:
     name: Run tests on stable toolchain
@@ -246,9 +246,9 @@ jobs:
       - name: Restore sccache cache from S3
         continue-on-error: true
         shell: bash
-        run: .github/scripts/sccache-restore-s3.sh test "${CACHE_SCOPE}"
         env:
           CACHE_SCOPE: ${{ steps.cache_scope.outputs.scope }}
+        run: .github/scripts/sccache-restore-s3.sh test "${CACHE_SCOPE}"
 
       - name: Install just
         uses: taiki-e/install-action@v2.90.8
@@ -294,9 +294,9 @@ jobs:
         if: ${{ !cancelled() && steps.cache_scope.outputs.scope != '' }}
         continue-on-error: true
         shell: bash
-        run: .github/scripts/sccache-save-s3.sh test "${CACHE_SCOPE}"
         env:
           CACHE_SCOPE: ${{ steps.cache_scope.outputs.scope }}
+        run: .github/scripts/sccache-save-s3.sh test "${CACHE_SCOPE}"
 
   typos:
     name: Spell check
@@ -391,9 +391,9 @@ jobs:
       - name: Restore sccache cache from S3
         continue-on-error: true
         shell: bash
-        run: .github/scripts/sccache-restore-s3.sh check-v2 "${CACHE_SCOPE}"
         env:
           CACHE_SCOPE: ${{ steps.cache_scope.outputs.scope }}
+        run: .github/scripts/sccache-restore-s3.sh check-v2 "${CACHE_SCOPE}"
 
       - name: Install just
         uses: taiki-e/install-action@v2.90.8
@@ -424,6 +424,6 @@ jobs:
         if: ${{ !cancelled() && steps.cache_scope.outputs.scope != '' }}
         continue-on-error: true
         shell: bash
-        run: .github/scripts/sccache-save-s3.sh check-v2 "${CACHE_SCOPE}"
         env:
           CACHE_SCOPE: ${{ steps.cache_scope.outputs.scope }}
+        run: .github/scripts/sccache-save-s3.sh check-v2 "${CACHE_SCOPE}"

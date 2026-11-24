@@ -115,12 +115,12 @@ jobs:
 
       - name: Fail if breaking changes detected
         if: steps.breaking_changes.outputs.breaking_changes > 0
+        env:
+          BREAKING_COUNT: ${{ steps.breaking_changes.outputs.breaking_changes }}
         run: |
           echo "::error::Breaking changes detected in API schema."
           echo "::error::Found ${BREAKING_COUNT} breaking change(s)."
           exit 1
-        env:
-          BREAKING_COUNT: ${{ steps.breaking_changes.outputs.breaking_changes }}
 
   migration-compatibility-check:
     name: Migration Breaking Change Detection
@@ -192,6 +192,16 @@ jobs:
 
       - name: Display Migration Summary
         if: always()
+        env:
+          V1_BREAKING: ${{ steps.migration_check.outputs.breaking_changes }}
+          V1_WARNINGS: ${{ steps.migration_check.outputs.warnings }}
+          V2_BREAKING: ${{ steps.v2_migration_check.outputs.breaking_changes }}
+          V2_WARNINGS: ${{ steps.v2_migration_check.outputs.warnings }}
+          V2C_BREAKING: ${{ steps.v2_compat_migration_check.outputs.breaking_changes }}
+          V2C_WARNINGS: ${{ steps.v2_compat_migration_check.outputs.warnings }}
+          TOTAL_BREAKING: ${{ steps.migration_report.outputs.total_breaking }}
+          TOTAL_WARNINGS: ${{ steps.migration_report.outputs.total_warnings }}
+          VALIDATION_STATUS: ${{ steps.migration_report.outputs.validation_status }}
         run: |
           echo "=========================================="
           echo "MIGRATION VALIDATION SUMMARY"
@@ -208,13 +218,3 @@ jobs:
             echo "::error::Migration validation failed with breaking changes."
             exit 1
           fi
-        env:
-          V1_BREAKING: ${{ steps.migration_check.outputs.breaking_changes }}
-          V1_WARNINGS: ${{ steps.migration_check.outputs.warnings }}
-          V2_BREAKING: ${{ steps.v2_migration_check.outputs.breaking_changes }}
-          V2_WARNINGS: ${{ steps.v2_migration_check.outputs.warnings }}
-          V2C_BREAKING: ${{ steps.v2_compat_migration_check.outputs.breaking_changes }}
-          V2C_WARNINGS: ${{ steps.v2_compat_migration_check.outputs.warnings }}
-          TOTAL_BREAKING: ${{ steps.migration_report.outputs.total_breaking }}
-          TOTAL_WARNINGS: ${{ steps.migration_report.outputs.total_warnings }}
-          VALIDATION_STATUS: ${{ steps.migration_report.outputs.validation_status }}
