@@ -47,7 +47,9 @@ use hyperswitch_domain_models::{
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use hyperswitch_interfaces::events::routing_api_logs::{ApiMethod, RoutingEngine};
-use hyperswitch_masking::{PeekInterface, Secret};
+#[cfg(feature = "v2")]
+use hyperswitch_masking::PeekInterface;
+use hyperswitch_masking::Secret;
 use kgraph_utils::{
     mca as mca_graph,
     transformers::{IntoContext, IntoDirValue},
@@ -553,132 +555,65 @@ pub fn make_dsl_input(
         _ => Some(issuer_data_input),
     };
 
-    let payment_input =
-        dsl_inputs::PaymentInput {
-            amount: payments_dsl_input.payment_attempt.get_total_amount(),
-            card_bin: {
-                let card_bin = payments_dsl_input.payment_method_data.as_ref().and_then(
-                    |pm_data| match pm_data {
-                        domain::PaymentMethodData::Card(card) => {
-                            let bin = card.card_number.peek().chars().take(6).collect::<String>();
-
-                            (!bin.is_empty()).then_some(bin)
-                        }
-                        domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
-                            card_details_for_ntid,
-                        ) => {
-                            let bin = card_details_for_ntid
-                                .card_number
-                                .peek()
-                                .chars()
-                                .take(6)
-                                .collect::<String>();
-
-                            (!bin.is_empty()).then_some(bin)
-                        }
-                        domain::PaymentMethodData::CardWithLimitedDetails(
-                            card_with_limited_details,
-                        ) => {
-                            let bin = card_with_limited_details
-                                .card_number
-                                .peek()
-                                .chars()
-                                .take(6)
-                                .collect::<String>();
-
-                            (!bin.is_empty()).then_some(bin)
-                        }
-                        _ => None,
-                    },
-                );
-
-                card_bin.or_else(|| {
-                    payments_dsl_input
-                        .payment_attempt
-                        .payment_method_data
-                        .as_ref()
-                        .and_then(|pm_data| pm_data.get("card"))
-                        .and_then(|card| card.get("card_isin"))
-                        .and_then(|v| v.as_str())
-                        .map(|s| s.to_string())
-                })
-            },
-            transaction_initiator: match payments_dsl_input.payment_intent.off_session {
-                Some(true) => Some(euclid_dir::enums::TransactionInitiator::Merchant),
-                _ => Some(euclid_dir::enums::TransactionInitiator::Customer),
-            },
-            extended_card_bin: {
-                let extended_bin = payments_dsl_input.payment_method_data.as_ref().and_then(
-                    |pm_data| match pm_data {
-                        domain::PaymentMethodData::Card(card) => {
-                            let bin = card.card_number.peek().chars().take(8).collect::<String>();
-
-                            (!bin.is_empty()).then_some(bin)
-                        }
-                        domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
-                            card_details_for_ntid,
-                        ) => {
-                            let bin = card_details_for_ntid
-                                .card_number
-                                .peek()
-                                .chars()
-                                .take(8)
-                                .collect::<String>();
-
-                            (!bin.is_empty()).then_some(bin)
-                        }
-                        domain::PaymentMethodData::CardWithLimitedDetails(
-                            card_with_limited_details,
-                        ) => {
-                            let bin = card_with_limited_details
-                                .card_number
-                                .peek()
-                                .chars()
-                                .take(8)
-                                .collect::<String>();
-
-                            (!bin.is_empty()).then_some(bin)
-                        }
-                        _ => None,
-                    },
-                );
-
-                extended_bin.or_else(|| {
-                    payments_dsl_input
-                        .payment_attempt
-                        .payment_method_data
-                        .as_ref()
-                        .and_then(|pm_data| pm_data.get("card"))
-                        .and_then(|card| card.get("card_extended_bin"))
-                        .and_then(|v| v.as_str())
-                        .map(|s| s.to_string())
-                })
-            },
-            currency: payments_dsl_input.currency,
-            authentication_type: payments_dsl_input.payment_attempt.authentication_type,
-            capture_method: payments_dsl_input
-                .payment_attempt
-                .capture_method
-                .and_then(|cm| cm.foreign_into()),
-            business_country: payments_dsl_input
-                .payment_intent
-                .business_country
-                .map(api_enums::Country::from_alpha2),
-            billing_country: payments_dsl_input
-                .address
-                .get_payment_method_billing()
-                .and_then(|bic| bic.address.as_ref())
-                .and_then(|add| add.country)
-                .map(api_enums::Country::from_alpha2),
-            business_label: payments_dsl_input.payment_intent.business_label.clone(),
-            setup_future_usage: payments_dsl_input.payment_intent.setup_future_usage,
-            surcharge_amount: payments_dsl_input
-                .payment_attempt
-                .external_surcharge_details
-                .as_ref()
-                .filter(|details| details.usable_connector_id().is_some())
-                .map(|details| details.external_surcharge_amount),
-        };
+    let payment_input = dsl_inputs::PaymentInput {
+        amount: payments_dsl_input.payment_attempt.get_total_amount(),
+        card_bin: payments_dsl_input
+            .payment_method_data
+            .as_ref()
+            .and_then(|pm_data| pm_data.get_card_iin())
+            .or_else(|| {
+                payments_dsl_input
+                    .payment_attempt
+                    .payment_method_data
+                    .as_ref()
+                    .and_then(|pm_data| pm_data.get("card"))
+                    .and_then(|card| card.get("card_isin"))
+                    .and_then(|value| value.as_str())
+                    .map(str::to_owned)
+            }),
+        transaction_initiator: match payments_dsl_input.payment_intent.off_session {
+            Some(true) => Some(euclid_dir::enums::TransactionInitiator::Merchant),
+            _ => Some(euclid_dir::enums::TransactionInitiator::Customer),
+        },
+        extended_card_bin: payments_dsl_input
+            .payment_method_data
+            .as_ref()
+            .and_then(|pm_data| pm_data.get_card_extended_bin())
+            .or_else(|| {
+                payments_dsl_input
+                    .payment_attempt
+                    .payment_method_data
+                    .as_ref()
+                    .and_then(|pm_data| pm_data.get("card"))
+                    .and_then(|card| card.get("card_extended_bin"))
+                    .and_then(|value| value.as_str())
+                    .map(str::to_owned)
+            }),
+        currency: payments_dsl_input.currency,
+        authentication_type: payments_dsl_input.payment_attempt.authentication_type,
+        capture_method: payments_dsl_input
+            .payment_attempt
+            .capture_method
+            .and_then(|cm| cm.foreign_into()),
+        business_country: payments_dsl_input
+            .payment_intent
+            .business_country
+            .map(api_enums::Country::from_alpha2),
+        billing_country: payments_dsl_input
+            .address
+            .get_payment_method_billing()
+            .and_then(|bic| bic.address.as_ref())
+            .and_then(|add| add.country)
+            .map(api_enums::Country::from_alpha2),
+        business_label: payments_dsl_input.payment_intent.business_label.clone(),
+        setup_future_usage: payments_dsl_input.payment_intent.setup_future_usage,
+        surcharge_amount: payments_dsl_input
+            .payment_attempt
+            .external_surcharge_details
+            .as_ref()
+            .filter(|details| details.usable_connector_id().is_some())
+            .map(|details| details.external_surcharge_amount),
+    };
 
     let metadata = payments_dsl_input
         .payment_intent

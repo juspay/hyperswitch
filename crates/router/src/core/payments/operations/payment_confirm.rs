@@ -64,6 +64,23 @@ use crate::{
     utils::{self, OptionExt},
 };
 
+#[cfg(all(test, feature = "v1"))]
+mod tests;
+
+#[cfg(feature = "v1")]
+fn payment_method_data_for_additional_info(
+    request: Option<domain::PaymentMethodData>,
+    recurring: Option<&domain::PaymentMethodData>,
+    fetched: Option<&domain::PaymentMethodData>,
+) -> Option<domain::PaymentMethodData> {
+    let resolved = recurring.or(fetched);
+    match request {
+        // A CVC/name override has no card metadata; the fetched card already includes those overrides.
+        Some(domain::PaymentMethodData::CardToken(_)) if resolved.is_some() => resolved.cloned(),
+        request => request.or_else(|| resolved.cloned()),
+    }
+}
+
 #[derive(Debug, Clone, Copy, PaymentOperation)]
 #[operation(operations = "all", flow = "authorize")]
 pub struct PaymentConfirm;
@@ -573,17 +590,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .clone()
             .or(payment_attempt.business_sub_label);
 
-        let n_request_payment_method_data = request
-            .payment_method_data
-            .as_ref()
-            .and_then(|pmd| pmd.payment_method_data.clone())
-            .map(domain::PaymentMethodData::from)
-            .or(payment_method_recurring_details.clone())
-            .or_else(|| {
-                payment_method_with_raw_data
-                    .as_ref()
-                    .and_then(|payment_method| payment_method.raw_payment_method_data.clone())
-            });
+        let n_request_payment_method_data = payment_method_data_for_additional_info(
+            request
+                .payment_method_data
+                .as_ref()
+                .and_then(|pmd| pmd.payment_method_data.clone())
+                .map(domain::PaymentMethodData::from),
+            payment_method_recurring_details.as_ref(),
+            payment_method_with_raw_data
+                .as_ref()
+                .and_then(|payment_method| payment_method.raw_payment_method_data.as_ref()),
+        );
 
         let store = state.clone().store;
         let superposition_service = state.superposition_service.clone();
