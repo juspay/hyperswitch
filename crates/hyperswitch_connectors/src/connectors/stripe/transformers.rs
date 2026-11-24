@@ -193,19 +193,21 @@ pub struct StripeMandateRequest {
     mandate_type: StripeMandateType,
 }
 
-/// Online mandate details, when the customer acceptance carries both the ip address and the
-/// user agent
-fn get_online_mandate_type(
-    customer_acceptance: &common_types::payments::CustomerAcceptance,
-) -> Option<StripeMandateType> {
-    customer_acceptance
-        .get_ip_address()
-        .map(Secret::new)
-        .zip(customer_acceptance.get_user_agent())
-        .map(|(ip_address, user_agent)| StripeMandateType::Online {
-            ip_address,
-            user_agent,
-        })
+impl StripeMandateType {
+    /// Online mandate details, when the customer acceptance carries both the ip address and the
+    /// user agent
+    fn from_online_customer_acceptance(
+        customer_acceptance: &common_types::payments::CustomerAcceptance,
+    ) -> Option<Self> {
+        customer_acceptance
+            .get_ip_address()
+            .map(Secret::new)
+            .zip(customer_acceptance.get_user_agent())
+            .map(|(ip_address, user_agent)| Self::Online {
+                ip_address,
+                user_agent,
+            })
+    }
 }
 
 impl TryFrom<&common_types::payments::CustomerAcceptance> for StripeMandateRequest {
@@ -243,7 +245,9 @@ impl StripeMandateRequest {
         customer_acceptance: &common_types::payments::CustomerAcceptance,
     ) -> Option<Self> {
         let mandate_type = match customer_acceptance.acceptance_type {
-            AcceptanceType::Online => get_online_mandate_type(customer_acceptance),
+            AcceptanceType::Online => {
+                StripeMandateType::from_online_customer_acceptance(customer_acceptance)
+            }
             AcceptanceType::Offline => Some(StripeMandateType::Offline),
         };
         mandate_type.map(|mandate_type| Self { mandate_type })
