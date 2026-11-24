@@ -21,6 +21,8 @@ env:
 jobs:
   migration_verify:
     name: Verify consistency of migrations with `schema.rs` file
+    permissions:
+      contents: read # To checkout repository
     runs-on: hypersage-runners
 
     env:

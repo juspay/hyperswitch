@@ -10,6 +10,8 @@ on:
 jobs:
   typos:
     name: Spell check PR title
+    permissions:
+      contents: read # To checkout repository
     runs-on: hypersage-runners
     steps:
       - name: Checkout repository

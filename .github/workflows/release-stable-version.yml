@@ -11,6 +11,8 @@ on:
           - patch
           - minor
 
+permissions: {}
+
 jobs:
   create-semver-tag:
     name: Create a SemVer tag

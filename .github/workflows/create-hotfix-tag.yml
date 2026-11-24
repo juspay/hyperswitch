@@ -3,6 +3,8 @@ name: Create tag on hotfix branch
 on:
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
   create_tag:
     runs-on: ubuntu-latest

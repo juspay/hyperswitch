@@ -3,6 +3,8 @@ name: Create hotfix branch
 on:
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
   create_branch:
     runs-on: ubuntu-latest
