@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.18.0-hotfix2
+
+### Bug Fixes
+
+- **webhooks:** Index mandate events by original payment ID ([#15400](https://github.com/juspay/hyperswitch/pull/15400)) ([`31f90c1`](https://github.com/juspay/hyperswitch/commit/31f90c1e2e9872d8fbb1d1aa3c062a637095c78a))
+
+### Miscellaneous Tasks
+
+- **superposition:** Bump superposition to 0.120.1 ([#15406](https://github.com/juspay/hyperswitch/pull/15406)) ([`74f1411`](https://github.com/juspay/hyperswitch/commit/74f1411c7aed8b8ddc6b2ba3ca5703fe789c1901))
+
+**Full Changelog:** [`2026.11.18.0-hotfix1...2026.11.18.0-hotfix2`](https://github.com/juspay/hyperswitch/compare/2026.11.18.0-hotfix1...2026.11.18.0-hotfix2)
+
+- - -
+
 ## 2026.11.18.0-hotfix1
 
 ### Features
