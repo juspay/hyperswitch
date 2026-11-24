@@ -2584,6 +2584,16 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "x-browser-applepay-payment-allowed",
+            "in": "header",
+            "description": "Whether the SDK allows Apple Pay in the browser. false skips Apple Pay merchant validation; true or an omitted header attempts validation using the merchant's configuration. Send true or false.",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            }
           }
         ],
         "requestBody": {
