@@ -110,10 +110,13 @@ jobs:
 
       - name: Push created commit and tag
         shell: bash
+        env:
+          PUSH_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
           # Stage, commit and tag the changelog
           git add CHANGELOG.md
           git commit --message "chore(version): ${NEXT_TAG}"
           git tag --message "$(git show --no-patch --format=%s HEAD)" "${NEXT_TAG}" HEAD
-          git push
-          git push --tags
+          PUSH_URL="https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push "$PUSH_URL"
+          git push "$PUSH_URL" --tags

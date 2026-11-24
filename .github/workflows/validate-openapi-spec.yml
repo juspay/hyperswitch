@@ -87,13 +87,15 @@ jobs:
         # PR originated from same repository
         if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
         shell: bash
+        env:
+          PUSH_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
           if ! git diff --quiet --exit-code -- api-reference/v1/openapi_spec_v1.json api-reference/v2/openapi_spec_v2.json ; then
             git config --local user.name 'hyperswitch-bot[bot]'
             git config --local user.email '148525504+hyperswitch-bot[bot]@users.noreply.github.com'
             git add api-reference/v1/openapi_spec_v1.json api-reference/v2/openapi_spec_v2.json
             git commit --message 'docs(openapi): re-generate OpenAPI specification'
-            git push
+            git push "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD
           fi
 
       - name: Fail check if the JSON file is not up-to-date

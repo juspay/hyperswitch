@@ -163,14 +163,17 @@ jobs:
 
       - name: Commit, tag and push generated changelog
         shell: bash
+        env:
+          PUSH_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
           git add CHANGELOG.md
           git commit --message "chore(version): ${NEXT_TAG}"
 
           git tag "${NEXT_TAG}" HEAD
 
-          git push origin "${ALLOWED_BRANCH_NAME}"
-          git push origin "${NEXT_TAG}"
+          PUSH_URL="https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push "$PUSH_URL" HEAD:"${ALLOWED_BRANCH_NAME}"
+          git push "$PUSH_URL" "${NEXT_TAG}"
 
       - name: Set job outputs
         shell: bash

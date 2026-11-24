@@ -39,11 +39,13 @@ jobs:
 
       - name: Create hotfix branch
         shell: bash
+        env:
+          PUSH_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
           HOTFIX_BRANCH="hotfix-${GITHUB_REF#refs/tags/}"
 
           if git switch --create "$HOTFIX_BRANCH"; then
-            git push origin "$HOTFIX_BRANCH"
+            git push "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$HOTFIX_BRANCH"
             echo "::notice::Created hotfix branch: $HOTFIX_BRANCH"
           else
             echo "::error::Failed to create hotfix branch"

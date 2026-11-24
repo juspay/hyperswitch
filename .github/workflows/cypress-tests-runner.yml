@@ -89,6 +89,8 @@ jobs:
       - name: Check formatting
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
         shell: bash
+        env:
+          PUSH_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
           npm run format --prefix cypress-tests
           npm run lint --prefix cypress-tests -- --fix
@@ -101,7 +103,7 @@ jobs:
 
             git add cypress-tests
             git commit --message 'chore(cypress): run formatter and address lints'
-            git push
+            git push "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD
           fi
 
   check-cypress-prerequisites:
