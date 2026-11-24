@@ -309,6 +309,29 @@ fn payout_purpose_to_ucs(purpose: Option<common_enums::PayoutPurpose>) -> Option
         .map(i32::from)
 }
 
+fn connector_purpose_of_payment(
+    metadata: &api_models::payments::ConnectorMetadata,
+    connector: common_enums::connector_enums::Connector,
+) -> Option<String> {
+    let to_snake_case_string = |value: serde_json::Value| value.as_str().map(ToString::to_string);
+    match connector {
+        common_enums::connector_enums::Connector::Checkout => metadata
+            .checkout
+            .as_ref()
+            .and_then(|details| details.purpose_of_payment.clone()),
+        common_enums::connector_enums::Connector::Worldpayxml => metadata
+            .worldpayxml
+            .as_ref()
+            .and_then(|details| details.payment_purpose)
+            .and_then(|purpose| {
+                serde_json::to_value(purpose)
+                    .ok()
+                    .and_then(to_snake_case_string)
+            }),
+        _ => None,
+    }
+}
+
 impl ForeignFrom<&api_models::payments::ConnectorMetadata>
     for payments_grpc::AdditionalConnectorDetails
 {
@@ -351,11 +374,16 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
                 .map(|data| payments_grpc::StripeAdditionalInformation {
                     error_on_requires_action: data.error_on_requires_action,
                 }),
-            jpmorgan: jpmorgan
+            request_sca_exemption: jpmorgan
                 .as_ref()
-                .map(|data| payments_grpc::JpmorganAdditionalInformation {
-                    request_sca_exemption: data.request_sca_exemption,
-                }),
+                .and_then(|data| data.request_sca_exemption),
+            funding_transaction_type: worldpayxml
+                .as_ref()
+                .and_then(|data| data.funding_transaction_type)
+                .and_then(to_snake_case_string),
+            error_on_requires_action: stripe
+                .as_ref()
+                .and_then(|data| data.error_on_requires_action),
         }
     }
 }
@@ -1235,11 +1263,22 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            purpose_of_payment: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .and_then(|metadata| {
+                    common_enums::connector_enums::Connector::from_str(
+                        router_data.connector.as_str(),
+                    )
+                    .ok()
+                    .and_then(|connector| connector_purpose_of_payment(metadata, connector))
+                }),
             additional_connector_details: router_data
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+                .map(|metadata| payments_grpc::AdditionalConnectorDetails::foreign_from(metadata)),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: router_data.request.enable_avs_check,
             enable_account_name_verification: router_data.request.enable_account_name_verification,
@@ -1522,11 +1561,22 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            purpose_of_payment: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .and_then(|metadata| {
+                    common_enums::connector_enums::Connector::from_str(
+                        router_data.connector.as_str(),
+                    )
+                    .ok()
+                    .and_then(|connector| connector_purpose_of_payment(metadata, connector))
+                }),
             additional_connector_details: router_data
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+                .map(|metadata| payments_grpc::AdditionalConnectorDetails::foreign_from(metadata)),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
             enable_account_name_verification: router_data.request.enable_account_name_verification,
@@ -2942,11 +2992,22 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            purpose_of_payment: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .and_then(|metadata| {
+                    common_enums::connector_enums::Connector::from_str(
+                        router_data.connector.as_str(),
+                    )
+                    .ok()
+                    .and_then(|connector| connector_purpose_of_payment(metadata, connector))
+                }),
             additional_connector_details: router_data
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+                .map(|metadata| payments_grpc::AdditionalConnectorDetails::foreign_from(metadata)),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
             enable_account_name_verification: router_data.request.enable_account_name_verification,
@@ -3178,11 +3239,22 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            purpose_of_payment: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .and_then(|metadata| {
+                    common_enums::connector_enums::Connector::from_str(
+                        router_data.connector.as_str(),
+                    )
+                    .ok()
+                    .and_then(|connector| connector_purpose_of_payment(metadata, connector))
+                }),
             additional_connector_details: router_data
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+                .map(|metadata| payments_grpc::AdditionalConnectorDetails::foreign_from(metadata)),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: router_data.request.enable_avs_check,
             enable_account_name_verification: router_data.request.enable_account_name_verification,
@@ -3384,6 +3456,7 @@ impl
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
+            purpose_of_payment: None,
             additional_connector_details: None,
             enable_avs_check: None,
             enable_account_name_verification: None,
@@ -3648,11 +3721,22 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            purpose_of_payment: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .and_then(|metadata| {
+                    common_enums::connector_enums::Connector::from_str(
+                        router_data.connector.as_str(),
+                    )
+                    .ok()
+                    .and_then(|connector| connector_purpose_of_payment(metadata, connector))
+                }),
             additional_connector_details: router_data
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+                .map(|metadata| payments_grpc::AdditionalConnectorDetails::foreign_from(metadata)),
             enable_account_name_verification: router_data.request.enable_account_name_verification,
         })
     }
@@ -3891,6 +3975,7 @@ impl
             additional_connector_details: None,
             session_token: None,
             currency_conversion_data: None,
+            purpose_of_payment: None,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -4255,11 +4340,22 @@ impl
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            purpose_of_payment: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .and_then(|metadata| {
+                    common_enums::connector_enums::Connector::from_str(
+                        router_data.connector.as_str(),
+                    )
+                    .ok()
+                    .and_then(|connector| connector_purpose_of_payment(metadata, connector))
+                }),
             additional_connector_details: router_data
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
+                .map(|metadata| payments_grpc::AdditionalConnectorDetails::foreign_from(metadata)),
             session_token: None,
             currency_conversion_data,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
