@@ -1321,6 +1321,7 @@ pub enum WalletData {
     TwintRedirect {},
     VippsRedirect {},
     WeroRedirect {},
+    VenmoRedirect {},
     TouchNGoRedirect(Box<TouchNGoRedirection>),
     WeChatPayRedirect(Box<WeChatPayRedirection>),
     WeChatPayQr(Box<WeChatPayQr>),
@@ -3072,6 +3073,7 @@ impl From<api_models::payments::WalletData> for WalletData {
             api_models::payments::WalletData::BluecodeRedirect {} => Self::BluecodeRedirect {},
             api_models::payments::WalletData::RevolutPay(_) => Self::RevolutPay(RevolutPayData {}),
             api_models::payments::WalletData::WeroRedirect {} => Self::WeroRedirect {},
+            api_models::payments::WalletData::VenmoRedirect {} => Self::VenmoRedirect {},
         }
     }
 }
@@ -4041,6 +4043,7 @@ impl GetPaymentMethodType for WalletData {
             Self::TwintRedirect {} => api_enums::PaymentMethodType::Twint,
             Self::VippsRedirect {} => api_enums::PaymentMethodType::Vipps,
             Self::WeroRedirect {} => api_enums::PaymentMethodType::Wero,
+            Self::VenmoRedirect {} => api_enums::PaymentMethodType::Venmo,
             Self::TouchNGoRedirect(_) => api_enums::PaymentMethodType::TouchNGo,
             Self::WeChatPayRedirect(_) | Self::WeChatPayQr(_) => {
                 api_enums::PaymentMethodType::WeChatPay

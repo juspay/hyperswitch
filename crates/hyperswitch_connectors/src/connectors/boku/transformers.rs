@@ -205,6 +205,7 @@ fn get_wallet_type(wallet_data: &WalletData) -> Result<String, errors::Connector
         | WalletData::TwintRedirect {}
         | WalletData::VippsRedirect {}
         | WalletData::WeroRedirect {}
+        | WalletData::VenmoRedirect {}
         | WalletData::TouchNGoRedirect(_)
         | WalletData::WeChatPayRedirect(_)
         | WalletData::WeChatPayQr(_)

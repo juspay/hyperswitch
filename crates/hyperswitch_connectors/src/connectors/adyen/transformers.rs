@@ -2569,6 +2569,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMethod
             WalletData::DanaRedirect { .. } => Ok(AdyenPaymentMethod::Dana),
             WalletData::SwishQr(_) => Ok(AdyenPaymentMethod::Swish),
             WalletData::WeroRedirect { .. }
+            | WalletData::VenmoRedirect { .. }
             | WalletData::AliPayQr(_)
             | WalletData::AmazonPayRedirect(_)
             | WalletData::Paysera(_)

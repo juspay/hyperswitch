@@ -1966,6 +1966,11 @@ pub fn reconstruct_payment_method_data_for_redirect_completion(
                 ),
             ),
         ),
+        Some(PaymentMethodType::Venmo) => Some(
+            hyperswitch_domain_models::payment_method_data::PaymentMethodData::Wallet(
+                hyperswitch_domain_models::payment_method_data::WalletData::VenmoRedirect {},
+            ),
+        ),
         _ => None,
     }
 }
@@ -2798,6 +2803,13 @@ pub fn build_unified_connector_service_payment_method(
                     Ok(payments_grpc::PaymentMethod {
                         payment_method: Some(PaymentMethod::WeroRedirect(
                             payments_grpc::WeroRedirectWallet {},
+                        )),
+                    })
+                }
+                hyperswitch_domain_models::payment_method_data::WalletData::VenmoRedirect {} => {
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::VenmoRedirect(
+                            payments_grpc::VenmoRedirectWallet {},
                         )),
                     })
                 }

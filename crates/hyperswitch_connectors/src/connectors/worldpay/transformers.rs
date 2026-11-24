@@ -184,6 +184,7 @@ fn fetch_payment_instrument(
             | WalletData::TwintRedirect {}
             | WalletData::VippsRedirect {}
             | WalletData::WeroRedirect {}
+            | WalletData::VenmoRedirect {}
             | WalletData::TouchNGoRedirect(_)
             | WalletData::WeChatPayRedirect(_)
             | WalletData::CashappQr(_)

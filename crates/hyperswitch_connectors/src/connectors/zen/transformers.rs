@@ -516,6 +516,7 @@ impl
             | WalletData::TwintRedirect {}
             | WalletData::VippsRedirect {}
             | WalletData::WeroRedirect {}
+            | WalletData::VenmoRedirect {}
             | WalletData::TouchNGoRedirect(_)
             | WalletData::CashappQr(_)
             | WalletData::SwishQr(_)
