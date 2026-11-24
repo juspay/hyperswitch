@@ -24,6 +24,7 @@ impl Default for ZeroMandates {
 impl Default for Mandates {
     fn default() -> Self {
         Self {
+            cross_currency_mit_supported_connectors: Default::default(),
             supported_payment_methods: SupportedPaymentMethodsForMandate(HashMap::from([
                 (
                     enums::PaymentMethod::PayLater,

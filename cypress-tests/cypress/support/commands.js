@@ -846,6 +846,8 @@ Cypress.Commands.add(
 
     const merchantId = RequestBodyUtils.generateRandomString();
     RequestBodyUtils.setMerchantId(merchantCreateBody, merchantId);
+    merchantCreateBody.payment_response_hash_key =
+      RequestBodyUtils.getPaymentResponseHashKey();
 
     cy.request({
       method: "POST",
@@ -962,6 +964,9 @@ Cypress.Commands.add("merchantRetrieveCall", (globalState, options = {}) => {
         response.body.payment_response_hash_key,
         "payment_response_hash_key"
       ).to.not.be.null;
+      expect(
+        Array.from(response.body.payment_response_hash_key).length
+      ).to.be.at.most(4);
       expect(response.body.publishable_key, "publishable_key").to.not.be.null;
       expect(response.body.default_profile, "default_profile").to.not.be.null;
       expect(response.body.organization_id, "organization_id").to.not.be.null;
@@ -12553,6 +12558,9 @@ Cypress.Commands.add("retrieveNonExistentPaymentLinkTest", (globalState) => {
 
 /**
  * Fetches merchant account config and stores payment response hash settings in globalState.
+ * Merchants are created with the key from getPaymentResponseHashKey (the test
+ * default, or CYPRESS_PAYMENT_RESPONSE_HASH_KEY); account responses expose only
+ * its first four characters.
  * Also skips the suite if enable_payment_response_hash is false/absent.
  *
  * The backend falls back to merchant-account-level settings when business profile
@@ -12585,7 +12593,8 @@ Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
 
     const enablePaymentResponseHash =
       response.body.enable_payment_response_hash;
-    const paymentResponseHashKey = response.body.payment_response_hash_key;
+    const paymentResponseHashKeyPrefix =
+      response.body.payment_response_hash_key;
 
     if (!enablePaymentResponseHash) {
       cy.task(
@@ -12598,16 +12607,13 @@ Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
       return;
     }
 
-    // Validate that the hash key is present and non-empty
-    // A null or empty key would cause cryptic Node crypto errors downstream
-    if (
-      typeof paymentResponseHashKey !== "string" ||
-      paymentResponseHashKey.length === 0
-    ) {
-      throw new Error(
-        "fetchPaymentResponseHashConfig: enable_payment_response_hash is true but payment_response_hash_key is null or empty"
-      );
-    }
+    // Signature verification requires the full configured key, not the API prefix.
+    const paymentResponseHashKey = RequestBodyUtils.getPaymentResponseHashKey();
+
+    expect(
+      paymentResponseHashKeyPrefix,
+      "payment_response_hash_key prefix"
+    ).to.equal(Array.from(paymentResponseHashKey).slice(0, 4).join(""));
 
     globalState.set("paymentResponseHashKey", paymentResponseHashKey);
     globalState.set("enablePaymentResponseHash", true);

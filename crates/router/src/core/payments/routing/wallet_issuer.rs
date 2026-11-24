@@ -1,7 +1,7 @@
 //! Issuer-country enrichment before the confirm flow evaluates routing rules.
 //!
 //! Wallet identity remains `wallet` / `apple_pay` or `google_pay`. Only the issuer country
-//! is enriched from the decrypted payment number's eight-digit BIN. Unknown country is left absent.
+//! is enriched from the eight-digit BIN, falling back to six digits if no record exists.
 
 use std::{future::Future, str::FromStr};
 
