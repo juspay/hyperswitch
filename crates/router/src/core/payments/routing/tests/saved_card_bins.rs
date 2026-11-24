@@ -247,7 +247,7 @@ fn intent() -> storage::PaymentIntent {
         connector_metadata: None,
         feature_metadata: None,
         attempt_count: 1,
-        profile_id: common_utils::generate_profile_id_of_default_length(),
+        profile_id: Some(common_utils::generate_profile_id_of_default_length()),
         payment_link_id: None,
         merchant_decision: None,
         payment_confirm_source: None,
