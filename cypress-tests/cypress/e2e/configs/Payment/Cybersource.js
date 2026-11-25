@@ -73,8 +73,8 @@ const payment_method_data_no3ds = {
     card_holder_name: "joseph Doe",
     payment_checks: {
       avs_response: {
-        code: "1",
-        codeRaw: null,
+        code: "Y",
+        codeRaw: "Y",
       },
       card_verification: null,
     },
@@ -166,6 +166,9 @@ export const connectorDetails = {
       },
     },
     SessionToken: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Response: {
         status: 200,
         body: {
@@ -278,9 +281,6 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        // AVS result depends on the billing country, so pin the billing to keep
-        // payment_checks deterministic across the specs reusing this entry.
-        billing: billing_with_newline,
       },
       Response: {
         status: 200,
