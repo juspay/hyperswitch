@@ -580,7 +580,7 @@ export const connectorDetails = {
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
-        mit_category: "unscheduled"
+        mit_category: "unscheduled",
       },
       Response: {
         status: 200,
@@ -599,7 +599,7 @@ export const connectorDetails = {
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
-        mit_category: "unscheduled"
+        mit_category: "unscheduled",
       },
       Response: {
         status: 200,
