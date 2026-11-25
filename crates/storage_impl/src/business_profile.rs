@@ -768,6 +768,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                     default_fallback_routing: None,
                     apple_pay_certificates: None,
                     apple_pay_certificates_encrypted: None,
+                    google_pay_decryption_config: None,
+                    google_pay_decryption_config_encrypted: None,
                 }
             }
             domain::ProfileUpdate::RoutingAlgorithmUpdate {
@@ -838,6 +840,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 default_fallback_routing: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
             },
             domain::ProfileUpdate::DynamicRoutingAlgorithmUpdate {
                 dynamic_routing_algorithm,
@@ -905,6 +909,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 default_fallback_routing: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
             },
             domain::ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -972,6 +978,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 default_fallback_routing: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
             },
             domain::ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -1039,6 +1047,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 default_fallback_routing: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
             },
             domain::ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -1108,6 +1118,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 default_fallback_routing: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
             },
             domain::ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -1175,6 +1187,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 default_fallback_routing: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
             },
             domain::ProfileUpdate::AcquirerConfigBucketUpdate {
                 acquirer_config_map,
@@ -1243,6 +1257,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 default_fallback_routing: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
             },
             domain::ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -1308,6 +1324,78 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 payment_method_blocking: None,
                 default_fallback_routing,
                 network_tokenization_credentials: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
+            },
+            domain::ProfileUpdate::GooglePayDecryptionConfigUpdate {
+                google_pay_decryption_config,
+                google_pay_decryption_config_encrypted,
+            } => Self {
+                profile_name: None,
+                modified_at: now,
+                return_url: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                webhook_details: None,
+                metadata: None,
+                routing_algorithm: None,
+                intent_fulfillment_time: None,
+                order_fulfillment_time: None,
+                frm_routing_algorithm: None,
+                payout_routing_algorithm: None,
+                is_recon_enabled: None,
+                applepay_verified_domains: None,
+                payment_link_config: None,
+                session_expiry: None,
+                authentication_connector_details: None,
+                payout_link_config: None,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                is_connector_agnostic_mit_enabled: None,
+                use_billing_as_payment_method_billing: None,
+                collect_shipping_details_from_wallet_connector: None,
+                collect_billing_details_from_wallet_connector: None,
+                outgoing_webhook_custom_http_headers: None,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
+                dynamic_routing_algorithm: None,
+                is_network_tokenization_enabled: None,
+                is_auto_retries_enabled: None,
+                max_auto_retries_enabled: None,
+                always_request_extended_authorization: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
+                force_3ds_challenge: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                is_iframe_redirection_enabled: None,
+                is_pre_network_tokenization_enabled: None,
+                three_ds_decision_rule_algorithm: None,
+                acquirer_config_map: None,
+                merchant_category_code: None,
+                merchant_country_code: None,
+                dispute_polling_interval: None,
+                is_manual_retry_enabled: None,
+                auto_fallback_capture_method: None,
+                always_enable_overcapture: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
+                billing_processor_id: None,
+                surcharge_connector_details: None,
+                is_l2_l3_enabled: None,
+                payment_method_blocking: None,
+                default_fallback_routing: None,
+                network_tokenization_credentials: None,
+                google_pay_decryption_config,
+                google_pay_decryption_config_encrypted,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
             },
@@ -1378,6 +1466,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 network_tokenization_credentials: None,
                 apple_pay_certificates,
                 apple_pay_certificates_encrypted,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
             },
         }
     }
@@ -1474,6 +1564,10 @@ impl Conversion for domain::Profile {
             apple_pay_certificates_encrypted: self
                 .apple_pay_certificates_encrypted
                 .map(|data| data.into()),
+            google_pay_decryption_config: self.google_pay_decryption_config,
+            google_pay_decryption_config_encrypted: self
+                .google_pay_decryption_config_encrypted
+                .map(Encryption::from),
         })
     }
 
@@ -1486,6 +1580,23 @@ impl Conversion for domain::Profile {
     where
         Self: Sized,
     {
+        let google_pay_decryption_config_encrypted = item
+            .google_pay_decryption_config_encrypted
+            .async_lift(|inner| async {
+                crypto_operation(
+                    state,
+                    type_name!(Self::DstType),
+                    CryptoOperation::DecryptOptional(inner),
+                    key_manager_identifier.clone(),
+                    key.peek(),
+                )
+                .await
+                .and_then(|value| value.try_into_optionaloperation())
+            })
+            .await
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed to decrypt Google Pay decryption configuration".to_string(),
+            })?;
         // Decrypt encrypted fields first
         let (
             outgoing_webhook_custom_http_headers,
@@ -1645,6 +1756,8 @@ impl Conversion for domain::Profile {
             default_fallback_routing: item.default_fallback_routing,
             apple_pay_certificates: item.apple_pay_certificates,
             apple_pay_certificates_encrypted,
+            google_pay_decryption_config: item.google_pay_decryption_config,
+            google_pay_decryption_config_encrypted,
         }
         .into())
     }
@@ -1723,6 +1836,10 @@ impl Conversion for domain::Profile {
                 .map(|name| name.into()),
             payment_method_blocking: self.payment_method_blocking,
             default_fallback_routing: self.default_fallback_routing,
+            google_pay_decryption_config: self.google_pay_decryption_config,
+            google_pay_decryption_config_encrypted: self
+                .google_pay_decryption_config_encrypted
+                .map(Encryption::from),
         })
     }
 }
@@ -1836,6 +1953,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                     surcharge_connector_details,
                     apple_pay_certificates: None,
                     apple_pay_certificates_encrypted: None,
+                    google_pay_decryption_config: None,
+                    google_pay_decryption_config_encrypted: None,
                     revenue_recovery_config,
                 }
             }
@@ -1900,6 +2019,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
                 revenue_recovery_config: None,
             },
             domain::ProfileUpdate::ExtendedCardInfoUpdate {
@@ -1962,6 +2083,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
                 revenue_recovery_config: None,
             },
             domain::ProfileUpdate::ConnectorAgnosticMitUpdate {
@@ -2024,6 +2147,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
                 revenue_recovery_config: None,
             },
             domain::ProfileUpdate::DefaultRoutingFallbackUpdate {
@@ -2086,6 +2211,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
                 revenue_recovery_config: None,
             },
             domain::ProfileUpdate::NetworkTokenizationUpdate {
@@ -2148,6 +2275,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
                 revenue_recovery_config: None,
             },
             domain::ProfileUpdate::CollectCvvDuringPaymentUpdate {
@@ -2210,6 +2339,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
                 revenue_recovery_config: None,
             },
             domain::ProfileUpdate::DecisionManagerRecordUpdate {
@@ -2272,6 +2403,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
                 revenue_recovery_config: None,
             },
             domain::ProfileUpdate::CardTestingSecretKeyUpdate {
@@ -2334,6 +2467,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
                 revenue_recovery_config: None,
             },
             domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
@@ -2397,7 +2532,74 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 surcharge_connector_details: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
                 revenue_recovery_config: None,
+            },
+            domain::ProfileUpdate::GooglePayDecryptionConfigUpdate {
+                google_pay_decryption_config,
+                google_pay_decryption_config_encrypted,
+            } => Self {
+                profile_name: None,
+                modified_at: now,
+                return_url: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                webhook_details: None,
+                metadata: None,
+                is_recon_enabled: None,
+                applepay_verified_domains: None,
+                payment_link_config: None,
+                session_expiry: None,
+                authentication_connector_details: None,
+                payout_link_config: None,
+                is_extended_card_info_enabled: None,
+                extended_card_info_config: None,
+                is_connector_agnostic_mit_enabled: None,
+                use_billing_as_payment_method_billing: None,
+                collect_shipping_details_from_wallet_connector: None,
+                collect_billing_details_from_wallet_connector: None,
+                outgoing_webhook_custom_http_headers: None,
+                always_collect_billing_details_from_wallet_connector: None,
+                always_collect_shipping_details_from_wallet_connector: None,
+                routing_algorithm_id: None,
+                is_l2_l3_enabled: None,
+                payout_routing_algorithm_id: None,
+                order_fulfillment_time: None,
+                order_fulfillment_time_origin: None,
+                frm_routing_algorithm_id: None,
+                default_fallback_routing: None,
+                should_collect_cvv_during_payment: None,
+                tax_connector_id: None,
+                is_tax_connector_enabled: None,
+                is_network_tokenization_enabled: None,
+                is_auto_retries_enabled: None,
+                max_auto_retries_enabled: None,
+                is_click_to_pay_enabled: None,
+                authentication_product_ids: None,
+                three_ds_decision_manager_config: None,
+                card_testing_guard_config: None,
+                card_testing_secret_key: None,
+                is_clear_pan_retries_enabled: None,
+                is_debit_routing_enabled: None,
+                merchant_business_country: None,
+                revenue_recovery_retry_algorithm_type: None,
+                revenue_recovery_retry_algorithm_data: None,
+                is_iframe_redirection_enabled: None,
+                is_external_vault_enabled: None,
+                external_vault_connector_details: None,
+                merchant_category_code: None,
+                merchant_country_code: None,
+                split_txns_enabled: None,
+                revenue_recovery_trigger_model: None,
+                billing_processor_id: None,
+                surcharge_connector_details: None,
+                google_pay_decryption_config,
+                google_pay_decryption_config_encrypted,
+                revenue_recovery_config: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
             },
             domain::ProfileUpdate::ApplePayCertificateCacheUpdate {
                 apple_pay_certificates,
@@ -2460,6 +2662,8 @@ impl ForeignFrom<domain::ProfileUpdate> for ProfileUpdateInternal {
                 surcharge_connector_details: None,
                 apple_pay_certificates,
                 apple_pay_certificates_encrypted,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
                 revenue_recovery_config: None,
             },
         }
@@ -2553,6 +2757,10 @@ impl Conversion for domain::Profile {
             payment_method_blocking: None,
             apple_pay_certificates: None,
             apple_pay_certificates_encrypted: None,
+            google_pay_decryption_config: self.google_pay_decryption_config,
+            google_pay_decryption_config_encrypted: self
+                .google_pay_decryption_config_encrypted
+                .map(Encryption::from),
         })
     }
 
@@ -2565,6 +2773,23 @@ impl Conversion for domain::Profile {
     where
         Self: Sized,
     {
+        let google_pay_decryption_config_encrypted = item
+            .google_pay_decryption_config_encrypted
+            .async_lift(|inner| async {
+                crypto_operation(
+                    state,
+                    type_name!(Self::DstType),
+                    CryptoOperation::DecryptOptional(inner),
+                    key_manager_identifier.clone(),
+                    key.peek(),
+                )
+                .await
+                .and_then(|value| value.try_into_optionaloperation())
+            })
+            .await
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed to decrypt Google Pay decryption configuration".to_string(),
+            })?;
         async {
             Ok::<Self, error_stack::Report<common_utils::errors::CryptoError>>(
                 domain::ProfileDbBuilder {
@@ -2660,6 +2885,8 @@ impl Conversion for domain::Profile {
                     billing_processor_id: item.billing_processor_id,
                     surcharge_connector_details: item.surcharge_connector_details,
                     revenue_recovery_config: item.revenue_recovery_config,
+                    google_pay_decryption_config: item.google_pay_decryption_config,
+                    google_pay_decryption_config_encrypted,
                 }
                 .into(),
             )
@@ -2739,6 +2966,10 @@ impl Conversion for domain::Profile {
             surcharge_connector_details: self.surcharge_connector_details,
             revenue_recovery_config: self.revenue_recovery_config,
             payment_method_blocking: None,
+            google_pay_decryption_config: self.google_pay_decryption_config,
+            google_pay_decryption_config_encrypted: self
+                .google_pay_decryption_config_encrypted
+                .map(Encryption::from),
         })
     }
 }
