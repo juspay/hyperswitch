@@ -503,6 +503,7 @@ pub(super) async fn find_or_create_invoice(
         return recovery_incoming::RevenueRecoveryInvoice::find_custom_recovery_intent(
             request.clone(),
             state,
+            req_state,
             platform,
             profile,
         )

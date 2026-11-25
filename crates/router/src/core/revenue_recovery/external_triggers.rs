@@ -1236,9 +1236,11 @@ async fn apply_recovery_request_to_invoice(
         earlier,
         previous_retry_card,
         counted_as_retries,
-    } = RevenueRecoveryAttempt::find_recovery_request_attempt(request, state, platform, invoice)
-        .await
-        .map_err(|error| recovery_request_step_failed("record", error))?;
+    } = RevenueRecoveryAttempt::find_recovery_request_attempt(
+        request, state, &req_state, platform, profile, invoice,
+    )
+    .await
+    .map_err(|error| recovery_request_step_failed("record", error))?;
     if let Some(attempt) = recorded.as_ref() {
         tracing::Span::current().record("attempt_id", attempt.attempt_id.get_string_repr());
     }
