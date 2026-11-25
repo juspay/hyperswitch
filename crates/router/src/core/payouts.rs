@@ -3988,12 +3988,17 @@ pub(crate) async fn make_payout_data(
         .execution_kind
         .validate_persisted_execution_kind(req)?;
 
-    // Validate the action before resolving locker data or updating payout metadata.
+    // Validate the action and review enablement before resolving locker data or updating metadata.
     validator::validate_payout_request_status(
+        state,
+        &dimensions
+            .with_organization_id(platform.get_processor().get_account().get_org_id().clone())
+            .with_profile_id(profile_id.clone()),
         req,
         &payout_attempt.payout_id,
         payout_attempt.status,
-    )?;
+    )
+    .await?;
 
     let customer_id = payouts.customer_id.as_ref();
 

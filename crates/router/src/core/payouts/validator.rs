@@ -43,11 +43,38 @@ pub(crate) trait PayoutExecutionKindValidation {
     fn validate_normal_execution_kind(self) -> RouterResult<()>;
 }
 
-pub(super) fn validate_payout_request_status(
+pub(super) async fn validate_payout_request_status(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
     req: &PayoutRequest,
     payout_id: &id_type::PayoutId,
     status: common_enums::PayoutStatus,
 ) -> RouterResult<()> {
+    match req {
+        PayoutRequest::Fulfill(_, PayoutActionType::Review)
+        | PayoutRequest::Cancel(_, PayoutActionType::Review) => {
+            let review_flow_enabled = dimensions
+                .get_should_allow_review_flow(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    None,
+                )
+                .await;
+
+            match review_flow_enabled {
+                true => Ok(()),
+                false => Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Payout review flow is disabled by configuration".to_string(),
+                })),
+            }
+        }
+        PayoutRequest::Fulfill(_, PayoutActionType::Standard)
+        | PayoutRequest::Cancel(_, PayoutActionType::Standard)
+        | PayoutRequest::Create(_)
+        | PayoutRequest::Retrieve(_)
+        | PayoutRequest::Webhook(_) => Ok(()),
+    }?;
+
     match req {
         PayoutRequest::Fulfill(_, action_type) => {
             action_type.validate_fulfillment_status(payout_id, status)

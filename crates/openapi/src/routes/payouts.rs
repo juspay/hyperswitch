@@ -124,6 +124,8 @@ pub async fn payouts_fulfill() {}
 ///
 /// Accept a payout in `requires_review` status and fulfill it using the payout fulfillment flow.
 /// Payouts in any other status cannot be accepted.
+///
+/// Review actions require the shared Superposition flag `should_allow_review_flow`, which defaults to `false`, to be explicitly enabled by a matching organization, merchant, or profile override.
 #[utoipa::path(
     post,
     path = "/payouts/{payout_id}/accept",
@@ -132,7 +134,7 @@ pub async fn payouts_fulfill() {}
     ),
     responses(
         (status = 200, description = "Payout accepted and fulfilled", body = PayoutCreateResponse),
-        (status = 400, description = "Missing mandatory fields"),
+        (status = 400, description = "Missing mandatory fields or payout review flow is not enabled for this profile"),
         (status = 404, description = "Payout does not exist in the merchant's records"),
         (status = 422, description = "Payout is not in requires_review status")
     ),
@@ -146,6 +148,8 @@ pub async fn payouts_accept() {}
 ///
 /// Reject a payout in `requires_review` status and cancel it using the payout cancellation flow.
 /// Payouts in any other status cannot be rejected.
+///
+/// Review actions require the shared Superposition flag `should_allow_review_flow`, which defaults to `false`, to be explicitly enabled by a matching organization, merchant, or profile override.
 #[utoipa::path(
     post,
     path = "/payouts/{payout_id}/reject",
@@ -154,7 +158,7 @@ pub async fn payouts_accept() {}
     ),
     responses(
         (status = 200, description = "Payout rejected and cancelled", body = PayoutCreateResponse),
-        (status = 400, description = "Missing mandatory fields"),
+        (status = 400, description = "Missing mandatory fields or payout review flow is not enabled for this profile"),
         (status = 404, description = "Payout does not exist in the merchant's records"),
         (status = 422, description = "Payout is not in requires_review status")
     ),

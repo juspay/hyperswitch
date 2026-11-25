@@ -525,6 +525,8 @@ pub mod superposition {
     pub const MAX_AUTO_PAYOUT_RETRIES: &str = "payouts.max_auto_payout_retries";
     /// Stops payout creation, confirmation, update, cancellation, and fulfillment at OMP scope.
     pub const PAYOUT_KILL_SWITCH: &str = "payouts.kill_switch";
+    /// Allow payout accept and reject operations for their available OMP dimensions.
+    pub const SHOULD_ALLOW_REVIEW_FLOW: &str = "should_allow_review_flow";
     /// Minimum allowed payout amount configuration key
     pub const PAYOUT_MIN_AMOUNT: &str = "payouts.min_amount";
     /// Maximum allowed payout amount configuration key

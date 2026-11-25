@@ -8179,7 +8179,7 @@
           "Payouts"
         ],
         "summary": "Payouts - Accept",
-        "description": "Accept a payout in `requires_review` status and fulfill it using the payout fulfillment flow.\nPayouts in any other status cannot be accepted.",
+        "description": "Accept a payout in `requires_review` status and fulfill it using the payout fulfillment flow.\nPayouts in any other status cannot be accepted.\n\nReview actions require the shared Superposition flag `should_allow_review_flow`, which defaults to `false`, to be explicitly enabled by a matching organization, merchant, or profile override.",
         "operationId": "Accept a Payout",
         "parameters": [
           {
@@ -8204,7 +8204,7 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields or payout review flow is not enabled for this profile"
           },
           "404": {
             "description": "Payout does not exist in the merchant's records"
@@ -8226,7 +8226,7 @@
           "Payouts"
         ],
         "summary": "Payouts - Reject",
-        "description": "Reject a payout in `requires_review` status and cancel it using the payout cancellation flow.\nPayouts in any other status cannot be rejected.",
+        "description": "Reject a payout in `requires_review` status and cancel it using the payout cancellation flow.\nPayouts in any other status cannot be rejected.\n\nReview actions require the shared Superposition flag `should_allow_review_flow`, which defaults to `false`, to be explicitly enabled by a matching organization, merchant, or profile override.",
         "operationId": "Reject a Payout",
         "parameters": [
           {
@@ -8251,7 +8251,7 @@
             }
           },
           "400": {
-            "description": "Missing mandatory fields"
+            "description": "Missing mandatory fields or payout review flow is not enabled for this profile"
           },
           "404": {
             "description": "Payout does not exist in the merchant's records"
