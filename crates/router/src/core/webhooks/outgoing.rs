@@ -1449,9 +1449,11 @@ fn get_outgoing_webhook_event_content_from_event_metadata(
             content: serde_json::Value::Null,
         },
         diesel_models::EventMetadata::Mandate {
+            payment_id,
             payment_method_id,
             mandate_id,
         } => OutgoingWebhookEventContent::Mandate {
+            payment_id,
             payment_method_id,
             mandate_id,
             content: serde_json::Value::Null,
@@ -1492,6 +1494,7 @@ impl ForeignFrom<&api::OutgoingWebhookContent> for storage::EventMetadata {
                 dispute_id: dispute_response.dispute_id.clone(),
             },
             webhooks::OutgoingWebhookContent::MandateDetails(mandate_response) => Self::Mandate {
+                payment_id: mandate_response.payment_id.clone(),
                 payment_method_id: mandate_response.payment_method_id.clone(),
                 mandate_id: mandate_response.mandate_id.clone(),
             },

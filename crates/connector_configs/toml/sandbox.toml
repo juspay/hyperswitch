@@ -10189,3 +10189,51 @@ api_key="API Key"
 key1="API Secret"
 [payhound.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[rapidconnect]
+[rapidconnect.connector_auth.SignatureKey]
+api_key = "Group ID"
+key1 = "Terminal ID"
+api_secret = "TPP ID"
+
+[rapidconnect.metadata.merchant_details.ecommerce.merchant_id]
+name = "merchant_id"
+label = "Ecommerce Merchant ID"
+placeholder = "Enter the Rapid Connect Merchant ID for Ecommerce payments"
+required = true
+type = "Text"
+
+[rapidconnect.metadata.merchant_details.ecommerce.datawire_id]
+name = "datawire_id"
+label = "Ecommerce Datawire ID"
+placeholder = "Enter the Rapid Connect Datawire ID for Ecommerce payments"
+required = true
+type = "Text"
+
+[rapidconnect.metadata.merchant_details.mail_order.merchant_id]
+name = "merchant_id"
+label = "Mail Order Merchant ID"
+placeholder = "Enter the Rapid Connect Merchant ID for Mail Order payments"
+required = false
+type = "Text"
+
+[rapidconnect.metadata.merchant_details.mail_order.datawire_id]
+name = "datawire_id"
+label = "Mail Order Datawire ID"
+placeholder = "Enter the Rapid Connect Datawire ID for Mail Order payments"
+required = false
+type = "Text"
+
+[rapidconnect.metadata.merchant_details.telephone_order.merchant_id]
+name = "merchant_id"
+label = "Telephone Order Merchant ID"
+placeholder = "Enter the Rapid Connect Merchant ID for Telephone Order payments"
+required = false
+type = "Text"
+
+[rapidconnect.metadata.merchant_details.telephone_order.datawire_id]
+name = "datawire_id"
+label = "Telephone Order Datawire ID"
+placeholder = "Enter the Rapid Connect Datawire ID for Telephone Order payments"
+required = false
+type = "Text"

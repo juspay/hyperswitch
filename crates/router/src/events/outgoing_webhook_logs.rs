@@ -69,6 +69,7 @@ pub enum OutgoingWebhookEventContent {
         content: Value,
     },
     Mandate {
+        payment_id: Option<common_utils::id_type::PaymentId>,
         payment_method_id: String,
         mandate_id: String,
         content: Value,
@@ -117,6 +118,7 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
                     .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
             }),
             Self::MandateDetails(mandate_payload) => Some(OutgoingWebhookEventContent::Mandate {
+                payment_id: mandate_payload.payment_id.clone(),
                 payment_method_id: mandate_payload.payment_method_id.clone(),
                 mandate_id: mandate_payload.mandate_id.clone(),
                 content: hyperswitch_masking::masked_serialize(&mandate_payload)
@@ -161,6 +163,7 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
                 todo!()
             }
             Self::MandateDetails(mandate_payload) => Some(OutgoingWebhookEventContent::Mandate {
+                payment_id: mandate_payload.payment_id.clone(),
                 payment_method_id: mandate_payload.payment_method_id.clone(),
                 mandate_id: mandate_payload.mandate_id.clone(),
                 content: hyperswitch_masking::masked_serialize(&mandate_payload)
