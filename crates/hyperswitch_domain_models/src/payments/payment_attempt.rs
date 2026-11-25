@@ -2089,6 +2089,11 @@ impl PaymentAttempt {
                 _ => None,
             })
     }
+
+    /// Extract the customer_acceptance stored on the payment attempt
+    pub fn get_customer_acceptance(&self) -> Option<pii::SecretSerdeValue> {
+        self.customer_acceptance.clone()
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
