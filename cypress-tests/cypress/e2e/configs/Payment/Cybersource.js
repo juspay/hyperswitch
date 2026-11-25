@@ -73,8 +73,8 @@ const payment_method_data_no3ds = {
     card_holder_name: "joseph Doe",
     payment_checks: {
       avs_response: {
-        code: "Y",
-        codeRaw: "Y",
+        code: "1",
+        codeRaw: null,
       },
       card_verification: null,
     },
