@@ -5682,6 +5682,7 @@ pub async fn call_unified_connector_service_for_surcharge_refund_init(
         account,
         processor.get_account().get_id(),
         "interpayments".to_owned(),
+        None,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let headers = state
@@ -5720,6 +5721,7 @@ pub async fn call_unified_connector_service_for_surcharge_refund_complete(
         account,
         merchant_id,
         "interpayments".to_owned(),
+        None,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let headers = state
