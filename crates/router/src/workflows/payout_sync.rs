@@ -84,6 +84,17 @@ impl ProcessTrackerWorkflow<SessionState> for PayoutSyncWorkFlow {
         ))
         .await?;
 
+        if payout_data.payout_attempt.status.is_terminal_status() {
+            return Self::process_terminal_task(
+                state,
+                &mut payout_data,
+                &key_store,
+                &platform,
+                process,
+            )
+            .await;
+        }
+
         let connector_name = payout_data
             .payout_attempt
             .connector
