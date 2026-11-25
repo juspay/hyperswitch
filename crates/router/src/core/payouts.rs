@@ -1012,6 +1012,9 @@ pub async fn payouts_cancel_core(
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
 
+    // Revalidate because hydration can refresh the attempt after a concurrent status update.
+    action_type.validate_cancellation_status(&payout_attempt.payout_id, status)?;
+
     let connector_name = payout_attempt
         .connector
         .as_deref()
