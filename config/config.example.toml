@@ -790,6 +790,16 @@ bank_transfer.pix_automatico_push = { connector_list = "santander" }
 bank_transfer.pix_automatico_qr = { connector_list = "santander" }
 network_token.network_token.connector_list = "peachpayments"
 
+# Listed connectors may reuse connector mandates across currencies, subject to currency rules.
+# Applies across payment methods and currencies. Confirm connector/account support before enabling.
+[mandates.cross_currency_mit_supported_connectors]
+connector_list = ["datatrans", "stripe"]
+# Optional rules by connector and payment-method type; both currencies must be listed.
+# Missing or empty rules use pm_filters for the requested currency; absent filters allow it.
+# [mandates.cross_currency_mit_supported_connectors.currency_rules.stripe]
+# credit = ["USD", "CAD"]
+# debit = ["USD", "CAD"]
+
 [mandates.supported_payment_methods]
 card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan,ecommpay,worldpayraft,elavon_pg"
 card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan,ecommpay,worldpayraft,elavon_pg"

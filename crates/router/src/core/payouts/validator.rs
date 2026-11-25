@@ -138,6 +138,27 @@ pub(super) fn validate_payout_condition(invalid: bool, message: &str) -> RouterR
     }
 }
 
+/// Update and confirm share the same immutable payout value and customer identity fields.
+pub(super) fn validate_payout_mutation_request(
+    req: &payouts::PayoutCreateRequest,
+) -> RouterResult<()> {
+    let invalid_field = [
+        req.amount.is_some().then_some("amount"),
+        req.currency.is_some().then_some("currency"),
+        req.get_customer_id().is_some().then_some("customer_id"),
+    ]
+    .into_iter()
+    .flatten()
+    .next();
+
+    match invalid_field {
+        Some(field) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("{field} cannot be updated through this payout API"),
+        })),
+        None => Ok(()),
+    }
+}
+
 #[cfg(feature = "v1")]
 async fn get_and_validate_payout_customer(
     state: &SessionState,

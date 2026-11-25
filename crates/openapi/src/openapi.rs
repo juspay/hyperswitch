@@ -909,6 +909,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::unreferenced_refund::RecipientCardData,
         api_models::enums::RelayStatus,
         api_models::relay::RelayError,
+        api_models::telephone_order::TelephoneOrderCaptureMethod,
+        api_models::telephone_order::TelephoneOrderParameters,
         api_models::telephone_order::twilio::TwilioGenericPayRequest,
         api_models::telephone_order::twilio::TwilioGenericPayResponse,
         api_models::telephone_order::twilio::TwilioPayMethod,

@@ -11,7 +11,7 @@ pub use common_enums::{connector_enums::InvoiceStatus, enums::ProcessTrackerRunn
 use common_utils::{
     errors::ReportSwitchExt,
     events::ApiEventsType,
-    ext_traits::{AsyncExt, ByteSliceExt},
+    ext_traits::{AsyncExt, ByteSliceExt, ValueExt},
     types::{AmountConvertor, StringMinorUnitForConnector},
 };
 use diesel_models::{refund as diesel_refund, ConnectorMandateReferenceId};
@@ -822,7 +822,8 @@ fn handle_incoming_webhook_error(
         return Err(error);
     }
 
-    logger::error!(?error, "Incoming webhook flow failed");
+    log_rejected_webhook_payload_schema(request_details, connector_name, merchant_id, &error);
+    logger::error!(error = %error, "Incoming webhook flow failed");
 
     // fetch the connector enum from the connector name
     let connector_enum = Connector::from_str(connector_name)
@@ -855,6 +856,36 @@ fn handle_incoming_webhook_error(
         ))
     } else {
         Err(error)
+    }
+}
+
+/// Logs the JSON shape of a rejected incoming webhook without recording its values.
+fn log_rejected_webhook_payload_schema(
+    request_details: &IncomingWebhookRequestDetails<'_>,
+    connector_name: &str,
+    merchant_id: &common_utils::id_type::MerchantId,
+    error: &error_stack::Report<errors::ApiErrorResponse>,
+) {
+    let webhook_payload_schema = serde_json::from_slice::<serde_json::Value>(request_details.body)
+        .map(|payload| payload.to_type_schema());
+
+    match webhook_payload_schema {
+        Ok(payload_schema) => logger::error!(
+            connector = connector_name,
+            merchant_id = ?merchant_id,
+            payload_size = request_details.body.len(),
+            payload_schema = ?payload_schema,
+            error = %error,
+            "Incoming webhook rejected; logging payload schema without values"
+        ),
+        Err(json_error) => logger::error!(
+            connector = connector_name,
+            merchant_id = ?merchant_id,
+            payload_size = request_details.body.len(),
+            ?json_error,
+            error = %error,
+            "Incoming non-JSON webhook rejected; raw payload is not logged"
+        ),
     }
 }
 
