@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.18.0-hotfix3
+
+### Features
+
+- **users:** Issue internal role JWTs with a distinct header type ([#15417](https://github.com/juspay/hyperswitch/pull/15417)) ([`ddbf744`](https://github.com/juspay/hyperswitch/commit/ddbf744168c1c32e2abb98ccd9eb44ed394375e3))
+
+### Bug Fixes
+
+- **connector:** [checkout] fix void response handling ([#15414](https://github.com/juspay/hyperswitch/pull/15414)) ([`103818b`](https://github.com/juspay/hyperswitch/commit/103818bcf07eb0f6f94f132f11496919d808fcd6))
+
+**Full Changelog:** [`2026.11.18.0-hotfix2...2026.11.18.0-hotfix3`](https://github.com/juspay/hyperswitch/compare/2026.11.18.0-hotfix2...2026.11.18.0-hotfix3)
+
+- - -
+
 ## 2026.11.18.0-hotfix2
 
 ### Bug Fixes
