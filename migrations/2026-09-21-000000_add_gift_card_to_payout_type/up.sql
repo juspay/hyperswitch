@@ -1,0 +1,1 @@
+ALTER TYPE "PayoutType" ADD VALUE IF NOT EXISTS 'gift_card';

@@ -1920,6 +1920,14 @@ pub async fn create_recipient(
                     let status = recipient_create_data
                         .status
                         .unwrap_or(api_enums::PayoutStatus::RequiresVendorAccountCreation);
+                    let (error_code, error_message) = if status.is_payout_failure() {
+                        (
+                            recipient_create_data.error_code.clone(),
+                            recipient_create_data.error_message.clone(),
+                        )
+                    } else {
+                        (None, None)
+                    };
                     let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
                         connector_eligibility_reference_id: None,
                         connector_payout_id: payout_data
@@ -1927,8 +1935,8 @@ pub async fn create_recipient(
                             .connector_payout_id
                             .to_owned(),
                         status,
-                        error_code: None,
-                        error_message: None,
+                        error_code,
+                        error_message,
                         is_eligible: recipient_create_data.payout_eligible,
                         unified_code: None,
                         unified_message: None,
@@ -1970,8 +1978,8 @@ pub async fn create_recipient(
                             .connector_payout_id
                             .to_owned(),
                         status,
-                        error_code: None,
-                        error_message: None,
+                        error_code: recipient_create_data.error_code.clone(),
+                        error_message: recipient_create_data.error_message.clone(),
                         is_eligible: recipient_create_data.payout_eligible,
                         unified_code: None,
                         unified_message: None,

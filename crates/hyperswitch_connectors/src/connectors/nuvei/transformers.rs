@@ -1818,7 +1818,8 @@ impl
             api_models::payouts::PayoutMethodData::Bank(_)
             | api_models::payouts::PayoutMethodData::BankTransfer(_)
             | api_models::payouts::PayoutMethodData::Wallet(_)
-            | api_models::payouts::PayoutMethodData::BankRedirect(_) => {
+            | api_models::payouts::PayoutMethodData::BankRedirect(_)
+            | api_models::payouts::PayoutMethodData::GiftCard(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Selected Payout Method is not implemented for Nuvei".to_string(),
                 )

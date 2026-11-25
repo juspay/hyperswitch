@@ -5344,6 +5344,10 @@ impl TryFrom<&CybersourceRouterData<&PayoutsRouterData<PoFulfill>>>
                 message: "PayoutType is not supported".to_string(),
                 connector: "Cybersource".into(),
             })?,
+            enums::PayoutType::GiftCard => Err(errors::ConnectorError::NotSupported {
+                message: "PayoutType is not supported".to_string(),
+                connector: "Cybersource".into(),
+            })?,
         }
     }
 }
@@ -5401,7 +5405,8 @@ impl TryFrom<PayoutMethodData> for PaymentInformation {
             | PayoutMethodData::BankTransfer(_)
             | PayoutMethodData::Wallet(_)
             | PayoutMethodData::BankRedirect(_)
-            | PayoutMethodData::Passthrough(_) => Err(errors::ConnectorError::NotSupported {
+            | PayoutMethodData::Passthrough(_)
+            | PayoutMethodData::GiftCard(_) => Err(errors::ConnectorError::NotSupported {
                 message: "PayoutMethod is not supported".to_string(),
                 connector: "Cybersource".into(),
             })?,

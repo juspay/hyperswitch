@@ -26,6 +26,8 @@ pub enum AdditionalPayoutMethodData {
     BankRedirect(Box<BankRedirectAdditionalData>),
     /// Additional data for Passthrough payout method
     Passthrough(Box<PassthroughAdditionalData>),
+    /// Additional data for gift card payout method
+    GiftCard(Box<GiftCardAdditionalData>),
 }
 
 #[cfg(feature = "diesel")]
@@ -488,6 +490,26 @@ pub struct PassthroughAdditionalData {
     pub token_type: common_enums::PaymentMethodType,
 }
 
+/// Additional payout method details for gift card payout method
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
+#[serde(untagged)]
+pub enum GiftCardAdditionalData {
+    /// Additional data for PaySafeCard gift card payout method
+    PaySafeCard(Box<PaySafeCardAdditionalData>),
+}
+
+/// Additional payout method details for PaySafeCard gift card payout method
+#[derive(Eq, PartialEq, Clone, Debug, Deserialize, Serialize, ToSchema)]
+#[cfg_attr(feature = "diesel", derive(FromSqlRow, AsExpression))]
+#[cfg_attr(feature = "diesel", diesel(sql_type = Jsonb))]
+pub struct PaySafeCardAdditionalData {
+    /// Partially masked paysafecard account ID, used to identify the consumer's account for payout.
+    #[schema(value_type = Option<String>, example = "1234****7890")]
+    pub paysafecard_id: Option<MaskedValue>,
+}
+
 impl From<&AdditionalPayoutMethodData> for common_enums::PaymentMethodType {
     fn from(data: &AdditionalPayoutMethodData) -> Self {
         match data {
@@ -516,6 +538,9 @@ impl From<&AdditionalPayoutMethodData> for common_enums::PaymentMethodType {
                 BankRedirectAdditionalData::OpenBankingUk(_) => Self::OpenBankingUk,
             },
             AdditionalPayoutMethodData::Passthrough(passthrough) => passthrough.token_type,
+            AdditionalPayoutMethodData::GiftCard(gift_card) => match **gift_card {
+                GiftCardAdditionalData::PaySafeCard(_) => Self::PaySafeCard,
+            },
         }
     }
 }
