@@ -3900,6 +3900,8 @@ pub struct PaymentLinkConfigRequest {
     pub payment_button_text: Option<String>,
     /// Text for customizing message for card terms
     pub custom_message_for_card_terms: Option<String>,
+    /// Custom label for the save-card checkbox. Omit or leave blank to use the SDK default.
+    pub save_card_checkbox_label: Option<String>,
     /// Text for customizing message for different Payment Method Types
     #[schema(value_type = Option<PaymentMethodsConfig>)]
     pub custom_message_for_payment_method_types:
@@ -4050,6 +4052,8 @@ pub struct PaymentLinkConfig {
     pub payment_button_text: Option<String>,
     /// Text for customizing message for card terms
     pub custom_message_for_card_terms: Option<String>,
+    /// Custom label for the save-card checkbox. Omit or leave blank to use the SDK default.
+    pub save_card_checkbox_label: Option<String>,
     /// Text for customizing message for different Payment Method Types
     #[schema(value_type = Option<PaymentMethodsConfig>)]
     pub custom_message_for_payment_method_types:
@@ -4258,6 +4262,7 @@ mod tests {
             details_layout: None,
             payment_button_text: Some("Pay Now".to_string()),
             custom_message_for_card_terms: Some("Agree to terms".to_string()),
+            save_card_checkbox_label: None,
             custom_message_for_payment_method_types: None,
             payment_button_colour: None,
             skip_status_screen: None,

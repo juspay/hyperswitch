@@ -33,6 +33,7 @@ pub fn generate_payment_link_preview_impl(config_json: &str) -> Result<String, S
         branding_visibility: payment_link_details.branding_visibility,
         payment_button_text: payment_link_details.payment_button_text.clone(),
         custom_message_for_card_terms: payment_link_details.custom_message_for_card_terms.clone(),
+        save_card_checkbox_label: payment_link_details.save_card_checkbox_label.clone(),
         payment_button_colour: payment_link_details.payment_button_colour.clone(),
         skip_status_screen: payment_link_details.skip_status_screen,
         background_colour: payment_link_details.background_colour.clone(),

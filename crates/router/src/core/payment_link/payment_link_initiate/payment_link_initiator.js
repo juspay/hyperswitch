@@ -91,7 +91,7 @@ function initializeSDK() {
     layoutOptions.separatorText = paymentMethodsSeparatorText;
   }
   var unifiedCheckoutOptions = {
-    displaySavedPaymentMethodsCheckbox: false,
+    displaySavedPaymentMethodsCheckbox: paymentDetails.setup_future_usage_applied === "on_session",
     displaySavedPaymentMethods: false,
     layout: layoutOptions,
     branding: "never",
@@ -108,6 +108,10 @@ function initializeSDK() {
     customMessageForCardTerms: paymentDetails.custom_message_for_card_terms,
     paymentMethodsConfig: paymentDetails.custom_message_for_payment_method_types,
   };
+  var saveCardCheckboxLabel = paymentDetails.save_card_checkbox_label;
+  if (typeof saveCardCheckboxLabel === "string" && saveCardCheckboxLabel.trim().length > 0) {
+    unifiedCheckoutOptions.saveCardCheckboxLabel = saveCardCheckboxLabel;
+  }
   var showCardTerms = paymentDetails.show_card_terms;
   if (showCardTerms !== null && typeof showCardTerms === "string") {
     unifiedCheckoutOptions.terms = {

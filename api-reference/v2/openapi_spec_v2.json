@@ -23898,6 +23898,11 @@
             "description": "Text for payment link's handle confirm button",
             "nullable": true
           },
+          "save_card_checkbox_label": {
+            "type": "string",
+            "description": "Custom label for the save-card checkbox. Omit or leave blank to use the SDK default.",
+            "nullable": true
+          },
           "custom_message_for_card_terms": {
             "type": "string",
             "description": "Text for customizing message for card terms",
@@ -24093,6 +24098,11 @@
           "payment_button_text": {
             "type": "string",
             "description": "Text for payment link's handle confirm button",
+            "nullable": true
+          },
+          "save_card_checkbox_label": {
+            "type": "string",
+            "description": "Custom label for the save-card checkbox. Omit or leave blank to use the SDK default.",
             "nullable": true
           },
           "custom_message_for_card_terms": {
