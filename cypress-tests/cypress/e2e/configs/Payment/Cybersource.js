@@ -84,22 +84,6 @@ const payment_method_data_no3ds = {
   billing: null,
 };
 
-// Authorize-only (manual capture) responses carry a different AVS result than
-// auto-capture ones.
-const payment_method_data_no3ds_manual = {
-  ...payment_method_data_no3ds,
-  card: {
-    ...payment_method_data_no3ds.card,
-    payment_checks: {
-      avs_response: {
-        code: "X",
-        codeRaw: "I1",
-      },
-      card_verification: null,
-    },
-  },
-};
-
 const payment_method_data_3ds = {
   card: {
     last4: "2701",
@@ -294,6 +278,9 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        // AVS result depends on the billing country, so pin the billing to keep
+        // payment_checks deterministic across the specs reusing this entry.
+        billing: billing_with_newline,
       },
       Response: {
         status: 200,
@@ -301,7 +288,7 @@ export const connectorDetails = {
           status: "requires_capture",
           payment_method: "card",
           attempt_count: 1,
-          payment_method_data: payment_method_data_no3ds_manual,
+          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
