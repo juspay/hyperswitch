@@ -10974,6 +10974,8 @@ pub struct ConnectorMetadata {
     pub paypal: Option<PaypalConnectorMetadata>,
     #[smithy(value_type = "Option<WorldpayxmlData>")]
     pub worldpayxml: Option<WorldpayxmlData>,
+    #[smithy(value_type = "Option<WorldpayraftConnectorMetadata>")]
+    pub worldpayraft: Option<WorldpayraftConnectorMetadata>,
     #[smithy(value_type = "Option<CheckoutData>")]
     pub checkout: Option<CheckoutData>,
     #[smithy(value_type = "Option<StripeConnectorMetadata>")]
@@ -11010,6 +11012,28 @@ pub struct StripeConnectorMetadata {
     /// complete additional authentication.
     #[smithy(value_type = "Option<bool>")]
     pub error_on_requires_action: Option<bool>,
+}
+
+/// Merchant-supplied data forwarded to Worldpay RAFT's UserDefinedData.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
+pub struct WorldpayraftConnectorMetadata {
+    /// Worldpay RAFT UserData1. Maximum length: 35 characters.
+    #[schema(max_length = 35)]
+    #[smithy(value_type = "Option<String>")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_data1: Option<String>,
+    /// Worldpay RAFT UserData2. Maximum length: 20 characters.
+    #[schema(max_length = 20)]
+    #[smithy(value_type = "Option<String>")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_data2: Option<String>,
+    /// Worldpay RAFT UserData3. Maximum length: 20 characters.
+    #[schema(max_length = 20)]
+    #[smithy(value_type = "Option<String>")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_data3: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
