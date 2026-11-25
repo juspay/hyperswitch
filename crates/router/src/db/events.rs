@@ -2003,6 +2003,8 @@ mod tests {
             offer_engine_config: None,
             apple_pay_certificates: None,
             apple_pay_certificates_encrypted: None,
+            google_pay_decryption_config: None,
+            google_pay_decryption_config_encrypted: None,
         });
         let merchant_account = state
             .accounts_store
