@@ -1062,6 +1062,7 @@ export const connectorDetails = {
               purpose_of_payment: "wallet top-up",
             },
             stripe: null,
+            rapyd: null,
           },
         },
       },
