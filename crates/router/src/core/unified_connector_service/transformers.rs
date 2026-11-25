@@ -1373,7 +1373,7 @@ impl
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(|metadata| payments_grpc::AdditionalConnectorDetails::foreign_from(metadata)),
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: router_data.request.enable_avs_check,
             enable_account_name_verification: router_data.request.enable_account_name_verification,
@@ -1676,7 +1676,7 @@ impl
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(|metadata| payments_grpc::AdditionalConnectorDetails::foreign_from(metadata)),
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
             enable_account_name_verification: router_data.request.enable_account_name_verification,
@@ -3112,7 +3112,7 @@ impl
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(|metadata| payments_grpc::AdditionalConnectorDetails::foreign_from(metadata)),
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: None,
             enable_account_name_verification: router_data.request.enable_account_name_verification,
@@ -3364,7 +3364,7 @@ impl
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(|metadata| payments_grpc::AdditionalConnectorDetails::foreign_from(metadata)),
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             business_country: router_data.request.business_country.map(|c| c.to_string()),
             enable_avs_check: router_data.request.enable_avs_check,
             enable_account_name_verification: router_data.request.enable_account_name_verification,
@@ -3851,7 +3851,7 @@ impl
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(|metadata| payments_grpc::AdditionalConnectorDetails::foreign_from(metadata)),
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             enable_account_name_verification: router_data.request.enable_account_name_verification,
         })
     }
@@ -4475,7 +4475,7 @@ impl
                 .request
                 .connector_intent_metadata
                 .as_ref()
-                .map(|metadata| payments_grpc::AdditionalConnectorDetails::foreign_from(metadata)),
+                .map(payments_grpc::AdditionalConnectorDetails::foreign_from),
             session_token: None,
             currency_conversion_data,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
