@@ -28,6 +28,7 @@ jobs:
           client-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
           permission-contents: write
+          permission-members: read
 
       - name: Checkout repository
         uses: actions/checkout@v7.0.1

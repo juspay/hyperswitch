@@ -81,6 +81,7 @@ jobs:
           owner: ${{ github.event.repository.owner.login }}
           permission-pull-requests: read
           permission-metadata: read
+          permission-issues: read
 
       - name: Verify PR contains one or more linked issues
         if: ${{ github.event_name == 'pull_request_target' }}
