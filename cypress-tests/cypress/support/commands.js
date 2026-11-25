@@ -13524,9 +13524,10 @@ Cypress.Commands.add(
       })
       .then((response) => {
         expect(response.status, "payout allowlist setup status").to.equal(200);
-        // CI polls every 10 seconds. Allow two complete polls and a buffer.
+        // CI uses development.toml's five-minute polling interval. Allow a
+        // complete poll and a buffer without changing the router configuration.
         // eslint-disable-next-line cypress/no-unnecessary-waiting
-        cy.wait(21000);
+        cy.wait(310000);
       });
   }
 );
@@ -13588,7 +13589,7 @@ Cypress.Commands.add(
         );
       });
     });
-    // Polling interval is 10 s in CI (ROUTER__SUPERPOSITION__POLLING_INTERVAL_MILLISECONDS)
+    // Polling interval is 10 s in CI (ROUTER__SUPERPOSITION__POLLING_INTERVAL)
     // and 15 s elsewhere. Wait for two full CI poll cycles plus a buffer —
     // a single 15 s wait only has ~5 s of margin over one CI poll tick, which
     // isn't enough if the write lands just after a tick or there's network
