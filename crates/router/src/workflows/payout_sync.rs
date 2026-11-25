@@ -84,66 +84,50 @@ impl ProcessTrackerWorkflow<SessionState> for PayoutSyncWorkFlow {
         ))
         .await?;
 
-        if payout_data.payout_attempt.status.is_terminal_status() {
-            return Self::process_terminal_task(
-                state,
-                &mut payout_data,
-                &key_store,
-                &platform,
-                process,
+        if payout_data.payout_attempt.status.is_non_terminal_status() {
+            let connector_name = payout_data
+                .payout_attempt
+                .connector
+                .clone()
+                .ok_or(errors::ProcessTrackerError::MissingRequiredField)?;
+
+            let connector_data = api::ConnectorData::get_payout_connector_by_name(
+                &state.conf.connectors,
+                connector_name.as_str(),
+                api::GetToken::Connector,
+                payout_data.payout_attempt.merchant_connector_id.clone(),
             )
-            .await;
+            .change_context(core_errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get the connector data")?;
+
+            Box::pin(payouts::create_payout_retrieve(
+                state,
+                &platform,
+                HeaderPayload::default(),
+                &connector_data,
+                &mut payout_data,
+            ))
+            .await?;
+
+            if payout_data.payout_attempt.status.is_non_terminal_status() {
+                let dimensions = dimension_state::Dimensions::new()
+                    .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+                    .with_processor_merchant_id(
+                        platform.get_processor().get_processor_merchant_id(),
+                    )
+                    .with_connector(connector_data.connector_name);
+
+                return Self::retry_payout_sync_task(
+                    state,
+                    payout_data.payouts.payout_id,
+                    process,
+                    &dimensions,
+                )
+                .await;
+            }
         }
 
-        let connector_name = payout_data
-            .payout_attempt
-            .connector
-            .clone()
-            .ok_or(errors::ProcessTrackerError::MissingRequiredField)?;
-
-        let connector_data = api::ConnectorData::get_payout_connector_by_name(
-            &state.conf.connectors,
-            connector_name.as_str(),
-            api::GetToken::Connector,
-            payout_data.payout_attempt.merchant_connector_id.clone(),
-        )
-        .change_context(core_errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get the connector data")?;
-
-        Box::pin(payouts::create_payout_retrieve(
-            state,
-            &platform,
-            HeaderPayload::default(),
-            &connector_data,
-            &mut payout_data,
-        ))
-        .await?;
-
-        let dimensions = dimension_state::Dimensions::new()
-            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-            .with_connector(connector_data.connector_name);
-
-        if payout_data.payout_attempt.status.is_terminal_status() {
-            Self::process_terminal_task(
-                state,
-                &mut payout_data,
-                &key_store,
-                &platform,
-                process.clone(),
-            )
-            .await?;
-        } else {
-            Self::retry_payout_sync_task(
-                state,
-                payout_data.payouts.payout_id,
-                process,
-                &dimensions,
-            )
-            .await?;
-        }
-
-        Ok(())
+        Self::process_terminal_task(state, &mut payout_data, &key_store, &platform, process).await
     }
 
     async fn error_handler<'a>(
