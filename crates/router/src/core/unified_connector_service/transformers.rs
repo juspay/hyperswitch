@@ -336,6 +336,7 @@ fn connector_purpose_of_payment(
     }
 }
 
+#[allow(deprecated)]
 impl ForeignFrom<&api_models::payments::ConnectorMetadata>
     for payments_grpc::AdditionalConnectorDetails
 {
@@ -388,6 +389,10 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
             error_on_requires_action: stripe
                 .as_ref()
                 .and_then(|data| data.error_on_requires_action),
+            user_data1: None,
+            user_data2: None,
+            user_data3: None,
+            ewallet: None,
         }
     }
 }
@@ -3820,11 +3825,15 @@ impl
                 }),
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
             sender_details: router_data
+                .request
+                .sender_details
+                .as_ref()
                 .map(payments_grpc::SenderDetails::foreign_try_from)
                 .transpose()?,
             recipient_details: router_data
                 .request
                 .recipient_details
+                .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
             purpose_of_payment: router_data
@@ -9828,6 +9837,7 @@ impl
             amount,
             payment_method,
             capture_method: capture_method.map(Into::into),
+            state: None,
         })
     }
 }
