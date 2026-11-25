@@ -127,11 +127,20 @@ macro_rules! handle_payout_pre_frm_result {
 pub(super) use handle_payout_pre_frm_result;
 
 // ********************************************** TYPES **********************************************
-/// Selects state validation for payout actions and manual review decisions.
+/// Distinguishes standard payout actions from manual review decisions.
 #[derive(Clone, Copy, Debug)]
 pub enum PayoutActionType {
     Standard,
     Review,
+}
+
+/// Identifies the operation so the loader can validate its persisted payout state.
+pub(crate) enum PayoutRequest {
+    Create(Box<payouts::PayoutCreateRequest>),
+    Retrieve(payouts::PayoutRetrieveRequest),
+    Fulfill(payouts::PayoutActionRequest, PayoutActionType),
+    Cancel(payouts::PayoutActionRequest, PayoutActionType),
+    Webhook(payouts::PayoutActionRequest),
 }
 
 #[derive(Clone)]
@@ -789,7 +798,7 @@ pub async fn payouts_confirm_core(
         &state,
         &platform,
         profile_id,
-        &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
+        &PayoutRequest::Create(Box::new(req.to_owned())),
         &state.locale,
         true,
     ))
@@ -864,7 +873,7 @@ pub async fn payouts_update_core(
         &state,
         &platform,
         profile_id,
-        &payouts::PayoutRequest::PayoutCreateRequest(Box::new(req.to_owned())),
+        &PayoutRequest::Create(Box::new(req.to_owned())),
         &state.locale,
         true,
     ))
@@ -941,7 +950,7 @@ pub async fn payouts_retrieve_core(
         &state,
         &platform,
         profile_id,
-        &payouts::PayoutRequest::PayoutRetrieveRequest(req.to_owned()),
+        &PayoutRequest::Retrieve(req.to_owned()),
         &state.locale,
         false,
     ))
@@ -990,25 +999,18 @@ pub async fn payouts_cancel_core(
     req: payouts::PayoutActionRequest,
     action_type: PayoutActionType,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    let review_validation = match action_type {
-        PayoutActionType::Standard => None,
-        PayoutActionType::Review => Some((api_enums::PayoutStatus::RequiresReview, "rejected")),
-    };
-    let mut payout_data = Box::pin(make_payout_data_with_status_validation(
+    let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
         profile_id,
-        &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
+        &PayoutRequest::Cancel(req, action_type),
         &state.locale,
         true,
-        review_validation,
     ))
     .await?;
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
-
-    action_type.validate_cancellation_status(&payout_attempt.payout_id, status)?;
 
     let connector_name = payout_attempt
         .connector
@@ -1103,28 +1105,20 @@ pub async fn payouts_fulfill_core(
     req: payouts::PayoutActionRequest,
     action_type: PayoutActionType,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
-    let review_validation = match action_type {
-        PayoutActionType::Standard => None,
-        PayoutActionType::Review => Some((api_enums::PayoutStatus::RequiresReview, "accepted")),
-    };
-    let mut payout_data = Box::pin(make_payout_data_with_status_validation(
+    let mut payout_data = Box::pin(make_payout_data(
         &state,
         &platform,
         profile_id,
-        &payouts::PayoutRequest::PayoutActionRequest(req.to_owned()),
+        &PayoutRequest::Fulfill(req, action_type),
         &state.locale,
         true,
-        review_validation,
     ))
     .await?;
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
-    let status = payout_attempt.status;
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
-
-    action_type.validate_fulfillment_status(&payout_attempt.payout_id, status)?;
 
     // Form connector data
     let connector_data = match &payout_attempt.connector {
@@ -3856,35 +3850,14 @@ pub async fn payout_create_db_entries(
     })
 }
 
-pub async fn make_payout_data(
-    state: &SessionState,
-    platform: &domain::Platform,
-    auth_profile_id: Option<id_type::ProfileId>,
-    req: &payouts::PayoutRequest,
-    locale: &str,
-    enforce_kill_switch: bool,
-) -> RouterResult<PayoutData> {
-    Box::pin(make_payout_data_with_status_validation(
-        state,
-        platform,
-        auth_profile_id,
-        req,
-        locale,
-        enforce_kill_switch,
-        None,
-    ))
-    .await
-}
-
 #[cfg(feature = "v2")]
-async fn make_payout_data_with_status_validation(
+pub(crate) async fn make_payout_data(
     _state: &SessionState,
     _platform: &domain::Platform,
     _auth_profile_id: Option<id_type::ProfileId>,
-    _req: &payouts::PayoutRequest,
+    _req: &PayoutRequest,
     _locale: &str,
     _enforce_kill_switch: bool,
-    _status_validation: Option<(api_enums::PayoutStatus, &'static str)>,
 ) -> RouterResult<PayoutData> {
     todo!()
 }
@@ -3892,14 +3865,13 @@ async fn make_payout_data_with_status_validation(
 #[cfg(feature = "v1")]
 /// Load payout data, checking the kill switch for mutation and standalone execution callers.
 /// Retrieval, webhook delivery, and background status sync pass `false` to continue processing existing payouts.
-async fn make_payout_data_with_status_validation(
+pub(crate) async fn make_payout_data(
     state: &SessionState,
     platform: &domain::Platform,
     auth_profile_id: Option<id_type::ProfileId>,
-    req: &payouts::PayoutRequest,
+    req: &PayoutRequest,
     locale: &str,
     enforce_kill_switch: bool,
-    status_validation: Option<(api_enums::PayoutStatus, &'static str)>,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
@@ -3907,42 +3879,49 @@ async fn make_payout_data_with_status_validation(
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     let payout_id = match req {
-        payouts::PayoutRequest::PayoutActionRequest(r) => r.payout_id.clone(),
-        payouts::PayoutRequest::PayoutCreateRequest(r) => {
-            r.payout_id.clone().unwrap_or(id_type::PayoutId::generate())
-        }
-        payouts::PayoutRequest::PayoutRetrieveRequest(r) => r.payout_id.clone(),
+        PayoutRequest::Fulfill(action_request, _)
+        | PayoutRequest::Cancel(action_request, _)
+        | PayoutRequest::Webhook(action_request) => action_request.payout_id.clone(),
+        PayoutRequest::Create(create_request) => create_request
+            .payout_id
+            .clone()
+            .unwrap_or(id_type::PayoutId::generate()),
+        PayoutRequest::Retrieve(retrieve_request) => retrieve_request.payout_id.clone(),
     };
 
     let browser_info = match req {
-        payouts::PayoutRequest::PayoutActionRequest(_) => None,
-        payouts::PayoutRequest::PayoutCreateRequest(r) => r.browser_info.clone().map(Into::into),
-        payouts::PayoutRequest::PayoutRetrieveRequest(_) => None,
+        PayoutRequest::Create(create_request) => {
+            create_request.browser_info.clone().map(Into::into)
+        }
+        PayoutRequest::Fulfill(_, _)
+        | PayoutRequest::Cancel(_, _)
+        | PayoutRequest::Webhook(_)
+        | PayoutRequest::Retrieve(_) => None,
     };
 
     let attempts = match req {
-        payouts::PayoutRequest::PayoutActionRequest(_) => None,
-        payouts::PayoutRequest::PayoutCreateRequest(_) => None,
-        payouts::PayoutRequest::PayoutRetrieveRequest(retrieve_request) => {
-            match retrieve_request.expand_attempts {
-                Some(true) => db
-                    .find_payout_attempts_by_merchant_id_payout_id(
-                        merchant_id,
-                        &retrieve_request.payout_id,
-                        platform.get_processor().get_account().storage_scheme,
-                    )
-                    .await
-                    .map_err(|err| {
-                        let err_msg = format!(
-                            "failed to fetch payout_attempts for payout_id: {:?}",
-                            retrieve_request.payout_id
-                        );
-                        logger::error!(?err, err_msg);
-                    })
-                    .ok(),
-                Some(false) | None => None,
-            }
-        }
+        PayoutRequest::Fulfill(_, _)
+        | PayoutRequest::Cancel(_, _)
+        | PayoutRequest::Webhook(_)
+        | PayoutRequest::Create(_) => None,
+        PayoutRequest::Retrieve(retrieve_request) => match retrieve_request.expand_attempts {
+            Some(true) => db
+                .find_payout_attempts_by_merchant_id_payout_id(
+                    merchant_id,
+                    &retrieve_request.payout_id,
+                    platform.get_processor().get_account().storage_scheme,
+                )
+                .await
+                .map_err(|err| {
+                    let err_msg = format!(
+                        "failed to fetch payout_attempts for payout_id: {:?}",
+                        retrieve_request.payout_id
+                    );
+                    logger::error!(?err, err_msg);
+                })
+                .ok(),
+            Some(false) | None => None,
+        },
     };
 
     let payouts = db
@@ -3957,7 +3936,7 @@ async fn make_payout_data_with_status_validation(
 
     core_utils::validate_profile_id_from_auth_layer(auth_profile_id, &payouts)?;
 
-    if let payouts::PayoutRequest::PayoutCreateRequest(request) = req {
+    if let PayoutRequest::Create(request) = req {
         validator::validate_payout_condition(
             request
                 .merchant_id
@@ -4002,14 +3981,12 @@ async fn make_payout_data_with_status_validation(
         .execution_kind
         .validate_persisted_execution_kind(req)?;
 
-    if let Some((required_status, action)) = status_validation {
-        validator::validate_payout_action_status(
-            &payout_attempt.payout_id,
-            payout_attempt.status,
-            Some(required_status),
-            action,
-        )?;
-    }
+    // Validate the action before resolving locker data or updating payout metadata.
+    validator::validate_payout_request_status(
+        req,
+        &payout_attempt.payout_id,
+        payout_attempt.status,
+    )?;
 
     let customer_id = payouts.customer_id.as_ref();
 
@@ -4059,8 +4036,8 @@ async fn make_payout_data_with_status_validation(
         .transpose()?
         .and_then(|c| c);
     let payout_method_data_req = match req {
-        payouts::PayoutRequest::PayoutCreateRequest(r) => r.payout_method_data.to_owned(),
-        payouts::PayoutRequest::PayoutActionRequest(_) => {
+        PayoutRequest::Create(create_request) => create_request.payout_method_data.to_owned(),
+        PayoutRequest::Fulfill(_, _) | PayoutRequest::Cancel(_, _) | PayoutRequest::Webhook(_) => {
             match payout_attempt.payout_token.to_owned() {
                 Some(payout_token) => {
                     let customer_id = customer_details
@@ -4083,12 +4060,12 @@ async fn make_payout_data_with_status_validation(
                 None => None,
             }
         }
-        payouts::PayoutRequest::PayoutRetrieveRequest(_) => None,
+        PayoutRequest::Retrieve(_) => None,
     };
 
     let (source_bank_data, updated_additional_source_bank_data, updated_source_bank_data_token) =
         match req {
-            payouts::PayoutRequest::PayoutCreateRequest(req) => {
+            PayoutRequest::Create(req) => {
                 let source_bank_data_token =
                     helpers::SourceBankDataOperation::temp_store_source_bank_data(
                         state,
@@ -4110,35 +4087,35 @@ async fn make_payout_data_with_status_validation(
                     source_bank_data_token,
                 )
             }
-            payouts::PayoutRequest::PayoutActionRequest(_) => {
-                match payout_attempt.source_bank_data_token.to_owned() {
-                    Some(source_bank_data_token) => {
-                        let customer_id = customer_details
-                            .as_ref()
-                            .map(|cd| cd.get_id().to_owned())
-                            .get_required_value("customer_id when payout_token is sent")?;
-                        let source_bank_data =
-                            helpers::SourceBankDataOperation::get_temp_source_bank_data(
-                                state,
-                                Some(source_bank_data_token),
-                                Some(customer_id),
-                                platform.get_processor().get_key_store(),
-                            )
-                            .await?;
+            PayoutRequest::Fulfill(_, _)
+            | PayoutRequest::Cancel(_, _)
+            | PayoutRequest::Webhook(_) => match payout_attempt.source_bank_data_token.to_owned() {
+                Some(source_bank_data_token) => {
+                    let customer_id = customer_details
+                        .as_ref()
+                        .map(|cd| cd.get_id().to_owned())
+                        .get_required_value("customer_id when payout_token is sent")?;
+                    let source_bank_data =
+                        helpers::SourceBankDataOperation::get_temp_source_bank_data(
+                            state,
+                            Some(source_bank_data_token),
+                            Some(customer_id),
+                            platform.get_processor().get_key_store(),
+                        )
+                        .await?;
 
-                        (source_bank_data, None, None)
-                    }
-                    None => (None, None, None),
+                    (source_bank_data, None, None)
                 }
-            }
+                None => (None, None, None),
+            },
             // Read-only proxy retrieval must not recover any temporary locker values.
-            payouts::PayoutRequest::PayoutRetrieveRequest(_)
+            PayoutRequest::Retrieve(_)
                 if payout_attempt.execution_kind
                     == api_enums::PayoutExecutionKind::ExternalVaultProxy =>
             {
                 (None, None, None)
             }
-            payouts::PayoutRequest::PayoutRetrieveRequest(_) => {
+            PayoutRequest::Retrieve(_) => {
                 let requires_source_bank_data = payout_attempt
                     .connector
                     .as_deref()

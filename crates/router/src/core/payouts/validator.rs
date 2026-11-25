@@ -18,7 +18,7 @@ use hyperswitch_domain_models::{
 use router_env::{instrument, logger, which as router_env_which, Env};
 use url::Url;
 
-use super::{helpers, PayoutActionType};
+use super::{helpers, PayoutActionType, PayoutRequest};
 #[cfg(feature = "v1")]
 use crate::core::{
     payment_methods::cards::get_pm_list_context, payouts::kill_switch::PayoutKillSwitch,
@@ -39,8 +39,24 @@ use crate::{
 };
 
 pub(crate) trait PayoutExecutionKindValidation {
-    fn validate_persisted_execution_kind(self, req: &payouts::PayoutRequest) -> RouterResult<()>;
+    fn validate_persisted_execution_kind(self, req: &PayoutRequest) -> RouterResult<()>;
     fn validate_normal_execution_kind(self) -> RouterResult<()>;
+}
+
+pub(super) fn validate_payout_request_status(
+    req: &PayoutRequest,
+    payout_id: &id_type::PayoutId,
+    status: common_enums::PayoutStatus,
+) -> RouterResult<()> {
+    match req {
+        PayoutRequest::Fulfill(_, action_type) => {
+            action_type.validate_fulfillment_status(payout_id, status)
+        }
+        PayoutRequest::Cancel(_, action_type) => {
+            action_type.validate_cancellation_status(payout_id, status)
+        }
+        PayoutRequest::Create(_) | PayoutRequest::Retrieve(_) | PayoutRequest::Webhook(_) => Ok(()),
+    }
 }
 
 impl PayoutActionType {
@@ -49,11 +65,17 @@ impl PayoutActionType {
         payout_id: &id_type::PayoutId,
         status: common_enums::PayoutStatus,
     ) -> RouterResult<()> {
-        let (required_status, action) = match self {
-            Self::Standard => (common_enums::PayoutStatus::RequiresFulfillment, "fulfilled"),
-            Self::Review => (common_enums::PayoutStatus::RequiresReview, "accepted"),
+        let (allowed, action) = match self {
+            Self::Standard => (
+                status == common_enums::PayoutStatus::RequiresFulfillment,
+                "fulfilled",
+            ),
+            Self::Review => (
+                status == common_enums::PayoutStatus::RequiresReview,
+                "accepted",
+            ),
         };
-        validate_payout_action_status(payout_id, status, Some(required_status), action)
+        validate_payout_action_status(payout_id, status, allowed, action)
     }
 
     pub(super) fn validate_cancellation_status(
@@ -61,24 +83,24 @@ impl PayoutActionType {
         payout_id: &id_type::PayoutId,
         status: common_enums::PayoutStatus,
     ) -> RouterResult<()> {
-        let (required_status, action) = match self {
-            Self::Standard => (None, "cancelled"),
-            Self::Review => (Some(common_enums::PayoutStatus::RequiresReview), "rejected"),
+        let (allowed, action) = match self {
+            // Preserve cancellation for the existing set of non-terminal payout states.
+            Self::Standard => (!helpers::is_payout_terminal_state(status), "cancelled"),
+            Self::Review => (
+                status == common_enums::PayoutStatus::RequiresReview,
+                "rejected",
+            ),
         };
-        validate_payout_action_status(payout_id, status, required_status, action)
+        validate_payout_action_status(payout_id, status, allowed, action)
     }
 }
 
-pub(super) fn validate_payout_action_status(
+fn validate_payout_action_status(
     payout_id: &id_type::PayoutId,
     status: common_enums::PayoutStatus,
-    required_status: Option<common_enums::PayoutStatus>,
+    allowed: bool,
     action: &str,
 ) -> RouterResult<()> {
-    let allowed = match required_status {
-        Some(required_status) => status == required_status,
-        None => !helpers::is_payout_terminal_state(status),
-    };
     if !allowed {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
             message: format!("Payout {payout_id:?} cannot be {action} for status {status}"),
@@ -89,10 +111,10 @@ pub(super) fn validate_payout_action_status(
 
 impl PayoutExecutionKindValidation for common_enums::PayoutExecutionKind {
     /// Proxy trackers allow read-only retrieval, but not normal mutation or force-sync.
-    fn validate_persisted_execution_kind(self, req: &payouts::PayoutRequest) -> RouterResult<()> {
+    fn validate_persisted_execution_kind(self, req: &PayoutRequest) -> RouterResult<()> {
         match (self, req) {
             (Self::Normal, _) => Ok(()),
-            (Self::ExternalVaultProxy, payouts::PayoutRequest::PayoutRetrieveRequest(retrieve))
+            (Self::ExternalVaultProxy, PayoutRequest::Retrieve(retrieve))
                 if retrieve.force_sync != Some(true) =>
             {
                 Ok(())
