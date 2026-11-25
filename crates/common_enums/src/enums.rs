@@ -1969,6 +1969,32 @@ impl Currency {
             2
         }
     }
+
+    /// Digits after the decimal point that `connector` expects in minor-unit amounts of this
+    /// currency, which differs from `number_of_digits_after_decimal_point` only where the connector
+    /// keeps its own representation (Stripe sends UGX with two decimals: 5 UGX is `500`)
+    pub fn number_of_digits_after_decimal_point_for_connector(
+        self,
+        connector: super::connector_enums::Connector,
+    ) -> u8 {
+        match (connector, self) {
+            (super::connector_enums::Connector::Stripe, Self::UGX) => 2,
+            _ => self.number_of_digits_after_decimal_point(),
+        }
+    }
+
+    /// Whether `connector` accepts only whole units of this currency (no fractional amount)
+    pub fn is_whole_units_only_for_connector(
+        self,
+        connector: super::connector_enums::Connector,
+        is_payout: bool,
+    ) -> bool {
+        match (connector, self) {
+            (super::connector_enums::Connector::Stripe, Self::UGX | Self::ISK) => true,
+            (super::connector_enums::Connector::Stripe, Self::HUF | Self::TWD) => is_payout,
+            _ => false,
+        }
+    }
 }
 
 #[derive(
