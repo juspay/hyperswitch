@@ -927,21 +927,18 @@ where
         .as_ref()
         .and_then(|customer| customer.connector_customer.as_ref());
 
-    let merchant_connector_id = payment_data
-        .get_payment_attempt()
-        .merchant_connector_id
-        .clone();
-
-    let connector_customer_id = connector_customer_map.and_then(|cc| {
-        merchant_connector_id.and_then(|mca_id| {
-            cc.clone()
-                .expose()
-                .get(mca_id.get_string_repr())
-                .and_then(|val| val.as_str().map(String::from))
-        })
-    });
-
-    payment_data.set_connector_customer_id(connector_customer_id);
+    let connector_customer_id = |mca_id: Option<&id_type::MerchantConnectorAccountId>| {
+        customer
+            .as_ref()?
+            .get_connector_customer_id(mca_id?.get_string_repr())
+            .map(String::from)
+    };
+    payment_data.set_connector_customer_id(connector_customer_id(
+        payment_data
+            .get_payment_attempt()
+            .merchant_connector_id
+            .as_ref(),
+    ));
 
     let authentication_type = Box::pin(call_decision_manager(
         state,
@@ -968,7 +965,22 @@ where
     )
     .await?;
 
-    let connector = choose_connector(
+    let attempt = payment_data.get_payment_attempt();
+    let wallet_confirm = is_operation_confirm(&operation)
+        && matches!(call_connector_action, CallConnectorAction::Trigger)
+        && payment_data.get_payment_intent().attempt_count == 1
+        && attempt.connector.is_none()
+        && attempt.get_connector_payment_id().is_none()
+        && attempt.authentication_data.is_none()
+        && payment_data.get_creds_identifier().is_none()
+        && !<Req as Authenticate>::is_external_three_ds_data_passed_by_merchant(&req)
+        && routing::wallet_issuer::is_encrypted_wallet(payment_data.get_payment_method_data());
+    let wallet_eligible_connectors = if wallet_confirm {
+        eligible_connectors.clone()
+    } else {
+        None
+    };
+    let (mut connector, wallet_session_route) = choose_connector(
         &operation,
         state,
         &req,
@@ -996,7 +1008,39 @@ where
     )
     .await?;
 
-    payment_method_token.map(|token| payment_data.set_payment_method_token(Some(token)));
+    if let Some(token) = payment_method_token {
+        if wallet_confirm
+            && wallet_session_route
+            && matches!(
+                &token,
+                PaymentMethodToken::ApplePayDecrypt(_) | PaymentMethodToken::GooglePayDecrypt(_)
+            )
+        {
+            if let Some(selected) = routing::wallet_issuer::route_wallet_confirmation(
+                state,
+                platform.get_processor(),
+                &business_profile,
+                &payment_data,
+                &dimensions,
+                wallet_eligible_connectors.as_ref(),
+            )
+            .await
+            {
+                payment_data.set_connector_customer_id(connector_customer_id(
+                    selected.merchant_connector_id.as_ref(),
+                ));
+                payment_data
+                    .set_connector_in_payment_attempt(Some(selected.connector_name.to_string()));
+                payment_data
+                    .set_merchant_connector_id_in_attempt(selected.merchant_connector_id.clone());
+                payment_data.set_routing_approach_in_attempt(Some(
+                    enums::RoutingApproach::RuleBasedRouting,
+                ));
+                connector = Some(ConnectorCallType::PreDetermined(selected.into()));
+            }
+        }
+        payment_data.set_payment_method_token(Some(token));
+    }
 
     operation
         .to_domain()?
@@ -3394,7 +3438,7 @@ where
 
     // Routing parity with `payments_operation_core` (minus debit routing): resolve the connector
     // call type via `choose_connector` instead of the proxy-specific eligibility helper.
-    let connector = choose_connector(
+    let (connector, _) = choose_connector(
         &operation,
         state,
         &req,
@@ -11872,7 +11916,7 @@ pub async fn choose_connector<F, Req, D>(
     dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     call_connector_action: CallConnectorAction,
     customer_preferred_connectors: Option<pii::SecretSerdeValue>,
-) -> RouterResult<Option<ConnectorCallType>>
+) -> RouterResult<(Option<ConnectorCallType>, bool)>
 where
     F: Send + Clone + 'static,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -11906,26 +11950,17 @@ where
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("euclid: failed to fetch fallback config")?;
 
+    let mut wallet_session_route = false;
     let connector = match routing::make_dsl_input(&transaction_data).inspect_err(|err| {
         logger::error!(
             error=?err,
             "euclid: make_dsl_input failed, falling back"
         );
     }) {
-        Ok(mut backend_input) => {
+        Ok(backend_input) => {
             let transaction_type = enums::TransactionType::Payment;
 
             if should_call_connector(operation, payment_data, call_connector_action) {
-                if matches!(&connector_choice, api::ConnectorChoice::Decide) {
-                    routing::wallet_issuer::enrich_wallet_issuer_country(
-                        state,
-                        processor,
-                        business_profile,
-                        &transaction_data,
-                        &mut backend_input,
-                    )
-                    .await;
-                }
                 Some(match connector_choice {
                     api::ConnectorChoice::SessionMultiple(connectors) => {
                         let routing_output = perform_session_token_routing(
@@ -11959,10 +11994,11 @@ where
                             customer_preferred_connectors,
                         )
                         .await?
+                        .0
                     }
 
                     api::ConnectorChoice::Decide => {
-                        perform_routing_for_connector_selection(
+                        let (connector, pre_routed) = perform_routing_for_connector_selection(
                             state,
                             processor,
                             business_profile,
@@ -11976,7 +12012,9 @@ where
                             backend_input,
                             customer_preferred_connectors,
                         )
-                        .await?
+                        .await?;
+                        wallet_session_route = pre_routed;
+                        connector
                     }
                 })
             } else if let api::ConnectorChoice::StraightThrough(algorithm) = connector_choice {
@@ -11996,7 +12034,7 @@ where
             Some(ConnectorCallType::Retryable(fallback_routing_data))
         }
     };
-    Ok(connector)
+    Ok((connector, wallet_session_route))
 }
 
 async fn get_eligible_connector_for_proxy<T: core_routing::GetRoutableConnectorsForChoice, F, D>(
@@ -12242,7 +12280,7 @@ pub async fn perform_routing_for_connector_selection<F, D>(
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     backend_input: dsl_inputs::BackendInput,
     customer_preferred_connectors: Option<pii::SecretSerdeValue>,
-) -> RouterResult<ConnectorCallType>
+) -> RouterResult<(ConnectorCallType, bool)>
 where
     F: Send + Clone + 'static,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -12526,10 +12564,10 @@ pub async fn decide_connector<F, D>(
     mandate_type: Option<api::MandateTransactionType>,
     dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
-    backend_input: dsl_inputs::BackendInput,
+    mut backend_input: dsl_inputs::BackendInput,
     is_payment_method_modular_allowed: bool,
     customer_preferred_connectors: Option<pii::SecretSerdeValue>,
-) -> RouterResult<ConnectorCallType>
+) -> RouterResult<(ConnectorCallType, bool)>
 where
     F: Send + Clone + 'static,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -12552,6 +12590,7 @@ where
     })
     .ok()
     .flatten()
+    .map(|connector| (connector, false))
     .or(
         // Check if pre_routing connector is present
         routing::try_pre_routing_connectors::<F, D>(
@@ -12570,7 +12609,13 @@ where
             );
         })
         .ok()
-        .flatten(),
+        .flatten()
+        .map(|connector| {
+            (
+                connector,
+                request_straight_through.is_none() && routing_data.routing_info.algorithm.is_none(),
+            )
+        }),
     );
 
     if let Some(connector) = pre_decided_connector {
@@ -12600,6 +12645,16 @@ where
         payment_data.get_recurring_details(),
         payment_data.get_currency(),
     );
+    if request_straight_through.is_none() {
+        routing::wallet_issuer::enrich_wallet_issuer_country(
+            &state,
+            processor,
+            business_profile,
+            &transaction_data,
+            &mut backend_input,
+        )
+        .await;
+    }
 
     // Straight through routing block
     let request_straight_through_routing_stage =
@@ -12778,6 +12833,7 @@ where
         business_profile.is_network_tokenization_enabled,
     )
     .await
+    .map(|connector| (connector, false))
 }
 
 #[cfg(feature = "v1")]

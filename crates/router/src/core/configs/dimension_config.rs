@@ -1459,6 +1459,42 @@ impl DatabaseBackedConfig for PreferredConnectorsRoutingEnabled {
 }
 
 config! {
+    superposition_key = WALLET_ISSUER_COUNTRY_CONFIRM_ROUTING_ENABLED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for WalletIssuerCountryConfirmRoutingEnabled {
+    const KEY: &'static str = "wallet_issuer_country_confirm_routing_enabled";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_profile_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = WALLET_ISSUER_COUNTRY_CONFIRM_ROUTING_MCA_IDS,
+    output = String,
+    default = String::new(),
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for WalletIssuerCountryConfirmRoutingMcaIds {
+    const KEY: &'static str = "wallet_issuer_country_confirm_routing_mca_ids";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_profile_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
     superposition_key = PAYOUT_BLOCKLIST_GUARD,
     output = bool,
     default = false,

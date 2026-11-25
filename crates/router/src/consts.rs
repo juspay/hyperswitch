@@ -635,6 +635,12 @@ pub mod superposition {
     /// Payment method types eligible for preferred-connectors routing (comma-separated)
     pub const PREFERRED_CONNECTORS_ENABLED_PAYMENT_METHOD_TYPES: &str =
         "routing.preferred_connectors_enabled_payment_method_types";
+    /// Profile opt-in for routing HS-decrypted wallets by issuer country at confirm time.
+    pub const WALLET_ISSUER_COUNTRY_CONFIRM_ROUTING_ENABLED: &str =
+        "routing.wallet_issuer_country_confirm_routing_enabled";
+    /// Exact merchant connector account IDs allowed for wallet issuer country confirm routing.
+    pub const WALLET_ISSUER_COUNTRY_CONFIRM_ROUTING_MCA_IDS: &str =
+        "routing.wallet_issuer_country_confirm_routing_mca_ids";
     /// Payout blocklist guard configuration key
     pub const PAYOUT_BLOCKLIST_GUARD: &str = "payouts.payout_blocklist_guard";
     /// Accept connector payment amount mismatch configuration key (scoped by processor merchant

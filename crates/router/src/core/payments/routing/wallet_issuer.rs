@@ -1,11 +1,13 @@
-//! Issuer-country enrichment before the confirm flow evaluates routing rules.
+//! Issuer-country routing for Apple Pay and Google Pay confirmations.
 //!
 //! Wallet identity remains `wallet` / `apple_pay` or `google_pay`. Only the issuer country
-//! is enriched from the eight-digit BIN, falling back to six digits if no record exists.
+//! is enriched from the decrypted payment number's eight-digit BIN.
 
 use std::{future::Future, str::FromStr};
 
-use common_enums::{Country, CountryAlpha2, PaymentMethodType};
+use api_models::enums::RoutableConnectors;
+use common_enums::{Country, CountryAlpha2, PaymentMethodType, TransactionType};
+use common_types::payments::{ApplePayPaymentData, GpayTokenizationData};
 use common_utils::id_type::MerchantConnectorAccountId;
 use euclid::backend::inputs::{BackendInput, IssuerDataInput};
 use hyperswitch_domain_models::{
@@ -13,17 +15,149 @@ use hyperswitch_domain_models::{
     routing::{PaymentRoutingInfo, PreRoutingConnectorChoice},
 };
 
+use super::utils;
 use crate::{
     core::{
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         payments::{
             decrypt_apple_pay_wallet_for_eligibility, decrypt_google_pay_wallet_for_eligibility,
+            OperationSessionGetters,
         },
-        routing::PaymentsDslInput,
+        routing::{helpers::get_merchant_default_config, PaymentsDslInput},
     },
     logger,
-    types::domain,
+    types::{api, domain},
     SessionState,
 };
+
+pub(in crate::core::payments) fn is_encrypted_wallet(
+    payment_method: Option<&PaymentMethodData>,
+) -> bool {
+    match payment_method {
+        Some(PaymentMethodData::Wallet(WalletData::ApplePay(data))) => {
+            matches!(&data.payment_data, ApplePayPaymentData::Encrypted(_))
+        }
+        Some(PaymentMethodData::Wallet(WalletData::GooglePay(data))) => {
+            matches!(&data.tokenization_data, GpayTokenizationData::Encrypted(_))
+        }
+        _ => false,
+    }
+}
+
+pub(in crate::core::payments) async fn route_wallet_confirmation<F, D>(
+    state: &SessionState,
+    processor: &domain::Processor,
+    business_profile: &domain::Profile,
+    payment_data: &D,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    eligible_connectors: Option<&Vec<RoutableConnectors>>,
+) -> Option<api::ConnectorData>
+where
+    F: Clone,
+    D: OperationSessionGetters<F> + Sync,
+{
+    if !state.conf.open_router.static_routing_enabled
+        || !dimensions
+            .get_wallet_issuer_country_confirm_routing_enabled(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                None,
+            )
+            .await
+        || !utils::is_decision_engine_routing_effective(state, dimensions).await
+    {
+        return None;
+    }
+
+    let payment = PaymentsDslInput::new(
+        payment_data.get_setup_mandate(),
+        payment_data.get_payment_attempt(),
+        payment_data.get_payment_intent(),
+        payment_data.get_payment_method_data(),
+        payment_data.get_address(),
+        payment_data.get_recurring_details(),
+        payment_data.get_currency(),
+    );
+    let mut input = super::make_dsl_input(&payment).ok()?;
+    enrich_wallet_issuer_country(state, processor, business_profile, &payment, &mut input).await;
+    input.issuer_data.as_ref()?.country?;
+
+    let allowed_mca_ids = dimensions
+        .get_wallet_issuer_country_confirm_routing_mca_ids(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
+    let allowed_mca_ids: Vec<_> = allowed_mca_ids
+        .split(',')
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+        .collect();
+    if allowed_mca_ids.is_empty() {
+        return None;
+    }
+
+    let profile_id = business_profile.get_id();
+    let key_store = processor.get_key_store();
+    let mut candidates = get_merchant_default_config(
+        state.store.as_ref(),
+        profile_id.get_string_repr(),
+        &TransactionType::Payment,
+    )
+    .await
+    .ok()?;
+    let accounts = super::get_active_merchant_connector_accounts(state, key_store, profile_id)
+        .await
+        .ok()?;
+    candidates.retain(|choice| {
+        choice.merchant_connector_id.as_ref().is_some_and(|id| {
+            allowed_mca_ids.contains(&id.get_string_repr())
+                && accounts.iter().any(|account| {
+                    &account.merchant_connector_id == id
+                        && account.connector_name == choice.connector.to_string()
+                })
+        })
+    });
+    if candidates.is_empty() {
+        return None;
+    }
+    let candidates = super::perform_cgraph_filtering(
+        state,
+        key_store,
+        candidates,
+        input.clone(),
+        eligible_connectors,
+        profile_id,
+        &TransactionType::Payment,
+        &accounts.get_ids(),
+        business_profile.get_auto_fallback_capture_method(),
+    )
+    .await
+    .ok()?;
+    let selected = utils::decision_engine_wallet_confirm_routing(
+        state,
+        business_profile,
+        payment
+            .payment_attempt
+            .payment_id
+            .get_string_repr()
+            .to_owned(),
+        input,
+        candidates,
+    )
+    .await
+    .inspect_err(|_| logger::warn!("Wallet confirm routing failed, keeping the session connector"))
+    .ok()??;
+
+    api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &selected.connector.to_string(),
+        api::GetToken::Connector,
+        selected.merchant_connector_id,
+    )
+    .ok()
+}
 
 /// Best effort: unavailable wallet keys, decryption failures, and missing BIN records must
 /// not make a payment fail. The normal connector-specific decryption flow still owns errors.
