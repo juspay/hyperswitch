@@ -422,7 +422,7 @@ impl IncomingWebhook for Adyenplatform {
                 )],
             )))
         } else {
-            Ok(WebhookResponse::StatusOk)
+            Ok(WebhookResponse::default())
         }
     }
 

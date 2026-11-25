@@ -668,6 +668,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                     Ok(payments_response)
                 }
                 ApplicationResponse::StatusOk
+                | ApplicationResponse::StatusCode(_)
                 | ApplicationResponse::TextPlain(_)
                 | ApplicationResponse::JsonForRedirection(_)
                 | ApplicationResponse::Form(_)
@@ -730,6 +731,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                         Ok(dispute_response)
                     }
                     ApplicationResponse::StatusOk
+                    | ApplicationResponse::StatusCode(_)
                     | ApplicationResponse::TextPlain(_)
                     | ApplicationResponse::JsonForRedirection(_)
                     | ApplicationResponse::Form(_)
@@ -763,6 +765,7 @@ async fn get_outgoing_webhook_content_and_event_type(
                     Ok(mandate_response)
                 }
                 ApplicationResponse::StatusOk
+                | ApplicationResponse::StatusCode(_)
                 | ApplicationResponse::TextPlain(_)
                 | ApplicationResponse::JsonForRedirection(_)
                 | ApplicationResponse::Form(_)

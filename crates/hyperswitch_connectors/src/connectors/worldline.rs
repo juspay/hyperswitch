@@ -816,7 +816,7 @@ impl webhooks::IncomingWebhook for Worldline {
     > {
         let verification_header = request.headers.get("x-gcs-webhooks-endpoint-verification");
         let response = match verification_header {
-            None => hyperswitch_domain_models::api::WebhookResponse::StatusOk,
+            None => hyperswitch_domain_models::api::WebhookResponse::default(),
             Some(header_value) => {
                 let verification_signature_value = header_value
                     .to_str()

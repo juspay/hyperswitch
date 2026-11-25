@@ -360,12 +360,21 @@ async fn incoming_webhooks_core(
         }
     };
 
-    if matches!(
-        &outcome,
-        Ok(outcome) if outcome.event_type() == webhooks::IncomingWebhookEvent::SetupWebhook
-    ) {
+    if let Ok(
+        super::gateway::WebhookOutcome::Skipped {
+            event_type: webhooks::IncomingWebhookEvent::SetupWebhook,
+            ack_response,
+            ..
+        }
+        | super::gateway::WebhookOutcome::Processed {
+            event_type: webhooks::IncomingWebhookEvent::SetupWebhook,
+            ack_response,
+            ..
+        },
+    ) = outcome
+    {
         return Ok((
-            WebhookResponse::StatusOk,
+            ack_response,
             WebhookResponseTracker::NoEffect,
             Secret::new(serde_json::Value::default()),
         ));
@@ -957,7 +966,7 @@ async fn network_token_incoming_webhooks_core(
         .await?;
 
     Ok((
-        WebhookResponse::StatusOk,
+        WebhookResponse::StatusCode(200),
         webhook_resp_tracker,
         serialized_request,
         merchant_id.clone(),

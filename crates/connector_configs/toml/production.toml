@@ -9053,6 +9053,9 @@ key1 = "Profile ID"
 [elavon_pg.connector_auth.BodyKey]
 api_key="Merchant Alias"
 key1="Secret API Key"
+[elavon_pg.connector_webhook_details]
+merchant_secret="Webhook Shared Secret"
+additional_secret="Webhook Signer ID"
 [[elavon_pg.credit]]
   payment_method_type = "Mastercard"
 [[elavon_pg.credit]]
@@ -9159,7 +9162,7 @@ key1="Secret API Key"
   placeholder = "Enter Allowed Auth Methods"
   required = true
   type = "MultiSelect"
-  options = ["CRYPTOGRAM_3DS"]
+  options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
 [[elavon_pg.connector_wallets_details.google_pay]]
   name = "merchant_name"
   label = "Google Pay Merchant Name"
@@ -9202,7 +9205,7 @@ key1="Secret API Key"
   placeholder = "Enter Allowed Auth Methods"
   required = true
   type = "MultiSelect"
-  options = ["CRYPTOGRAM_3DS"]
+  options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
 
 [mifinity_payout]
 [[mifinity_payout.wallet]]

@@ -460,11 +460,22 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
             .unwrap_or(IncomingWebhookEvent::EventNotSupported);
 
         let outcome = match FilterDecision::evaluate(event_type, ctx).await {
+            // No HandleEvent call for a filtered event, so the connector builds the ack here.
             FilterDecision::Skip => WebhookOutcome::Skipped {
                 reference,
                 event_type,
                 masked_log_payload: Secret::new(serde_json::Value::Null),
-                ack_response: WebhookResponse::StatusOk,
+                ack_response: ctx
+                    .connector
+                    .get_webhook_api_response(
+                        request,
+                        None,
+                        ctx.merchant_connector_account
+                            .as_ref()
+                            .map(|mca| mca.connector_account_details.clone()),
+                    )
+                    .switch()
+                    .attach_printable("Failed to build webhook ack via connector")?,
             },
             FilterDecision::Proceed => {
                 let reference = reference.ok_or_else(|| {
@@ -542,10 +553,18 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                         serde_json::Value::Null
                     }));
 
-                let ack_response = handle_response
-                    .event_ack_response
-                    .map(ucs_ack_to_webhook_response)
-                    .unwrap_or(WebhookResponse::StatusOk);
+                let ack_response = match handle_response.event_ack_response {
+                    Some(ack) => ucs_ack_to_webhook_response(ack)?,
+                    None => ctx
+                        .connector
+                        .get_webhook_api_response(
+                            request,
+                            None,
+                            Some(mca.connector_account_details.clone()),
+                        )
+                        .switch()
+                        .attach_printable("Failed to build webhook ack via connector")?,
+                };
 
                 WebhookOutcome::Processed {
                     reference,
@@ -1048,15 +1067,20 @@ async fn build_event_context(
 
 fn ucs_ack_to_webhook_response(
     ack: payments_grpc::EventAckResponse,
-) -> WebhookResponse<serde_json::Value> {
+) -> RouterResult<WebhookResponse<serde_json::Value>> {
     let payments_grpc::EventAckResponse {
-        status_code: _,
+        status_code,
         headers,
         body,
     } = ack;
 
     if body.is_empty() {
-        return WebhookResponse::StatusOk;
+        return u16::try_from(status_code)
+            .map(WebhookResponse::StatusCode)
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .attach_printable_lazy(|| {
+                format!("Invalid status code {status_code} in UCS webhook ack")
+            });
     }
 
     let masked_headers: Vec<(String, hyperswitch_masking::Maskable<String>)> = headers
@@ -1065,15 +1089,15 @@ fn ucs_ack_to_webhook_response(
         .collect();
 
     if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&body) {
-        return if masked_headers.is_empty() {
+        return Ok(if masked_headers.is_empty() {
             WebhookResponse::Json(value)
         } else {
             WebhookResponse::JsonWithHeaders((value, masked_headers))
-        };
+        });
     }
 
-    match String::from_utf8(body.clone()) {
+    Ok(match String::from_utf8(body.clone()) {
         Ok(text) => WebhookResponse::TextPlain(text),
         Err(_) => WebhookResponse::FileData((body, mime::APPLICATION_OCTET_STREAM)),
-    }
+    })
 }

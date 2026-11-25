@@ -25,6 +25,7 @@ use base64::Engine;
 use common_enums::enums;
 use common_utils::{
     consts::BASE64_ENGINE,
+    crypto,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
@@ -621,6 +622,25 @@ impl webhooks::IncomingWebhook for ElavonPg {
     {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
+
+    /// EPG counts only `201` as a delivered notification; anything else is retried and, after
+    /// four retries, the webhook is disabled until Elavon support re-enables it.
+    /// https://developer.elavon.com/products/elavon-payment-gateway/v1/webhook-notifications
+    fn get_webhook_api_response(
+        &self,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _error_kind: Option<webhooks::IncomingWebhookFlowError>,
+        _connector_authentication_type: Option<
+            crypto::Encryptable<hyperswitch_masking::Secret<serde_json::Value>>,
+        >,
+    ) -> CustomResult<
+        hyperswitch_domain_models::api::WebhookResponse<serde_json::Value>,
+        errors::ConnectorError,
+    > {
+        Ok(hyperswitch_domain_models::api::WebhookResponse::StatusCode(
+            201,
+        ))
+    }
 }
 
 static ELAVON_PG_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
@@ -732,7 +752,8 @@ static ELAVON_PG_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
-static ELAVON_PG_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static ELAVON_PG_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for ElavonPg {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
