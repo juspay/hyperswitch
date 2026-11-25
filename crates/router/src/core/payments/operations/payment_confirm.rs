@@ -573,24 +573,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .clone()
             .or(payment_attempt.business_sub_label);
 
-        let resolved_payment_method_data =
-            payment_method_recurring_details.as_ref().or_else(|| {
-                payment_method_with_raw_data
-                    .as_ref()
-                    .and_then(|payment_method| payment_method.raw_payment_method_data.as_ref())
-            });
-
         let n_request_payment_method_data = request
             .payment_method_data
             .as_ref()
             .and_then(|pmd| pmd.payment_method_data.clone())
             .map(domain::PaymentMethodData::from)
-            // CVC/name overrides must not replace metadata from the resolved card.
-            .filter(|pmd| {
-                !matches!(pmd, domain::PaymentMethodData::CardToken(_))
-                    || resolved_payment_method_data.is_none()
-            })
-            .or_else(|| resolved_payment_method_data.cloned());
+            .or(payment_method_recurring_details.clone())
+            .or_else(|| {
+                payment_method_with_raw_data
+                    .as_ref()
+                    .and_then(|payment_method| payment_method.raw_payment_method_data.clone())
+            });
 
         let store = state.clone().store;
         let superposition_service = state.superposition_service.clone();
