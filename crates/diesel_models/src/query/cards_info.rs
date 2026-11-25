@@ -14,11 +14,22 @@ impl CardInfo {
         conn: &DatabaseConnectionWithContext<'_>,
         card_iin: &str,
     ) -> StorageResult<Option<Self>> {
-        generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
+        let card_info = generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             card_iin.to_owned(),
         )
-        .await
+        .await?;
+
+        match (card_info, card_iin.get(..6).filter(|_| card_iin.len() == 8)) {
+            (None, Some(card_iin)) => {
+                generics::generic_find_by_id_optional::<<Self as HasTable>::Table, _, _>(
+                    conn,
+                    card_iin.to_owned(),
+                )
+                .await
+            }
+            (card_info, _) => Ok(card_info),
+        }
     }
     pub async fn insert(self, conn: &DatabaseConnectionWithContext<'_>) -> StorageResult<Self> {
         generics::generic_insert(conn, self).await

@@ -96,6 +96,8 @@ pub struct Profile {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: OptionalEncryptableValue,
+    pub google_pay_decryption_config: Option<serde_json::Value>,
+    pub google_pay_decryption_config_encrypted: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v1")]
@@ -353,6 +355,8 @@ impl From<ProfileSetter> for Profile {
             default_fallback_routing: value.default_fallback_routing,
             apple_pay_certificates: None,
             apple_pay_certificates_encrypted: None,
+            google_pay_decryption_config: None,
+            google_pay_decryption_config_encrypted: None,
         }
     }
 }
@@ -426,6 +430,8 @@ pub struct ProfileDbBuilder {
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: OptionalEncryptableValue,
+    pub google_pay_decryption_config: Option<serde_json::Value>,
+    pub google_pay_decryption_config_encrypted: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v1")]
@@ -501,6 +507,8 @@ impl From<ProfileDbBuilder> for Profile {
             default_fallback_routing: value.default_fallback_routing,
             apple_pay_certificates: value.apple_pay_certificates,
             apple_pay_certificates_encrypted: value.apple_pay_certificates_encrypted,
+            google_pay_decryption_config: value.google_pay_decryption_config,
+            google_pay_decryption_config_encrypted: value.google_pay_decryption_config_encrypted,
         }
     }
 }
@@ -627,6 +635,10 @@ pub enum ProfileUpdate {
         apple_pay_certificates: Option<serde_json::Value>,
         apple_pay_certificates_encrypted: Option<common_utils::encryption::Encryption>,
     },
+    GooglePayDecryptionConfigUpdate {
+        google_pay_decryption_config: Option<serde_json::Value>,
+        google_pay_decryption_config_encrypted: Option<common_utils::encryption::Encryption>,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -694,6 +706,8 @@ pub struct Profile {
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
+    pub google_pay_decryption_config: Option<serde_json::Value>,
+    pub google_pay_decryption_config_encrypted: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v2")]
@@ -824,6 +838,8 @@ impl From<ProfileSetter> for Profile {
             billing_processor_id: value.billing_processor_id,
             surcharge_connector_details: value.surcharge_connector_details,
             revenue_recovery_config: value.revenue_recovery_config,
+            google_pay_decryption_config: None,
+            google_pay_decryption_config_encrypted: None,
         }
     }
 }
@@ -890,6 +906,8 @@ pub struct ProfileDbBuilder {
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub revenue_recovery_config: Option<RevenueRecoveryConfig>,
+    pub google_pay_decryption_config: Option<serde_json::Value>,
+    pub google_pay_decryption_config_encrypted: OptionalEncryptableValue,
 }
 
 #[cfg(feature = "v2")]
@@ -958,6 +976,8 @@ impl From<ProfileDbBuilder> for Profile {
             billing_processor_id: value.billing_processor_id,
             surcharge_connector_details: value.surcharge_connector_details,
             revenue_recovery_config: value.revenue_recovery_config,
+            google_pay_decryption_config: value.google_pay_decryption_config,
+            google_pay_decryption_config_encrypted: value.google_pay_decryption_config_encrypted,
         }
     }
 }
@@ -1371,6 +1391,10 @@ pub enum ProfileUpdate {
     ApplePayCertificateCacheUpdate {
         apple_pay_certificates: Option<serde_json::Value>,
         apple_pay_certificates_encrypted: Option<common_utils::encryption::Encryption>,
+    },
+    GooglePayDecryptionConfigUpdate {
+        google_pay_decryption_config: Option<serde_json::Value>,
+        google_pay_decryption_config_encrypted: Option<common_utils::encryption::Encryption>,
     },
 }
 

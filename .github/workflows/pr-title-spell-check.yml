@@ -10,10 +10,14 @@ on:
 jobs:
   typos:
     name: Spell check PR title
+    permissions:
+      contents: read # To checkout repository
     runs-on: hypersage-runners
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Store PR title in a file
         shell: bash

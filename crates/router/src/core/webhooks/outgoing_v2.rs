@@ -731,6 +731,7 @@ impl ForeignFrom<&api::OutgoingWebhookContent> for storage::EventMetadata {
                 todo!()
             }
             webhooks::OutgoingWebhookContent::MandateDetails(mandate_response) => Self::Mandate {
+                payment_id: mandate_response.payment_id.clone(),
                 payment_method_id: mandate_response.payment_method_id.clone(),
                 mandate_id: mandate_response.mandate_id.clone(),
             },
@@ -777,9 +778,11 @@ impl ForeignFrom<storage::EventMetadata> for outgoing_webhook_logs::OutgoingWebh
                 content: serde_json::Value::Null,
             },
             diesel_models::EventMetadata::Mandate {
+                payment_id,
                 payment_method_id,
                 mandate_id,
             } => Self::Mandate {
+                payment_id,
                 payment_method_id,
                 mandate_id,
                 content: serde_json::Value::Null,
