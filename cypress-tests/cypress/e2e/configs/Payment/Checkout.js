@@ -465,6 +465,18 @@ export const connectorDetails = {
         },
       },
     },
+    RefundInstant: {
+      Request: {
+        amount: 6000,
+        refund_type: "instant",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+        },
+      },
+    },
     SyncRefund: {
       Response: {
         status: 200,
