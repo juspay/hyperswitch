@@ -159,7 +159,7 @@ export const connectorDetails = {
     MITManualCapture: {
       Request: {
         amount: 6000,
-        mit_category: "installment",
+        mit_category: "unscheduled",
       },
       Response: {
         status: 200,
@@ -580,6 +580,7 @@ export const connectorDetails = {
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
+        mit_category: "unscheduled"
       },
       Response: {
         status: 200,
@@ -598,6 +599,7 @@ export const connectorDetails = {
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
+        mit_category: "unscheduled"
       },
       Response: {
         status: 200,
@@ -781,7 +783,7 @@ export const connectorDetails = {
     MITAutoCapture: {
       Request: {
         amount: 6000,
-        mit_category: "installment",
+        mit_category: "unscheduled",
       },
       Response: {
         status: 200,
@@ -793,7 +795,7 @@ export const connectorDetails = {
     MITAutoCaptureWithCustomerAcceptance: {
       Request: {
         amount: 6000,
-        mit_category: "installment",
+        mit_category: "unscheduled",
         customer_acceptance: {
           acceptance_type: "offline",
           accepted_at: "1963-05-03T04:07:52.723Z",
