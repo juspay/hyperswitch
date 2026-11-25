@@ -8031,6 +8031,7 @@
           "Payouts"
         ],
         "summary": "Payouts - Update",
+        "description": "Updates payout details while preserving the amount, currency, and associated customer. Supplied customer contact details are ignored. Do not include amount, currency, customer_id, or customer.id.",
         "operationId": "Update a Payout",
         "parameters": [
           {
@@ -8069,6 +8070,9 @@
           },
           "404": {
             "description": "Payout does not exist in the merchant's records"
+          },
+          "422": {
+            "description": "Request contains fields that cannot be updated"
           }
         },
         "security": [
@@ -8134,6 +8138,7 @@
           "Payouts"
         ],
         "summary": "Payouts - Fulfill",
+        "description": "Fulfills the existing payout using the payout_id from the URL. Request body fields are ignored.",
         "operationId": "Fulfill a Payout",
         "parameters": [
           {
@@ -8146,16 +8151,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PayoutFulfillRequest"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "200": {
             "description": "Payout fulfilled",
@@ -8306,6 +8301,7 @@
           "Payouts"
         ],
         "summary": "Payouts - Confirm",
+        "description": "Confirms the existing payout while preserving the amount, currency, and associated customer. Supplied customer contact details are ignored. Do not include amount, currency, customer_id, or customer.id.",
         "operationId": "Confirm a Payout",
         "parameters": [
           {
@@ -8344,6 +8340,9 @@
           },
           "404": {
             "description": "Payout does not exist in the merchant's records"
+          },
+          "422": {
+            "description": "Request contains fields that cannot be updated"
           }
         },
         "security": [
@@ -10524,11 +10523,11 @@
                     "expiry_year": "28",
                     "method": "charge",
                     "parameters": {
-                      "payment_id": "pay_8320b449b06630271e378214dab80ce5",
-                      "profile_id": "pro_GUMsmmzTU7oadT00pJeo"
+                      "payment_id": "pay_1234",
+                      "profile_id": "pro_1234"
                     },
                     "postal_code": "94122",
-                    "transaction_id": "IPe16430-39ba-4820-bedc-7aad0762a487"
+                    "transaction_id": "IP1234"
                   }
                 }
               }
@@ -10547,16 +10546,16 @@
                 "examples": {
                   "01. The card was charged": {
                     "value": {
-                      "charge_id": "pay_8320b449b06630271e378214dab80ce5",
+                      "charge_id": "pay_1234",
                       "error_code": null,
                       "error_message": null,
                       "parameters": {
                         "amount_capturable": "0",
                         "amount_received": "100",
                         "connector": "stripe",
-                        "connector_transaction_id": "pi_3URyI8D5R7gDAGff17RhZpfW",
-                        "merchant_order_reference_id": "IPe16430-39ba-4820-bedc-7aad0762a487",
-                        "payment_id": "pay_8320b449b06630271e378214dab80ce5",
+                        "connector_transaction_id": "pi_1234",
+                        "merchant_order_reference_id": "IP1234",
+                        "payment_id": "pay_1234",
                         "status": "succeeded"
                       }
                     }
@@ -10568,8 +10567,8 @@
                       "error_message": "Your card was declined.",
                       "parameters": {
                         "connector": "stripe",
-                        "merchant_order_reference_id": "IPe16430-39ba-4820-bedc-7aad0762a487",
-                        "payment_id": "pay_8320b449b06630271e378214dab80ce5",
+                        "merchant_order_reference_id": "IP1234",
+                        "payment_id": "pay_1234",
                         "status": "failed",
                         "unified_code": "UE_9000"
                       }
@@ -10582,8 +10581,8 @@
                       "error_message": "Payment is not yet complete",
                       "parameters": {
                         "connector": "stripe",
-                        "merchant_order_reference_id": "IPe16430-39ba-4820-bedc-7aad0762a487",
-                        "payment_id": "pay_8320b449b06630271e378214dab80ce5",
+                        "merchant_order_reference_id": "IP1234",
+                        "payment_id": "pay_1234",
                         "status": "processing"
                       }
                     }
@@ -40511,22 +40510,6 @@
             "nullable": true,
             "maxLength": 255
           },
-          "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
-            "example": 1000,
-            "nullable": true,
-            "minimum": 0
-          },
-          "currency": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Currency"
-              }
-            ],
-            "nullable": true
-          },
           "routing": {
             "allOf": [
               {
@@ -40585,14 +40568,6 @@
             "default": false,
             "example": true,
             "nullable": true
-          },
-          "customer_id": {
-            "type": "string",
-            "description": "Existing customer ID used at creation. Ignored on update and confirm.\n_Deprecated: Use customer.id instead._",
-            "deprecated": true,
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
-            "maxLength": 255
           },
           "customer": {
             "allOf": [
@@ -41694,22 +41669,6 @@
             "nullable": true,
             "maxLength": 255
           },
-          "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
-            "example": 1000,
-            "nullable": true,
-            "minimum": 0
-          },
-          "currency": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Currency"
-              }
-            ],
-            "nullable": true
-          },
           "routing": {
             "allOf": [
               {
@@ -41775,14 +41734,6 @@
             "default": false,
             "example": true,
             "nullable": true
-          },
-          "customer_id": {
-            "type": "string",
-            "description": "Existing customer ID used at creation. Ignored on update and confirm.\n_Deprecated: Use customer.id instead._",
-            "deprecated": true,
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
-            "maxLength": 255
           },
           "customer": {
             "allOf": [
@@ -41992,7 +41943,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
+            "description": "The payout amount in the lowest denomination of the currency (for example, cents for USD or paisa for INR). Set during creation; it cannot be changed in update or confirm requests.",
             "minimum": 0
           },
           "currency": {
@@ -42066,7 +42017,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "Existing customer ID used at creation. Ignored on update and confirm.\n_Deprecated: Use customer.id instead._",
+            "description": "Existing customer ID used at creation.\n_Deprecated: Use customer.id instead._",
             "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
@@ -49573,6 +49524,54 @@
           }
         }
       },
+      "TelephoneOrderCaptureMethod": {
+        "type": "string",
+        "description": "Specifies how the authorization is captured.",
+        "enum": [
+          "automatic",
+          "manual"
+        ]
+      },
+      "TelephoneOrderParameters": {
+        "allOf": [
+          {
+            "type": "object",
+            "description": "Whatever else the merchant put on the `<Pay>` verb, carried through unread."
+          },
+          {
+            "type": "object",
+            "properties": {
+              "payment_id": {
+                "type": "string",
+                "description": "Charges this payment id rather than one derived from the provider's attempt id.",
+                "example": "pay_1234",
+                "nullable": true
+              },
+              "profile_id": {
+                "type": "string",
+                "description": "The profile to charge against. Absent, the merchant's default profile is used.",
+                "example": "pro_1234",
+                "nullable": true
+              },
+              "customer_id": {
+                "type": "string",
+                "description": "The customer this payment belongs to.",
+                "example": "cus_1234",
+                "nullable": true
+              },
+              "capture_method": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/TelephoneOrderCaptureMethod"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          }
+        ],
+        "description": "The IVR's `<Parameter>` tags. The four read by Hyperswitch are named below; the rest ride along\ninto the payment's `metadata`. Keys must be lowercase — Twilio lowercases parameter names, so a\ncamelCase one lands in the passthrough instead."
+      },
       "ThirdPartySdkSessionResponse": {
         "type": "object",
         "required": [
@@ -50200,7 +50199,7 @@
           "transaction_id": {
             "type": "string",
             "description": "Twilio's id for this attempt. Stable across its retries, and used to derive the `payment_id` so a retry replays the original charge.",
-            "example": "IPe16430-39ba-4820-bedc-7aad0762a487"
+            "example": "IP1234"
           },
           "cardnumber": {
             "type": "string",
@@ -50263,8 +50262,11 @@
             "nullable": true
           },
           "parameters": {
-            "type": "object",
-            "description": "Values from the IVR's `<Parameter>` tags, stored unmasked in the payment's `metadata`. `profile_id`, `payment_id` and `customer_id` are also read.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TelephoneOrderParameters"
+              }
+            ],
             "nullable": true
           }
         }
@@ -50279,7 +50281,7 @@
           "charge_id": {
             "type": "string",
             "description": "The Hyperswitch `payment_id`, on a successful charge.",
-            "example": "pay_8320b449b06630271e378214dab80ce5",
+            "example": "pay_1234",
             "nullable": true
           },
           "error_code": {
