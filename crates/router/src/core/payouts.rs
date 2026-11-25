@@ -1119,6 +1119,10 @@ pub async fn payouts_fulfill_core(
     .await?;
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
+
+    // Revalidate because hydration can refresh the attempt after a concurrent status update.
+    action_type.validate_fulfillment_status(&payout_attempt.payout_id, payout_attempt.status)?;
+
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
