@@ -39,6 +39,7 @@ use crate::{
         payment_methods::{self as payment_methods_routes, cards, migration as update_migration},
     },
     headers,
+    routes::lock_utils,
     services::{self, api, authentication as auth, authorization::permissions::Permission},
     types::{
         api::payment_methods::{self, PaymentMethodId},
@@ -1245,6 +1246,13 @@ pub async fn connector_mandate_revoke(
     let flow = Flow::PaymentMethodsConnectorMandateRevoke;
     let payment_method_id = path.into_inner();
     let payload = json_payload.into_inner();
+    let locking_action = api_locking::LockAction::Hold {
+        input: api_locking::LockingInput {
+            unique_locking_key: payment_method_id.clone(),
+            api_identifier: lock_utils::ApiIdentifier::from(flow.clone()),
+            override_lock_retries: None,
+        },
+    };
 
     let profile_id = match auth::HeaderMapStruct::new(req.headers())
         .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)
@@ -1278,7 +1286,7 @@ pub async fn connector_mandate_revoke(
             allow_connected_scope_operation: false,
             allow_platform_self_operation: false,
         }),
-        api_locking::LockAction::NotApplicable,
+        locking_action,
     ))
     .await
 }

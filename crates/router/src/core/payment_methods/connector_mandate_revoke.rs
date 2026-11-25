@@ -10,7 +10,7 @@
 //! `POST /mandates/revoke/{id}` for table-backed mandates).
 #![cfg(feature = "v1")]
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use api_models::{
     enums as api_enums,
@@ -77,6 +77,25 @@ pub async fn revoke_connector_mandates(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
+    let merchant_connector_accounts = state
+        .accounts_store
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            merchant_id,
+            true,
+            key_store,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("failed to fetch merchant connector accounts")?
+        .into_iter()
+        .map(|merchant_connector_account| {
+            (
+                merchant_connector_account.get_id(),
+                merchant_connector_account,
+            )
+        })
+        .collect::<HashMap<_, _>>();
+
     if payment_method.merchant_id != *merchant_id {
         return Err(errors::ApiErrorResponse::PaymentMethodNotFound.into());
     }
@@ -109,14 +128,12 @@ pub async fn revoke_connector_mandates(
     for (index, mca_id) in merchant_connector_ids.into_iter().enumerate() {
         match prepare_connector_mandate_revoke(
             &state,
-            &platform,
             &profile,
             &payment_method,
             &mandate_reference,
+            &merchant_connector_accounts,
             mca_id.clone(),
-        )
-        .await
-        {
+        ) {
             Ok(prepared_mandate) => prepared_mandates.push((index, prepared_mandate)),
             Err(error) => {
                 results.push((index, connector_mandate_revoke_error_item(&mca_id, error)))
@@ -275,29 +292,26 @@ struct PreparedConnectorMandateRevoke {
     connector_data: ConnectorData,
 }
 
-/// Validate an entry while its stored mandate status is still `Active`.
-async fn prepare_connector_mandate_revoke(
+/// Validate an entry against records fetched by the handler while its stored mandate status is still `Active`.
+fn prepare_connector_mandate_revoke(
     state: &SessionState,
-    platform: &domain::Platform,
     profile: &domain::Profile,
     payment_method: &domain::PaymentMethod,
     mandate_reference: &CommonMandateReference,
+    merchant_connector_accounts: &HashMap<
+        id_type::MerchantConnectorAccountId,
+        domain::MerchantConnectorAccount,
+    >,
     mca_id: id_type::MerchantConnectorAccountId,
 ) -> RouterResult<PreparedConnectorMandateRevoke> {
-    let key_store = platform.get_processor().get_key_store();
-    let merchant_id = platform.get_processor().get_account().get_id();
-
-    let merchant_connector_account = state
-        .accounts_store
-        .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            merchant_id,
-            &mca_id,
-            key_store,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-            id: mca_id.get_string_repr().to_string(),
-        })?;
+    let merchant_connector_account = merchant_connector_accounts
+        .get(&mca_id)
+        .cloned()
+        .ok_or_else(
+            || errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                id: mca_id.get_string_repr().to_string(),
+            },
+        )?;
 
     // Leak-free: a cross-profile MCA is indistinguishable from a non-existent one
     if merchant_connector_account.profile_id != *profile.get_id() {
