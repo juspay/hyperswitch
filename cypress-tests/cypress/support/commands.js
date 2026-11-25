@@ -13478,6 +13478,59 @@ Cypress.Commands.add(
 // Superposition Config Commands
 // ============================================
 
+// Payout flows require explicit enablement even when the demo Superposition
+// service has no authentication configured. Keep this context separate from
+// profile-scoped feature overrides that individual specs create and remove.
+Cypress.Commands.add(
+  "enablePayouts",
+  (globalState, merchantId = globalState.get("merchantId")) => {
+    const superpositionBaseUrl = globalState.get("superpositionBaseUrl");
+    const superpositionSecret = globalState.get("superpositionSecret");
+    const superpositionAuthToken = globalState.get("superpositionAuthToken");
+
+    if (!superpositionBaseUrl) {
+      throw new Error(
+        "Payout tests require Superposition enablement. Set SUPERPOSITION_BASE_URL (or CYPRESS_SUPERPOSITION_BASE_URL), SUPERPOSITION_ORG_ID and SUPERPOSITION_WORKSPACE_ID for the router's Superposition workspace."
+      );
+    }
+    if (!merchantId) {
+      throw new Error("Create the test merchant before enabling payouts.");
+    }
+
+    return cy
+      .request({
+        method: "PUT",
+        url: `${superpositionBaseUrl}/context`,
+        headers: {
+          "User-Agent": "Mozilla/5.0",
+          "x-org-id": globalState.get("superpositionOrgId") || "hyperswitch",
+          "x-workspace":
+            globalState.get("superpositionWorkspaceId") || "hyperswitch",
+          "Content-Type": "application/json",
+          ...(superpositionSecret
+            ? { "X-Superposition-Secret": superpositionSecret }
+            : {}),
+          ...(superpositionAuthToken
+            ? { Authorization: `Bearer ${superpositionAuthToken}` }
+            : {}),
+        },
+        body: {
+          override: { "payouts.should_allow_payouts": true },
+          context: { processor_merchant_id: merchantId },
+          description: "Enable payouts for the Cypress test merchant",
+          change_reason: "Payout test setup",
+        },
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        expect(response.status, "payout allowlist setup status").to.equal(200);
+        // CI polls every 10 seconds. Allow two complete polls and a buffer.
+        // eslint-disable-next-line cypress/no-unnecessary-waiting
+        cy.wait(21000);
+      });
+  }
+);
+
 // Base command: PUT a superposition context carrying one or more overrides.
 // `overrides` is a plain object of config key to value; a single PUT is used so
 // that configs sharing a context land on one context rather than replacing each
@@ -13535,7 +13588,7 @@ Cypress.Commands.add(
         );
       });
     });
-    // Polling interval is 10 s in CI (ROUTER__SUPERPOSITION__POLLING_INTERVAL)
+    // Polling interval is 10 s in CI (ROUTER__SUPERPOSITION__POLLING_INTERVAL_MILLISECONDS)
     // and 15 s elsewhere. Wait for two full CI poll cycles plus a buffer —
     // a single 15 s wait only has ~5 s of margin over one CI poll tick, which
     // isn't enough if the write lands just after a tick or there's network
