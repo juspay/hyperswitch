@@ -33,7 +33,7 @@ use crate::{
     events::outgoing_webhook_logs::{
         OutgoingWebhookEvent, OutgoingWebhookEventContent, OutgoingWebhookEventMetric,
     },
-    logger,
+    headers, logger,
     routes::{app::SessionStateInfo, SessionState},
     services,
     types::{
@@ -1153,37 +1153,13 @@ pub(crate) fn get_outgoing_webhook_request(
         outgoing_webhook: api::OutgoingWebhook,
         business_profile: &domain::Profile,
     ) -> CustomResult<OutgoingWebhookRequestContent, errors::WebhooksFlowError> {
-        let mut headers = vec![
-            (
-                reqwest::header::CONTENT_TYPE.to_string(),
-                mime::APPLICATION_JSON.essence_str().into(),
-            ),
-            (
-                reqwest::header::USER_AGENT.to_string(),
-                consts::USER_AGENT.to_string().into(),
-            ),
-        ];
-
         let transformed_outgoing_webhook = WebhookType::from(outgoing_webhook);
         let payment_response_hash_key = business_profile.payment_response_hash_key.clone();
         let custom_headers = business_profile
-            .outgoing_webhook_custom_http_headers
-            .clone()
-            .map(|headers| {
-                headers
-                    .into_inner()
-                    .expose()
-                    .parse_value::<HashMap<String, String>>("HashMap<String,String>")
-                    .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
-                    .attach_printable("Failed to deserialize outgoing webhook custom HTTP headers")
-            })
-            .transpose()?;
-        if let Some(ref map) = custom_headers {
-            headers.extend(
-                map.iter()
-                    .map(|(key, value)| (key.clone(), value.clone().into_masked())),
-            );
-        };
+            .get_outgoing_webhook_headers()
+            .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
+            .attach_printable("Failed to deserialize outgoing webhook custom HTTP headers")?;
+        let mut headers = get_outgoing_webhook_headers(custom_headers);
         let outgoing_webhooks_signature = transformed_outgoing_webhook
             .get_outgoing_webhooks_signature(payment_response_hash_key)?;
 
@@ -1209,6 +1185,55 @@ pub(crate) fn get_outgoing_webhook_request(
             outgoing_webhook,
             business_profile,
         ),
+    }
+}
+
+fn get_outgoing_webhook_headers(
+    custom_headers: Option<HashMap<String, Secret<String>>>,
+) -> Vec<(String, services::request::Maskable<String>)> {
+    let mut headers = vec![
+        (
+            reqwest::header::CONTENT_TYPE.to_string(),
+            mime::APPLICATION_JSON.essence_str().into(),
+        ),
+        (
+            reqwest::header::USER_AGENT.to_string(),
+            consts::USER_AGENT.to_string().into(),
+        ),
+    ];
+    headers.extend(
+        custom_headers
+            .into_iter()
+            .flatten()
+            .map(|(name, value)| (name, value.expose().into_masked())),
+    );
+    headers
+}
+
+/// Rebuilds the headers from the given custom headers, keeping the saved signature header
+/// since the saved payload is reused as-is.
+pub(super) fn refresh_outgoing_webhook_request_headers(
+    request: OutgoingWebhookRequestContent,
+    custom_headers: Option<HashMap<String, Secret<String>>>,
+) -> OutgoingWebhookRequestContent {
+    let is_signature_header = |name: &str| {
+        name.eq_ignore_ascii_case(headers::X_WEBHOOK_SIGNATURE)
+            || name.eq_ignore_ascii_case(headers::STRIPE_COMPATIBLE_WEBHOOK_SIGNATURE)
+    };
+    let headers = get_outgoing_webhook_headers(custom_headers)
+        .into_iter()
+        .map(|(name, value)| (name, Secret::new(value.into_inner())))
+        .filter(|(name, _)| !is_signature_header(name))
+        .chain(
+            request
+                .headers
+                .into_iter()
+                .filter(|(name, _)| is_signature_header(name)),
+        )
+        .collect();
+    OutgoingWebhookRequestContent {
+        body: request.body,
+        headers,
     }
 }
 

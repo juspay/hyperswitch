@@ -95,12 +95,18 @@ pub fn list_webhook_delivery_attempts() {}
 /// Events - Manual Retry
 ///
 /// Manually retry the delivery of the specified Event.
+/// Set `refresh_headers` to `true` in the JSON body to use the business profile's current custom headers.
 #[utoipa::path(
     post,
     path = "/events/{merchant_id}/{event_id}/retry",
     params(
         ("merchant_id" = String, Path, description = "The unique identifier for the Merchant Account."),
         ("event_id" = String, Path, description = "The unique identifier for the Event"),
+    ),
+    request_body(
+        content = Option<WebhookDeliveryRetryRequest>,
+        description = "Optional retry settings. An empty body or an omitted refresh_headers field reuses the saved headers.",
+        example = json!({"refresh_headers": true}),
     ),
     responses(
         (
