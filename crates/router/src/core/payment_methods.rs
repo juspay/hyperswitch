@@ -7721,6 +7721,7 @@ pub async fn payment_methods_session_create(
         None,
         None,
         external_vault_details,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -7794,6 +7795,7 @@ pub async fn payment_methods_session_update(
         None,
         None,
         None,
+        None,
     );
 
     Ok(services::ApplicationResponse::Json(response))
@@ -7852,6 +7854,7 @@ pub async fn payment_methods_session_retrieve(
         expiry.map(|time| {
             payment_methods::CardCVCTokenStorageDetails::generate_expiry_timestamp(time)
         }),
+        None,
         None,
         None,
         None,
@@ -8025,6 +8028,7 @@ pub async fn payment_methods_session_update_payment_method(
                 None,
                 None,
                 None,
+                None,
             );
 
             Ok(services::ApplicationResponse::Json(response))
@@ -8110,6 +8114,7 @@ pub async fn payment_methods_session_update_payment_method(
                 updated_payment_method_session.storage_type,
                 update_response.card_cvc_token_storage,
                 update_response.payment_method_data.clone(),
+                None,
                 None,
                 None,
             );
@@ -8376,6 +8381,7 @@ pub async fn payment_methods_session_confirm(
         associated_pm_data,
         payment_method_response.network_token,
         None,
+        Some(payment_method.id.clone()),
     );
 
     Ok(services::ApplicationResponse::Json(
