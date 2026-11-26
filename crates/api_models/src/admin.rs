@@ -895,11 +895,11 @@ pub struct PrimaryBusinessDetails {
 #[serde(deny_unknown_fields)]
 pub struct WebhookDetailsRequest {
     ///The version for Webhook
-    #[schema(max_length = 255, max_length = 255, example = "1.0.2")]
+    #[schema(max_length = 255, example = "1.0.2")]
     pub webhook_version: Option<String>,
 
     ///The user name for Webhook login
-    #[schema(max_length = 255, max_length = 255, example = "ekart_retail")]
+    #[schema(max_length = 255, example = "ekart_retail")]
     pub webhook_username: Option<String>,
 
     ///The password for Webhook login
