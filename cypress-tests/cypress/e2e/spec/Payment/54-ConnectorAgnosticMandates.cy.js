@@ -135,7 +135,7 @@ describe("TSYS TransIT", () => {
 
   // Both configs are org scoped (see dimension_config.rs). The context is left
   // in place after the run rather than removed on teardown.
-  before("set the org level configs", () => {
+  before("set the org level configs", function () {
     // Without the organization dimension the overrides would apply to the whole
     // superposition workspace, so they are only set once the org id is known
     if (!globalState.get("organizationId")) {
@@ -143,11 +143,37 @@ describe("TSYS TransIT", () => {
       return;
     }
 
-    cy.setSuperpositionConfigs(
-      globalState,
-      superpositionOverrides,
-      superpositionContext()
-    );
+    if (
+      !globalState.get("superpositionBaseUrl") ||
+      !globalState.get("superpositionSecret") ||
+      !globalState.get("superpositionAuthToken")
+    ) {
+      // Credentials absent: setSuperpositionConfigs logs a skip and no-ops
+      cy.setSuperpositionConfigs(
+        globalState,
+        superpositionOverrides,
+        superpositionContext()
+      );
+      return;
+    }
+
+    // Credentials present but the endpoint may not be reachable from here
+    // (e.g. sandbox, where superposition is not exposed outside the internal
+    // network) — skipping the suite is better than failing on the PUT here.
+    cy.checkSuperpositionAvailability(globalState).then(() => {
+      if (!globalState.get("superpositionAvailable")) {
+        cy.task(
+          "cli_log",
+          "Superposition not reachable — skipping ConnectorAgnosticMandates spec"
+        );
+        this.skip();
+      }
+      cy.setSuperpositionConfigs(
+        globalState,
+        superpositionOverrides,
+        superpositionContext()
+      );
+    });
   });
 
   afterEach("flush global state", () => {
