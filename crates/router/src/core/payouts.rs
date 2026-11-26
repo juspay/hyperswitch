@@ -3,17 +3,17 @@ use strum::IntoEnumIterator;
 
 use crate::core::payouts::gateway as payout_gateway;
 #[cfg(feature = "v1")]
-use crate::core::payouts::kill_switch::PayoutKillSwitch;
+use crate::core::payouts::should_allow_payouts::ShouldAllowPayouts;
 pub mod access_token;
 pub mod gateway;
 #[cfg(feature = "v1")]
 pub mod guards;
 pub mod helpers;
-pub mod kill_switch;
 #[cfg(feature = "v1")]
 pub mod proxy;
 #[cfg(feature = "payout_retry")]
 pub mod retry;
+pub mod should_allow_payouts;
 pub mod transformers;
 pub mod validator;
 use std::{
@@ -3864,13 +3864,13 @@ pub(crate) async fn make_payout_data(
     _auth_profile_id: Option<id_type::ProfileId>,
     _req: &PayoutRequest,
     _locale: &str,
-    _enforce_kill_switch: bool,
+    _enforce_should_allow_payouts: bool,
 ) -> RouterResult<PayoutData> {
     todo!()
 }
 
 #[cfg(feature = "v1")]
-/// Load payout data, checking the kill switch for mutation and standalone execution callers.
+/// Load payout data, checking the allowlist for mutation and standalone execution callers.
 /// Retrieval, webhook delivery, and background status sync pass `false` to continue processing existing payouts.
 pub(crate) async fn make_payout_data(
     state: &SessionState,
@@ -3878,7 +3878,7 @@ pub(crate) async fn make_payout_data(
     auth_profile_id: Option<id_type::ProfileId>,
     req: &PayoutRequest,
     locale: &str,
-    enforce_kill_switch: bool,
+    enforce_should_allow_payouts: bool,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
@@ -3978,11 +3978,6 @@ pub(crate) async fn make_payout_data(
     // Validate the persisted profile before checking its scope or accessing payout data.
     let business_profile =
         validate_and_get_business_profile(state, platform.get_processor(), &profile_id).await?;
-    match enforce_kill_switch {
-        true => PayoutKillSwitch::ensure_payouts_enabled(state, platform, Some(&profile_id)).await,
-        false => Ok(()),
-    }?;
-
     // Reject proxy mutations before normal method or locker resolution.
     payout_attempt
         .execution_kind
@@ -3999,6 +3994,44 @@ pub(crate) async fn make_payout_data(
         payout_attempt.status,
     )
     .await?;
+
+    let payment_method = payouts
+        .payout_method_id
+        .clone()
+        .async_map(|pm_id| async move {
+            db.find_payment_method(
+                platform.get_processor().get_key_store(),
+                &pm_id,
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+            .attach_printable("Unable to find payment method")
+        })
+        .await
+        .transpose()?;
+
+    match enforce_should_allow_payouts {
+        true => {
+            let requested_method_data = match req {
+                PayoutRequest::Create(request) => request.payout_method_data.as_ref(),
+                _ => None,
+            };
+            let payment_method_type = ShouldAllowPayouts::get_resolved_payment_method_type(
+                requested_method_data,
+                payment_method.as_ref(),
+                payout_attempt.additional_payout_method_data.as_ref(),
+            );
+            ShouldAllowPayouts::ensure_payouts_enabled(
+                state,
+                platform,
+                Some(&profile_id),
+                payment_method_type,
+            )
+            .await
+        }
+        false => Ok(()),
+    }?;
 
     let customer_id = payouts.customer_id.as_ref();
 
@@ -4226,22 +4259,6 @@ pub(crate) async fn make_payout_data(
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error fetching payout links from db")
-        })
-        .await
-        .transpose()?;
-
-    let payment_method = payouts
-        .payout_method_id
-        .clone()
-        .async_map(|pm_id| async move {
-            db.find_payment_method(
-                platform.get_processor().get_key_store(),
-                &pm_id,
-                platform.get_processor().get_account().storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-            .attach_printable("Unable to find payment method")
         })
         .await
         .transpose()?;

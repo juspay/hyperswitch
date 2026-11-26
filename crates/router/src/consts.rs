@@ -310,6 +310,9 @@ pub(crate) const SENDER_ID: &[u8] = b"Google";
 /// recipient from configuration instead of taking it from the merchant.
 pub(crate) const GOOGLE_PAY_GATEWAY_RECIPIENT_PREFIX: &str = "gateway:";
 
+/// Recipient prefix for Google Pay DIRECT merchant tokens.
+pub(crate) const GOOGLE_PAY_MERCHANT_RECIPIENT_PREFIX: &str = "merchant:";
+
 /// Default value for the number of attempts to retry fetching forex rates
 pub const DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS: u64 = 3;
 
@@ -523,8 +526,8 @@ pub mod superposition {
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "payments.enable_extended_card_bin";
     /// Max auto payout retries configuration key
     pub const MAX_AUTO_PAYOUT_RETRIES: &str = "payouts.max_auto_payout_retries";
-    /// Stops payout creation, confirmation, update, cancellation, and fulfillment at OMP scope.
-    pub const PAYOUT_KILL_SWITCH: &str = "payouts.kill_switch";
+    /// Allows payout creation, confirmation, update, cancellation, and fulfillment at OMP scope.
+    pub const SHOULD_ALLOW_PAYOUTS: &str = "payouts.should_allow_payouts";
     /// Allow payout accept and reject operations for their available OMP dimensions.
     pub const SHOULD_ALLOW_REVIEW_FLOW: &str = "should_allow_review_flow";
     /// Minimum allowed payout amount configuration key

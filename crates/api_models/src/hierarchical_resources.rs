@@ -7,6 +7,15 @@ use time::PrimitiveDateTime;
 pub struct GenerateHierarchicalResourceRequest {
     #[serde(rename = "type")]
     pub resource_type: common_enums::ResourceType,
+    pub google_pay: Option<GooglePayResourceRequest>,
+}
+
+/// Configuration for generating a Google Pay DIRECT resource.
+/// DIRECT mode is implicit; callers supply only their Google merchant ID.
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, utoipa::ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GooglePayResourceRequest {
+    pub google_merchant_id: String,
 }
 
 #[derive(Debug, Clone, serde::Serialize, utoipa::ToSchema)]
