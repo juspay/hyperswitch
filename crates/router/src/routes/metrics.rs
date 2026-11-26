@@ -328,16 +328,6 @@ counter_metric!(
                   fallback covers it; `algorithm` is `unenrolled` outside the experiment",
     unit: "1",
 );
-// No algorithm attribute on this one: the thing being counted is that no arm was resolved yet, so
-// there is nothing to attribute it to.
-counter_metric!(
-    REVENUE_RECOVERY_AB_UNASSIGNED_ALGORITHM,
-    GLOBAL_METER,
-    name: "revenue_recovery.ab.unassigned_algorithm",
-    description: "Invoices that reached the A/B arm with no retry implementation recorded on the \
-                  intent, so no algorithm could be replayed",
-    unit: "1",
-);
 counter_metric!(
     REVENUE_RECOVERY_NO_SCHEDULE_TIME,
     GLOBAL_METER,

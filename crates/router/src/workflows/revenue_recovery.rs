@@ -713,16 +713,31 @@ async fn get_retry_time_for_error_code(
     .map(common_utils::date_time::convert_to_pdt)
 }
 
-/// Runs the A/B arm resolved for this retry decision.
+/// Resolves the A/B arm for this retry decision by its error code, then runs it.
 #[cfg(feature = "v2")]
 async fn get_ab_routed_retry_time(
     state: &SessionState,
     payment_intent: &PaymentIntent,
-    algorithm: common_enums::RevenueRecoveryABAlgorithm,
     prev_attempt_error_code: Option<common_enums::StandardisedCode>,
+    prev_attempt_id: &id_type::GlobalAttemptId,
     remaining_grace_days: u32,
     remaining_budget: u32,
-) -> Option<time::PrimitiveDateTime> {
+    ab_dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
+) -> (
+    Option<time::PrimitiveDateTime>,
+    common_enums::RevenueRecoveryABAlgorithm,
+) {
+    let algorithm = crate::core::configs::dimension_state::DimensionsWithRecoveryErrorCode::new(
+        ab_dimensions.clone(),
+        prev_attempt_error_code,
+    )
+    .get_revenue_recovery_ab_algorithm(
+        state.store.as_ref(),
+        state.superposition_service.as_ref(),
+        Some(prev_attempt_id),
+    )
+    .await;
+
     let schedule_time = get_retry_time_for_error_code(
         state,
         algorithm,
@@ -734,66 +749,14 @@ async fn get_ab_routed_retry_time(
 
     logger::info!(
         payment_id = %payment_intent.id.get_string_repr(),
+        prev_attempt_id = %prev_attempt_id.get_string_repr(),
+        error_code = ?prev_attempt_error_code,
         ?algorithm,
         schedule_time = ?schedule_time,
         "A/B routing ran the arm resolved for this decision"
     );
 
-    schedule_time
-}
-
-/// The A/B arm for this retry decision, or `None` to run the cascading schedule.
-#[cfg(feature = "v2")]
-async fn resolve_ab_algorithm_for_attempt(
-    state: &SessionState,
-    profile_dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
-    error_code: Option<common_enums::StandardisedCode>,
-    prev_attempt_id: &id_type::GlobalAttemptId,
-) -> Option<common_enums::RevenueRecoveryABAlgorithm> {
-    use external_services::superposition::Config as _;
-
-    use crate::core::configs::{
-        dimension_config::RevenueRecoveryAbAlgorithmForAttempt,
-        dimension_state::{DimensionsBase, DimensionsWithRecoveryErrorCode},
-    };
-
-    let error_code = error_code?;
-    let context =
-        DimensionsWithRecoveryErrorCode::new(profile_dimensions.clone(), Some(error_code))
-            .to_superposition_context();
-
-    match RevenueRecoveryAbAlgorithmForAttempt::fetch(
-        state.superposition_service.as_ref(),
-        context.as_ref(),
-        Some(prev_attempt_id),
-    )
-    .await
-    {
-        Ok(configured) => parse_ab_algorithm(&configured),
-        Err(error) => {
-            logger::warn!(
-                ?error,
-                ?error_code,
-                "A/B routing: Superposition could not resolve this decision's arm, so it runs \
-                 the cascading schedule"
-            );
-            None
-        }
-    }
-}
-
-/// Parses an A/B arm name; any other value is logged and treated as no arm.
-#[cfg(feature = "v2")]
-fn parse_ab_algorithm(configured: &str) -> Option<common_enums::RevenueRecoveryABAlgorithm> {
-    configured
-        .parse::<common_enums::RevenueRecoveryABAlgorithm>()
-        .inspect_err(|_| {
-            logger::error!(
-                configured,
-                "A/B routing: unknown arm, so this decision runs the cascading schedule"
-            );
-        })
-        .ok()
+    (schedule_time, algorithm)
 }
 
 /// When a retry runs, as the algorithm decides it. Which card it is made with is decided apart
@@ -829,8 +792,6 @@ pub(crate) struct RetryTimingParams<'a> {
     pub remaining_budget: u32,
     // Needed only to resolve the A/B gate
     pub provider_merchant_id: hyperswitch_domain_models::platform::ProviderMerchantId,
-    // Needed only to assign an implementation to an invoice that arrives without one
-    pub merchant_context: pcr_storage_types::RecoveryMerchantContext<'a>,
 }
 
 /// When the next retry of an invoice runs, under the retry algorithm.
@@ -850,7 +811,6 @@ pub(crate) async fn get_retry_timing(
         remaining_grace_days,
         remaining_budget,
         provider_merchant_id,
-        merchant_context: _,
     } = params;
 
     let retry_timing = match retry_algorithm_type {
@@ -904,50 +864,7 @@ pub(crate) async fn get_retry_timing(
                 )
                 .await;
 
-            // `None` runs the cascading schedule.
-            let ab_algorithm = if ab_enabled {
-                resolve_ab_algorithm_for_attempt(
-                    state,
-                    &ab_dimensions,
-                    prev_attempt_error_code,
-                    prev_attempt_id,
-                )
-                .await
-            } else {
-                None
-            };
-
-            if ab_enabled && ab_algorithm.is_none() {
-                let schedule_time = get_schedule_time_to_retry_mit_payments(
-                    state.store.as_ref(),
-                    state.superposition_service.as_ref(),
-                    dimensions,
-                    retry_count,
-                )
-                .await;
-
-                logger::info!(
-                    payment_id = %payment_intent.id.get_string_repr(),
-                    prev_attempt_id = %prev_attempt_id.get_string_repr(),
-                    error_code = ?prev_attempt_error_code,
-                    retry_count,
-                    schedule_time = ?schedule_time,
-                    "A/B routing has no arm for this decision, so it runs the cascading schedule"
-                );
-
-                // Same as the `Cascading` arm.
-                match schedule_time {
-                    Some(time) => RetryTiming::At {
-                        retry_time: time,
-                        next_static_ladder_progress: None,
-                        assigned_ab_algorithm: None,
-                    },
-                    None => {
-                        logger::info!(retry_count, "Retry ladder exhausted for this invoice");
-                        RetryTiming::LadderExhausted
-                    }
-                }
-            } else if ab_enabled || adaptive_retry_enabled {
+            if ab_enabled || adaptive_retry_enabled {
                 // Same shape as the cascading arm — compute the schedule time, then gate on the
                 // token. The addition is the model's candidate, and the variant says both how it
                 // is produced and whether the static ladder bounds it; the cascading ladder covers
@@ -957,14 +874,15 @@ pub(crate) async fn get_retry_timing(
                 // works against arrive as arguments, and everything after it — the fallback, the
                 // decision, the token — is shared, so enrolling an invoice cannot change whether
                 // it gets retried at all.
-                let (model_time, assigned_algorithm) = if let Some(algorithm) = ab_algorithm {
-                    let time = get_ab_routed_retry_time(
+                let (model_time, assigned_algorithm) = if ab_enabled {
+                    let (time, algorithm) = get_ab_routed_retry_time(
                         state,
                         payment_intent,
-                        algorithm,
                         prev_attempt_error_code,
+                        prev_attempt_id,
                         remaining_grace_days,
                         remaining_budget,
+                        &ab_dimensions,
                     )
                     .await;
                     (time, Some(algorithm))
@@ -1183,7 +1101,6 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             remaining_grace_days,
             remaining_budget,
             provider_merchant_id,
-            merchant_context: revenue_recovery_payment_data.get_merchant_context(),
         },
         &dimensions,
     ))
@@ -2698,55 +2615,6 @@ pub async fn compute_model_retry_time(
 // Split rather than `cfg(all(test, feature = "v2"))`: clippy recognises a test module by a literal
 // `cfg(test)` attribute and does not look inside `all(...)`, so the combined form loses the
 // in-test lint allowances (`expect_used`, `unwrap_used`, `panic`) that `.clippy.toml` grants.
-#[cfg(test)]
-#[cfg(feature = "v2")]
-mod attempt_routing_tests {
-    use super::*;
-
-    #[test]
-    fn every_arm_name_is_read_as_that_arm() {
-        for (configured, arm) in [
-            (
-                "adaptive_retry",
-                common_enums::RevenueRecoveryABAlgorithm::AdaptiveRetry,
-            ),
-            (
-                "hybrid_adaptive_retry",
-                common_enums::RevenueRecoveryABAlgorithm::HybridAdaptiveRetry,
-            ),
-            (
-                "systematic_k_max_at_softmax",
-                common_enums::RevenueRecoveryABAlgorithm::SystematicKMaxAtSoftmax,
-            ),
-            (
-                "systematic_k_max_at_score",
-                common_enums::RevenueRecoveryABAlgorithm::SystematicKMaxAtScore,
-            ),
-        ] {
-            assert_eq!(parse_ab_algorithm(configured), Some(arm), "{configured}");
-        }
-    }
-
-    #[test]
-    fn anything_else_has_no_arm_and_runs_the_cascading_schedule() {
-        for configured in ["", "true", "Adaptive_Retry", "adaptive-retry", "cascading"] {
-            assert_eq!(parse_ab_algorithm(configured), None, "{configured:?}");
-        }
-    }
-
-    #[test]
-    fn the_default_has_no_arm() {
-        use external_services::superposition::Config as _;
-
-        assert_eq!(
-            parse_ab_algorithm(
-                &crate::core::configs::dimension_config::RevenueRecoveryAbAlgorithmForAttempt::default_value()
-            ),
-            None
-        );
-    }
-}
-
 #[cfg(test)]
 #[cfg(feature = "v2")]
 mod retry_model_tests {
