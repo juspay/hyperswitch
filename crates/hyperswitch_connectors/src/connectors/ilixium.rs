@@ -595,7 +595,11 @@ impl webhooks::IncomingWebhook for Ilixium {
 }
 
 static ILIXIUM_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
-    let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+        enums::CaptureMethod::SequentialAutomatic,
+    ];
 
     let supported_card_networks = vec![
         common_enums::CardNetwork::Visa,
