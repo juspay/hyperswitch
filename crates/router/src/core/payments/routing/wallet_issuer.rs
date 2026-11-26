@@ -2,9 +2,12 @@
 
 use std::{future::Future, str::FromStr};
 
-use api_models::enums::RoutableConnectors;
+use api_models::{
+    enums::RoutableConnectors,
+    payments::{ApplepayCombinedSessionTokenData, GooglePayWalletDetails},
+};
 use common_enums::{Country, CountryAlpha2, PaymentMethodType, TransactionType};
-use common_utils::id_type::MerchantConnectorAccountId;
+use common_utils::{ext_traits::OptionExt, id_type::MerchantConnectorAccountId};
 use euclid::backend::inputs::{BackendInput, IssuerDataInput};
 use hyperswitch_domain_models::{
     payment_method_data::{EligibilityPaymentMethodData, PaymentMethodData, WalletData},
@@ -17,9 +20,7 @@ use crate::{
         configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         payments::{
             decrypt_apple_pay_wallet_for_eligibility, decrypt_google_pay_wallet_for_eligibility,
-            helpers::{
-                is_applepay_predecrypted_flow_supported, is_googlepay_predecrypted_flow_supported,
-            },
+            helpers::{get_merchant_connector_account, is_googlepay_predecrypted_flow_supported},
             OperationSessionGetters,
         },
         routing::{helpers::get_merchant_default_config, PaymentsDslInput},
@@ -71,7 +72,7 @@ where
 
     let profile_id = business_profile.get_id();
     let key_store = processor.get_key_store();
-    let mut candidates = get_merchant_default_config(
+    let fallback_config = get_merchant_default_config(
         state.store.as_ref(),
         profile_id.get_string_repr(),
         &TransactionType::Payment,
@@ -81,23 +82,50 @@ where
     let accounts = super::get_active_merchant_connector_accounts(state, key_store, profile_id)
         .await
         .ok()?;
-    candidates.retain(|choice| {
-        choice.merchant_connector_id.as_ref().is_some_and(|id| {
-            accounts.iter().any(|account| {
-                &account.merchant_connector_id == id
-                    && account.connector_name == choice.connector.to_string()
-                    && match wallet_type {
-                        PaymentMethodType::ApplePay => {
-                            is_applepay_predecrypted_flow_supported(account.get_metadata())
-                        }
-                        PaymentMethodType::GooglePay => {
-                            is_googlepay_predecrypted_flow_supported(account.get_metadata())
-                        }
-                        _ => false,
-                    }
-            })
-        })
-    });
+    let mut candidates = Vec::new();
+    for choice in fallback_config {
+        let connector_name = choice.connector.to_string();
+        let Some(account) = accounts.iter().find(|account| {
+            choice.merchant_connector_id.as_ref() == Some(&account.merchant_connector_id)
+                && account.connector_name == connector_name
+        }) else {
+            continue;
+        };
+        let supports_decrypted_token = match wallet_type {
+            PaymentMethodType::ApplePay => account
+                .get_metadata()
+                .parse_value::<ApplepayCombinedSessionTokenData>("ApplepayCombinedSessionTokenData")
+                .is_ok_and(|metadata| {
+                    metadata
+                        .apple_pay_combined
+                        .connector_configured_for_decrypted_token()
+                }),
+            PaymentMethodType::GooglePay => {
+                is_googlepay_predecrypted_flow_supported(account.get_metadata())
+                    || get_merchant_connector_account(
+                        state,
+                        processor,
+                        None,
+                        profile_id,
+                        &connector_name,
+                        Some(&account.merchant_connector_id),
+                    )
+                    .await
+                    .ok()
+                    .and_then(|account| {
+                        account
+                            .get_connector_wallets_details()
+                            .parse_value::<GooglePayWalletDetails>("GooglePayWalletDetails")
+                            .ok()
+                    })
+                    .is_some_and(|details| details.connector_configured_for_decrypted_token())
+            }
+            _ => false,
+        };
+        if supports_decrypted_token {
+            candidates.push(choice);
+        }
+    }
     if candidates.is_empty() {
         return None;
     }
