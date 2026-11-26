@@ -110,8 +110,10 @@ impl From<PhonepePaymentStatus> for common_enums::AttemptStatus {
 //TODO: Fill the struct with respective fields
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PhonepePaymentsResponse {
-    status: PhonepePaymentStatus,
-    id: String,
+    pub status: PhonepePaymentStatus,
+    pub id: String,
+    pub amount: Option<i64>,
+    pub currency: Option<String>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, PhonepePaymentsResponse, T, PaymentsResponseData>>
