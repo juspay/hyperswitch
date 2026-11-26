@@ -1246,9 +1246,7 @@ static CARD_ISIN_REGEX: LazyLock<Vec<(CardIssuer, Result<Regex, regex::Error>)>>
             (CardIssuer::CarteBlanche, Regex::new(r"^389[0-9]{3}")),
             (
                 CardIssuer::Discover,
-                Regex::new(
-                    r"^(?:6011[0-9]{2}|64[4-9][0-9]{3}|65[0-9]{4}|622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9]{2}|9[01][0-9]|92[0-5]))",
-                ),
+                Regex::new(r"^(?:6011[0-9]{2}|64[4-9][0-9]{3}|65[0-9]{4})"),
             ),
             (CardIssuer::AmericanExpress, Regex::new(r"^3[47][0-9]{4}")),
             (
@@ -1862,9 +1860,7 @@ static CARD_REGEX: LazyLock<Vec<(CardIssuer, Result<Regex, regex::Error>)>> = La
         ),
         (
             CardIssuer::Discover,
-            Regex::new(
-                r"\A(?:65[0-9]{14,17}|64[4-9][0-9]{13,16}|6011[0-9]{12,15}|622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9]{2}|9[01][0-9]|92[0-5])[0-9]{10,13})\z",
-            ),
+            Regex::new(r"\A(?:65[0-9]{14,17}|64[4-9][0-9]{13,16}|6011[0-9]{12,15})\z"),
         ),
         (
             CardIssuer::Maestro,
