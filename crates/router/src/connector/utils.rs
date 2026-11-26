@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr, sync::LazyLock};
+use std::str::FromStr;
 
 #[cfg(feature = "payouts")]
 use api_models::payouts;
@@ -20,9 +20,9 @@ use common_utils::{
 };
 use diesel_models::{enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
+pub use hyperswitch_connectors::utils::{get_card_issuer, CardIssuer};
 use hyperswitch_domain_models::{mandates, payments::payment_attempt::PaymentAttempt};
 use hyperswitch_masking::{Deserialize, ExposeInterface, Secret};
-use regex::Regex;
 
 #[cfg(feature = "frm")]
 use crate::types::fraud_check;
@@ -1326,44 +1326,6 @@ impl PayoutsData for types::PayoutsData {
     }
 }
 
-static CARD_REGEX: LazyLock<HashMap<CardIssuer, Result<Regex, regex::Error>>> = LazyLock::new(
-    || {
-        let mut map = HashMap::new();
-        // Reference: https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
-        // [#379]: Determine card issuer from card BIN number
-        map.insert(CardIssuer::Master, Regex::new(r"^5[1-5][0-9]{14}$"));
-        map.insert(CardIssuer::AmericanExpress, Regex::new(r"^3[47][0-9]{13}$"));
-        map.insert(CardIssuer::Visa, Regex::new(r"^4[0-9]{12}(?:[0-9]{3})?$"));
-        map.insert(CardIssuer::Discover, Regex::new(r"^65[4-9][0-9]{13}|64[4-9][0-9]{13}|6011[0-9]{12}|(622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9][0-9]|9[01][0-9]|92[0-5])[0-9]{10})$"));
-        map.insert(
-            CardIssuer::Maestro,
-            Regex::new(r"^(5018|5020|5038|5893|6304|6759|6761|6762|6763)[0-9]{8,15}$"),
-        );
-        map.insert(
-            CardIssuer::DinersClub,
-            Regex::new(r"^3(?:0[0-5]|[68][0-9])[0-9]{11}$"),
-        );
-        map.insert(
-            CardIssuer::JCB,
-            Regex::new(r"^(3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))\d{12})$"),
-        );
-        map.insert(CardIssuer::CarteBlanche, Regex::new(r"^389[0-9]{11}$"));
-        map
-    },
-);
-
-#[derive(Debug, Copy, Clone, strum::Display, Eq, Hash, PartialEq)]
-pub enum CardIssuer {
-    AmericanExpress,
-    Master,
-    Maestro,
-    Visa,
-    Discover,
-    DinersClub,
-    JCB,
-    CarteBlanche,
-}
-
 pub trait CardData {
     fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError>;
     fn get_card_issuer(&self) -> Result<CardIssuer, Error>;
@@ -1601,20 +1563,6 @@ impl CardData for domain::Card {
     }
 }
 
-#[track_caller]
-fn get_card_issuer(card_number: &str) -> Result<CardIssuer, Error> {
-    for (k, v) in CARD_REGEX.iter() {
-        let regex: Regex = v
-            .clone()
-            .change_context(errors::ConnectorError::RequestEncodingFailed)?;
-        if regex.is_match(card_number) {
-            return Ok(*k);
-        }
-    }
-    Err(error_stack::Report::new(
-        errors::ConnectorError::NotImplemented("Card Type".into()),
-    ))
-}
 pub trait WalletData {
     fn get_wallet_token(&self) -> Result<Secret<String>, Error>;
     fn get_wallet_token_as_json<T>(&self, wallet_name: String) -> Result<T, Error>

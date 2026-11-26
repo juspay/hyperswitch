@@ -1263,7 +1263,7 @@ static CARD_ISIN_REGEX: LazyLock<Vec<(CardIssuer, Result<Regex, regex::Error>)>>
             ),
             (
                 CardIssuer::DinersClub,
-                Regex::new(r"^3(?:0[0-5]|[68][0-9])[0-9]{3}"),
+                Regex::new(r"^(?:30[0-5][0-9]{3}|3095[0-9]{2}|3[689][0-9]{4})"),
             ),
             (
                 CardIssuer::JCB,
@@ -1835,7 +1835,7 @@ impl CardData for api_models::payouts::GooglePayDecrypt {
 }
 
 #[track_caller]
-fn get_card_issuer(card_number: &str) -> Result<CardIssuer, Error> {
+pub fn get_card_issuer(card_number: &str) -> Result<CardIssuer, Error> {
     for (k, v) in CARD_REGEX.iter() {
         let regex: Regex = v
             .clone()
@@ -1849,32 +1849,42 @@ fn get_card_issuer(card_number: &str) -> Result<CardIssuer, Error> {
     ))
 }
 
-static CARD_REGEX: LazyLock<HashMap<CardIssuer, Result<Regex, regex::Error>>> = LazyLock::new(
-    || {
-        let mut map = HashMap::new();
-        // Reference: https://gist.github.com/michaelkeevildown/9096cd3aac9029c4e6e05588448a8841
-        // [#379]: Determine card issuer from card BIN number
-        map.insert(CardIssuer::Master, Regex::new(r"^5[1-5][0-9]{14}$"));
-        map.insert(CardIssuer::AmericanExpress, Regex::new(r"^3[47][0-9]{13}$"));
-        map.insert(CardIssuer::Visa, Regex::new(r"^4[0-9]{12}(?:[0-9]{3})?$"));
-        map.insert(CardIssuer::Discover, Regex::new(r"^65[0-9]{14}|64[4-9][0-9]{13}|6011[0-9]{12}|(622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9][0-9]|9[01][0-9]|92[0-5])[0-9]{10})$"));
-        map.insert(
+static CARD_REGEX: LazyLock<Vec<(CardIssuer, Result<Regex, regex::Error>)>> = LazyLock::new(|| {
+    vec![
+        (CardIssuer::Master, Regex::new(r"\A5[1-5][0-9]{14}\z")),
+        (
+            CardIssuer::AmericanExpress,
+            Regex::new(r"\A3[47][0-9]{13}\z"),
+        ),
+        (
+            CardIssuer::Visa,
+            Regex::new(r"\A4[0-9]{12}(?:[0-9]{3}){0,2}\z"),
+        ),
+        (
+            CardIssuer::Discover,
+            Regex::new(
+                r"\A(?:65[0-9]{14,17}|64[4-9][0-9]{13,16}|6011[0-9]{12,15}|622(?:12[6-9]|1[3-9][0-9]|[2-8][0-9]{2}|9[01][0-9]|92[0-5])[0-9]{10,13})\z",
+            ),
+        ),
+        (
             CardIssuer::Maestro,
-            Regex::new(r"^(5018|5020|5038|5893|6304|6759|6761|6762|6763)[0-9]{8,15}$"),
-        );
-        map.insert(
+            Regex::new(r"\A(?:5018|5020|5038|5893|6304|6759|676[1-3])[0-9]{8,15}\z"),
+        ),
+        (CardIssuer::CarteBlanche, Regex::new(r"\A389[0-9]{11}\z")),
+        (
             CardIssuer::DinersClub,
-            Regex::new(r"^3(?:0[0-5][0-9]{11}|[68][0-9][0-9]{11,13})$"),
-        );
-        map.insert(
+            Regex::new(r"\A(?:30[0-5][0-9]{11,16}|3095[0-9]{10,15}|3[689][0-9]{12,17})\z"),
+        ),
+        (
             CardIssuer::JCB,
-            Regex::new(r"^(3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))\d{12})$"),
-        );
-        map.insert(CardIssuer::CarteBlanche, Regex::new(r"^389[0-9]{11}$"));
-        map.insert(CardIssuer::UnionPay, Regex::new(r"^(62[0-9]{14,17})$"));
-        map
-    },
-);
+            Regex::new(r"\A3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))[0-9]{12,15}\z"),
+        ),
+        (
+            CardIssuer::UnionPay,
+            Regex::new(r"\A(?:62|81)[0-9]{14,17}\z"),
+        ),
+    ]
+});
 
 pub trait CardWithLimitedData {
     fn get_card_expiry_year_2_digit(
