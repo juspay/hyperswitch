@@ -23,6 +23,7 @@ import State from "../../../../utils/State";
 // you want that case exercised.
 let globalState;
 let apiKeyM1;
+let apiKeyM2;
 let profileIdPA;
 let profileIdPB;
 let mcaPaId;
@@ -39,6 +40,7 @@ describe("OMP Scoping - Disputes", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
       apiKeyM1 = globalState.get("apiKeyM1");
+      apiKeyM2 = globalState.get("apiKeyM2");
       profileIdPA = globalState.get("profileIdPA");
       profileIdPB = globalState.get("profileIdPB");
       mcaPaId = globalState.get("mcaPaId");
@@ -143,6 +145,70 @@ describe("OMP Scoping - Disputes", () => {
         globalState
       ).then((res) => {
         expect(res.status).to.eq(401);
+      });
+    });
+  });
+
+  context("Accept", () => {
+    // Same GAP as evidence deletion - disputes only exist from a real
+    // connector chargeback, so these skip gracefully if none exist for a
+    // profile. Platform-axis coverage is deferred here too: the connected
+    // merchant fixture (00-Setup.cy.js) is brand new and has no real
+    // chargeback history, so there's no dispute belonging to it to accept.
+    beforeEach(function () {
+      if (!disputePB) this.skip();
+    });
+
+    it("accept on cross-profile D_PB denied, dispute unchanged", () => {
+      cy.ompAssertDeniedAndUnchanged({
+        fetch: fetchDispute(disputePB.dispute_id),
+        negativeRequest: () =>
+          cy.ompAcceptDispute(
+            disputePB.dispute_id,
+            { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+            globalState
+          ),
+      });
+    });
+
+    it("accept on cross-merchant D_PB denied (M2's key)", () => {
+      cy.ompAcceptDispute(
+        disputePB.dispute_id,
+        { type: "apiKey", apiKey: apiKeyM2 },
+        globalState
+      ).then((res) => {
+        expect(res.status).to.be.within(400, 499);
+      });
+    });
+
+    it("invalid credential on accept is rejected", () => {
+      cy.ompAcceptDispute(
+        disputePB.dispute_id,
+        { type: "invalid" },
+        globalState
+      ).then((res) => {
+        expect(res.status).to.eq(401);
+      });
+    });
+
+    it("accept own D_PA succeeds (positive, destructive/irreversible - opt-in only)", function () {
+      if (Cypress.env("ACCEPT_REAL_DISPUTE") !== true) {
+        cy.task(
+          "cli_log",
+          "Skipping: set CYPRESS_ACCEPT_REAL_DISPUTE=true to run this " +
+            "destructive positive control - accepting a dispute is final " +
+            "and cannot be undone."
+        );
+        this.skip();
+      }
+      if (!disputePA) this.skip();
+
+      cy.ompAcceptDispute(
+        disputePA.dispute_id,
+        { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+        globalState
+      ).then((res) => {
+        expect(res.status).to.eq(200);
       });
     });
   });

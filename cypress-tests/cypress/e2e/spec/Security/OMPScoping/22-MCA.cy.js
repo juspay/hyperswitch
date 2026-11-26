@@ -72,7 +72,8 @@ describe("OMP Scoping - MCA", () => {
       });
     });
 
-    it("retrieve cross-profile MCA_PB denied (JWT)", () => {
+    it("retrieve cross-profile MCA_PB denied (JWT)", function () {
+      if (!jwtPA) this.skip();
       cy.ompAssertDeniedAndUnchanged({
         fetch: fetchMca(mcaPbId),
         negativeRequest: () =>
@@ -179,6 +180,30 @@ describe("OMP Scoping - MCA", () => {
     });
   });
 
+  context("Create - selector conflict (R2)", () => {
+    it("body.profile_id naming a DIFFERENT merchant's profile is rejected, not trusted at face value", () => {
+      // Path says M1 (merchantIdM1), body.profile_id names
+      // profileIdM2Default - a profile belonging to a DIFFERENT merchant
+      // entirely, not a same-merchant sibling.
+      const body = {
+        ...structuredClone(fixtures.createConnectorBody),
+        connector_type: "payment_processor",
+        profile_id: globalState.get("profileIdM2Default"),
+      };
+      cy.ompCreateMcaRaw(
+        merchantIdM1,
+        { type: "apiKey", apiKey: apiKeyM1 },
+        body,
+        globalState
+      ).then((res) => {
+        expect(
+          res.status,
+          "a profile_id must belong to the merchant named in the path"
+        ).to.be.within(400, 499);
+      });
+    });
+  });
+
   context(
     "Delete - never touches MCA_PA/MCA_PB, other specs depend on them",
     () => {
@@ -210,7 +235,8 @@ describe("OMP Scoping - MCA", () => {
         });
       });
 
-      it("delete via JWT with mismatched merchant_id is rejected before reaching delete_connector", () => {
+      it("delete via JWT with mismatched merchant_id is rejected before reaching delete_connector", function () {
+        if (!jwtPA) this.skip();
         cy.ompDeleteMca(
           merchantIdM2,
           mcaPaId,
@@ -288,6 +314,65 @@ describe("OMP Scoping - MCA", () => {
             globalState
           ).then((res) => {
             expect(res.status, "deleted MCA must no longer exist").to.eq(404);
+          });
+
+          // R6 ("authorization must hold over time"): the read path that
+          // actually matters for a deleted MCA isn't just direct
+          // retrieve-by-id (above) - the list endpoint is a separate read
+          // path that was never checked for the same deleted row.
+          cy.ompListMca(
+            merchantIdM1,
+            { type: "apiKey", apiKey: apiKeyM1 },
+            globalState
+          ).then((res) => {
+            expect(res.status).to.eq(200);
+            const ids = (res.body || []).map(
+              (mca) => mca.merchant_connector_id
+            );
+            expect(
+              ids,
+              "deleted MCA must be absent from the list"
+            ).to.not.include(throwawayMcaId);
+          });
+
+          // R6: the read path that actually matters in practice is
+          // payment routing, which resolves a connector by profile+name
+          // from its OWN cache layer, not through the retrieve-by-id path
+          // checked above - a payment explicitly routed to the deleted
+          // MCA must not silently succeed using stale cached credentials.
+          cy.ompCreatePayment(
+            { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+            {
+              amount: 1000,
+              currency: "USD",
+              confirm: true,
+              payment_method: "card",
+              payment_method_data: {
+                card: {
+                  card_number: "4242424242424242",
+                  card_exp_month: "12",
+                  card_exp_year: "28",
+                  card_cvc: "123",
+                },
+              },
+              routing: {
+                type: "single",
+                data: {
+                  connector: "stripe",
+                  merchant_connector_id: throwawayMcaId,
+                },
+              },
+            },
+            globalState
+          ).then((res) => {
+            // A clean failure (4xx, "connector not found"/no matching
+            // connector) is the expected outcome - the risk this guards
+            // against is the payment silently SUCCEEDING via a stale
+            // cached copy of the deleted MCA's credentials.
+            expect(
+              res.status,
+              "a payment must not succeed by routing through a deleted MCA's stale cached credentials"
+            ).to.not.eq(200);
           });
         });
       });

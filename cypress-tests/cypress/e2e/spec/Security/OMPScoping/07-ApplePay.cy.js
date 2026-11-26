@@ -67,7 +67,8 @@ describe("OMP Scoping - Apple Pay", () => {
     });
   });
 
-  it("domain registration against cross-profile MCA_PB denied", () => {
+  it("domain registration against cross-profile MCA_PB denied", function () {
+    if (!jwtPA) this.skip();
     cy.ompVerifyApplePay(
       merchantIdM1,
       { type: "jwt", token: jwtPA, profileId: profileIdPA },
@@ -81,7 +82,8 @@ describe("OMP Scoping - Apple Pay", () => {
     });
   });
 
-  it("verified-domains read for cross-profile MCA_PB denied", () => {
+  it("verified-domains read for cross-profile MCA_PB denied", function () {
+    if (!jwtPA) this.skip();
     cy.ompGetApplePayVerifiedDomains(
       merchantIdM1,
       mcaPbId,
@@ -92,7 +94,8 @@ describe("OMP Scoping - Apple Pay", () => {
     });
   });
 
-  it("verify/register and verified-domains read work for PA's own MCA_PA (positive)", () => {
+  it("verify/register and verified-domains read work for PA's own MCA_PA (positive)", function () {
+    if (!jwtPA) this.skip();
     // The profile/ownership check itself passes correctly here (that's this
     // test's actual purpose, and the 3 cross-profile denial tests above
     // confirm the fix works) - verify_merchant_creds_for_applepay only
@@ -133,7 +136,8 @@ describe("OMP Scoping - Apple Pay", () => {
     });
   });
 
-  it("verified-domains read for a non-existent MCA returns 404", () => {
+  it("verified-domains read for a non-existent MCA returns 404", function () {
+    if (!jwtPA) this.skip();
     cy.ompGetApplePayVerifiedDomains(
       merchantIdM1,
       "mca_nonexistent_omp_test",

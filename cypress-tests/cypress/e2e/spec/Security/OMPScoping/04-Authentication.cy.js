@@ -14,6 +14,7 @@ import State from "../../../../utils/State";
 // full 3DS flow succeeds.
 let globalState;
 let apiKeyM1;
+let apiKeyM2;
 let merchantIdM1;
 let profileIdPA;
 let profileIdPB;
@@ -41,6 +42,7 @@ describe("OMP Scoping - Authentication", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
       apiKeyM1 = globalState.get("apiKeyM1");
+      apiKeyM2 = globalState.get("apiKeyM2");
       merchantIdM1 = globalState.get("merchantIdM1");
       profileIdPA = globalState.get("profileIdPA");
       profileIdPB = globalState.get("profileIdPB");
@@ -73,6 +75,26 @@ describe("OMP Scoping - Authentication", () => {
       ).then((res) => {
         expect(res.status).to.eq(200);
         expect(res.body.profile_id).to.eq(profileIdPA);
+      });
+    });
+
+    it("M2's api key cannot create an authentication record naming M1's profile_id", () => {
+      cy.ompCreateAuthentication(
+        { type: "apiKey", apiKey: apiKeyM2 },
+        { amount: 1000, currency: "USD", profile_id: profileIdPA },
+        globalState
+      ).then((res) => {
+        expect(res.status).to.be.within(400, 499);
+      });
+    });
+
+    it("invalid credential on authentication create is rejected", () => {
+      cy.ompCreateAuthentication(
+        { type: "invalid" },
+        { amount: 1000, currency: "USD" },
+        globalState
+      ).then((res) => {
+        expect(res.status).to.eq(401);
       });
     });
   });
@@ -121,6 +143,39 @@ describe("OMP Scoping - Authentication", () => {
         globalState
       ).then((res) => {
         expect(res.status).to.be.within(400, 499);
+      });
+    });
+
+    // FLAG (2026-11-18 selector-mapping pass): the path's merchant_id
+    // segment on /sync is parsed then discarded (routes/authentication.rs:
+    // 227, `let (_merchant_id, authentication_id) = ...`) - actual auth
+    // comes entirely from the SDK/client-secret check, not this param. The
+    // sibling route authentication_sync_post_update (same path shape)
+    // DOES use its own copy of this param as its SOLE auth mechanism
+    // (MerchantIdAuth). This test documents that /sync's own result is
+    // unaffected by what's in that path segment - an inconsistency
+    // between two sibling routes, not a proven bypass on its own, since
+    // the SDK auth may already be sufficient.
+    it("sync result is identical regardless of the path's merchant_id value (informational, not a security assertion)", () => {
+      cy.ompAuthenticationSync(
+        merchantIdM1,
+        authPAId,
+        { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+        {},
+        globalState
+      ).then((realMerchantRes) => {
+        cy.ompAuthenticationSync(
+          "merchant_this_value_should_be_irrelevant",
+          authPAId,
+          { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+          {},
+          globalState
+        ).then((wrongMerchantRes) => {
+          expect(
+            wrongMerchantRes.status,
+            "status must match regardless of the path merchant_id, confirming it's dead weight here - if this ever diverges, the param stopped being ignored and this comment is stale"
+          ).to.eq(realMerchantRes.status);
+        });
       });
     });
 

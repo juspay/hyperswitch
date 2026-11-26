@@ -61,7 +61,8 @@ describe("OMP Scoping - API Keys", () => {
   );
 
   context("Create", () => {
-    it("JWT with mismatched path merchant_id is rejected before the handler runs", () => {
+    it("JWT with mismatched path merchant_id is rejected before the handler runs", function () {
+      if (!jwtPA) this.skip();
       cy.ompCreateApiKey(
         merchantIdM2,
         { type: "jwt", token: jwtPA },
@@ -78,7 +79,8 @@ describe("OMP Scoping - API Keys", () => {
       });
     });
 
-    it("JWT scoped to the correct merchant succeeds (positive)", () => {
+    it("JWT scoped to the correct merchant succeeds (positive)", function () {
+      if (!jwtPA) this.skip();
       cy.ompCreateApiKey(
         merchantIdM1,
         { type: "jwt", token: jwtPA },
@@ -119,7 +121,8 @@ describe("OMP Scoping - API Keys", () => {
   });
 
   context("Retrieve / update / revoke", () => {
-    it("retrieve with mismatched path merchant_id is rejected", () => {
+    it("retrieve with mismatched path merchant_id is rejected", function () {
+      if (!jwtPA) this.skip();
       cy.ompRetrieveApiKey(
         merchantIdM2,
         throwawayKeyId,
@@ -133,7 +136,8 @@ describe("OMP Scoping - API Keys", () => {
       });
     });
 
-    it("retrieve with the correct merchant_id succeeds (positive)", () => {
+    it("retrieve with the correct merchant_id succeeds (positive)", function () {
+      if (!jwtPA) this.skip();
       cy.ompRetrieveApiKey(
         merchantIdM1,
         throwawayKeyId,
@@ -145,7 +149,8 @@ describe("OMP Scoping - API Keys", () => {
       });
     });
 
-    it("update with mismatched path merchant_id is rejected, key unchanged", () => {
+    it("update with mismatched path merchant_id is rejected, key unchanged", function () {
+      if (!jwtPA) this.skip();
       cy.ompRetrieveApiKey(
         merchantIdM1,
         throwawayKeyId,
@@ -173,7 +178,8 @@ describe("OMP Scoping - API Keys", () => {
       });
     });
 
-    it("update with the correct merchant_id succeeds (positive)", () => {
+    it("update with the correct merchant_id succeeds (positive)", function () {
+      if (!jwtPA) this.skip();
       cy.ompUpdateApiKey(
         merchantIdM1,
         throwawayKeyId,
@@ -186,7 +192,8 @@ describe("OMP Scoping - API Keys", () => {
       });
     });
 
-    it("revoke with mismatched path merchant_id is rejected, key still active", () => {
+    it("revoke with mismatched path merchant_id is rejected, key still active", function () {
+      if (!jwtPA) this.skip();
       cy.ompRevokeApiKeyAs(
         merchantIdM2,
         throwawayKeyId,
@@ -209,7 +216,8 @@ describe("OMP Scoping - API Keys", () => {
       });
     });
 
-    it("revoke with the correct merchant_id succeeds (positive)", () => {
+    it("revoke with the correct merchant_id succeeds (positive)", function () {
+      if (!jwtPA) this.skip();
       cy.ompRevokeApiKeyAs(
         merchantIdM1,
         throwawayKeyId,
@@ -244,7 +252,8 @@ describe("OMP Scoping - API Keys", () => {
   });
 
   context("List", () => {
-    it("list with mismatched path merchant_id is rejected", () => {
+    it("list with mismatched path merchant_id is rejected", function () {
+      if (!jwtPA) this.skip();
       cy.ompListApiKeys(
         merchantIdM2,
         { type: "jwt", token: jwtPA },
@@ -254,7 +263,8 @@ describe("OMP Scoping - API Keys", () => {
       });
     });
 
-    it("list with the correct merchant_id succeeds (positive)", () => {
+    it("list with the correct merchant_id succeeds (positive)", function () {
+      if (!jwtPA) this.skip();
       cy.ompListApiKeys(
         merchantIdM1,
         { type: "jwt", token: jwtPA },

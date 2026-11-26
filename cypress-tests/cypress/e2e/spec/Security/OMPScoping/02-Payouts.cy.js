@@ -15,6 +15,7 @@ let apiKeyM1;
 let merchantIdM2;
 let profileIdPA;
 let profileIdPB;
+let jwtPA;
 let payoutIdPA;
 let payoutIdPB;
 let payoutsExecution;
@@ -27,6 +28,7 @@ describe("OMP Scoping - Payouts", () => {
       merchantIdM2 = globalState.get("merchantIdM2");
       profileIdPA = globalState.get("profileIdPA");
       profileIdPB = globalState.get("profileIdPB");
+      jwtPA = globalState.get("userInfoTokenPA");
       payoutIdPA = globalState.get("payoutIdPA");
       payoutIdPB = globalState.get("payoutIdPB");
       payoutsExecution = globalState.get("payoutsExecution");
@@ -60,6 +62,21 @@ describe("OMP Scoping - Payouts", () => {
         globalState
       );
   }
+
+  context("Selector conflicts (R2)", () => {
+    it("X-Profile-Id header cannot override a PA-scoped JWT's own profile", function () {
+      if (!jwtPA) this.skip();
+      // GET /payouts/{id} accepts JWTAuth as well as ApiKeyAuth
+      // (payouts.rs:122-130) - JWT scoped to PA, header claims PB.
+      cy.ompRetrievePayout(
+        payoutIdPB,
+        { type: "jwt", token: jwtPA, profileId: profileIdPB },
+        globalState
+      ).then((res) => {
+        expect(res.status).to.be.within(400, 499);
+      });
+    });
+  });
 
   context("Update / confirm / cancel / fulfill - cross-profile denial", () => {
     it("payout update blocked cross-profile", () => {
