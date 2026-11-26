@@ -32,12 +32,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Go for oasdiff
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v5.6.0
         with:
           go-version: '1.21'
 
@@ -114,9 +115,11 @@ jobs:
 
       - name: Fail if breaking changes detected
         if: steps.breaking_changes.outputs.breaking_changes > 0
+        env:
+          BREAKING_COUNT: ${{ steps.breaking_changes.outputs.breaking_changes }}
         run: |
           echo "::error::Breaking changes detected in API schema."
-          echo "::error::Found ${{ steps.breaking_changes.outputs.breaking_changes }} breaking change(s)."
+          echo "::error::Found ${BREAKING_COUNT} breaking change(s)."
           exit 1
 
   migration-compatibility-check:
@@ -125,9 +128,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Fetch base branch
         env:
@@ -188,19 +192,29 @@ jobs:
 
       - name: Display Migration Summary
         if: always()
+        env:
+          V1_BREAKING: ${{ steps.migration_check.outputs.breaking_changes }}
+          V1_WARNINGS: ${{ steps.migration_check.outputs.warnings }}
+          V2_BREAKING: ${{ steps.v2_migration_check.outputs.breaking_changes }}
+          V2_WARNINGS: ${{ steps.v2_migration_check.outputs.warnings }}
+          V2C_BREAKING: ${{ steps.v2_compat_migration_check.outputs.breaking_changes }}
+          V2C_WARNINGS: ${{ steps.v2_compat_migration_check.outputs.warnings }}
+          TOTAL_BREAKING: ${{ steps.migration_report.outputs.total_breaking }}
+          TOTAL_WARNINGS: ${{ steps.migration_report.outputs.total_warnings }}
+          VALIDATION_STATUS: ${{ steps.migration_report.outputs.validation_status }}
         run: |
           echo "=========================================="
           echo "MIGRATION VALIDATION SUMMARY"
           echo "=========================================="
-          echo "V1: Breaking=${{ steps.migration_check.outputs.breaking_changes }} Warnings=${{ steps.migration_check.outputs.warnings }}"
-          echo "V2: Breaking=${{ steps.v2_migration_check.outputs.breaking_changes }} Warnings=${{ steps.v2_migration_check.outputs.warnings }}"
-          echo "V2 Compat: Breaking=${{ steps.v2_compat_migration_check.outputs.breaking_changes }} Warnings=${{ steps.v2_compat_migration_check.outputs.warnings }}"
+          echo "V1: Breaking=${V1_BREAKING} Warnings=${V1_WARNINGS}"
+          echo "V2: Breaking=${V2_BREAKING} Warnings=${V2_WARNINGS}"
+          echo "V2 Compat: Breaking=${V2C_BREAKING} Warnings=${V2C_WARNINGS}"
           echo "----------------------------------------"
-          echo "Total: Breaking=${{ steps.migration_report.outputs.total_breaking }} Warnings=${{ steps.migration_report.outputs.total_warnings }}"
-          echo "Status: ${{ steps.migration_report.outputs.validation_status }}"
+          echo "Total: Breaking=${TOTAL_BREAKING} Warnings=${TOTAL_WARNINGS}"
+          echo "Status: ${VALIDATION_STATUS}"
           echo "=========================================="
 
-          if [[ "${{ steps.migration_report.outputs.total_breaking }}" != "0" && "${{ steps.migration_report.outputs.total_breaking }}" != "" ]]; then
+          if [[ "${TOTAL_BREAKING}" != "0" && "${TOTAL_BREAKING}" != "" ]]; then
             echo "::error::Migration validation failed with breaking changes."
             exit 1
           fi

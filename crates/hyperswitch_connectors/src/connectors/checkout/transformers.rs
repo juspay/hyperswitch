@@ -2127,7 +2127,9 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentVoidResponse>> for Payments
         let response = &item.response;
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(response.action_id.clone()),
+                resource_id: ResponseId::ConnectorTransactionId(
+                    item.data.request.connector_transaction_id.clone(),
+                ),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
