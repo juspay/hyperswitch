@@ -1,7 +1,10 @@
 import * as fixtures from "../../../../fixtures/imports";
 import State from "../../../../utils/State";
 import { payment_methods_enabled } from "../../../configs/Payment/Commons";
-import { OMP_ERRORS } from "../../../configs/Security/Commons";
+import {
+  CARD_PAYMENT_METHOD_DATA,
+  OMP_ERRORS,
+} from "../../../configs/Security/Commons";
 
 // MCA_PA / MCA_PB (00-Setup.cy.js) - the shared stripe MCAs under PA/PB.
 // Never deleted here (other specs in this folder depend on them); a
@@ -347,14 +350,7 @@ describe("OMP Scoping - MCA", () => {
               currency: "USD",
               confirm: true,
               payment_method: "card",
-              payment_method_data: {
-                card: {
-                  card_number: "4242424242424242",
-                  card_exp_month: "12",
-                  card_exp_year: "28",
-                  card_cvc: "123",
-                },
-              },
+              payment_method_data: CARD_PAYMENT_METHOD_DATA,
               routing: {
                 type: "single",
                 data: {

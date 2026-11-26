@@ -1,4 +1,5 @@
 import State from "../../../../utils/State";
+import { CARD_PAYMENT_METHOD_DATA } from "../../../configs/Security/Commons";
 
 // These are standalone 3DS AuthenticationCreateRequest records
 // (crates/api_models/src/authentication.rs), distinct from a payment's own
@@ -26,14 +27,7 @@ let profileIdPB;
 // whether the actual profile check works. A valid minimal card body makes
 // sure any 4xx seen is attributable to the profile check, not this.
 const eligibilityBody = {
-  payment_method_data: {
-    card: {
-      card_number: "4242424242424242",
-      card_exp_month: "12",
-      card_exp_year: "28",
-      card_cvc: "123",
-    },
-  },
+  payment_method_data: CARD_PAYMENT_METHOD_DATA,
   payment_method: "card",
 };
 

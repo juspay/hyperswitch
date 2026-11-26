@@ -91,19 +91,11 @@ describe("OMP Scoping - shared fixtures", () => {
   });
 
   context("M1 / PA via admin-api-key merchant create", () => {
-    // CHANGED 2026-11-26: integ/sbx environments enforce magic-link signin
-    // for ALL dashboard users (core/user.rs's connect_account only ever
-    // emails a link - there is no way to extract a usable token from that
-    // API response), so the dashboard-signup-based JWT flow this file
-    // used to bootstrap M1 (and M2J, removed below) no longer works
-    // anywhere, not just here. Reverted to plain admin-api-key merchant
-    // creation, same pattern as M2 - this means userInfoTokenPA/jwtPA no
-    // longer exists anywhere in this suite. Every test that depended on a
-    // real dashboard JWT for M1 now has nothing to read and will skip via
-    // its own existing `if (!jwtPA) this.skip()`-style guard - this is a
-    // real, temporary loss of JWT-based coverage across the suite, not
-    // just a rename, until this environment constraint is resolved
-    // another way.
+    // integ/sbx environments enforce magic-link signin for all dashboard
+    // users (core/user.rs's connect_account only ever emails a link, never
+    // returns a usable token), so M1 is bootstrapped via plain
+    // admin-api-key merchant creation instead - every JWT-dependent test
+    // downstream gates on `if (!jwtPA) this.skip()`.
     it("creates M1 with default profile PA via admin api key", () => {
       cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState, {
         merchantIdStateKey: "merchantIdM1",
@@ -181,14 +173,6 @@ describe("OMP Scoping - shared fixtures", () => {
         globalState.set("apiKeyM2", globalState.get("apiKey"));
       });
     });
-
-    // REMOVED 2026-11-26: the M2J dashboard signup only ever existed to
-    // get a second real JWT (jwtOrgAdminM2) - now that the dashboard
-    // signup+login chain doesn't work on integ/sbx (magic-link-only
-    // signin, see the comment on M1's own creation above), this block
-    // produced nothing usable. Every test that read jwtOrgAdminM2 already
-    // has its own `if (!jwtOrgAdminM2) ...skip()` guard and will skip
-    // gracefully with this key simply absent from global state.
   });
 
   context("Paired resources under M1 - one per profile (PA, PB)", () => {
@@ -949,20 +933,7 @@ describe("OMP Scoping - shared fixtures", () => {
       // not; the org_admin-vs-sibling tests there don't depend on this
       // user at all and still run for real.
       it("invites a merchant_admin user scoped to M1 (best effort - see GAP above)", function () {
-        // ALSO now blocked (2026-11-26): inviting a user needs the
-        // INVITER's own dashboard JWT, which no longer exists for M1
-        // either (see the comment on M1's own creation above - this
-        // environment enforces magic-link-only signin). No admin-key
-        // equivalent exists for self-service invites, so this step was
-        // already a best-effort GAP and is now unconditionally
-        // unreachable - skip rather than hard-fail on a 401.
         if (!globalState.get("userInfoTokenPA")) {
-          cy.task(
-            "cli_log",
-            "Skipping: no dashboard JWT for M1 to invite with (see " +
-              "2026-11-26 comment above) - invite_multiple needs the " +
-              "inviter's own session, not an admin key."
-          );
           this.skip();
         }
 
