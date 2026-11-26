@@ -986,15 +986,16 @@ where
     )
     .await?;
 
-    let payment_method_token = get_decrypted_wallet_pm_token_and_set_pm_data(
-        &operation,
-        state,
-        platform,
-        &business_profile,
-        &mut payment_data,
-        connector.as_ref(),
-    )
-    .await?;
+    let (payment_method_token, wallet_merchant_connector_account) =
+        get_decrypted_wallet_pm_token_and_set_pm_data(
+            &operation,
+            state,
+            platform,
+            &business_profile,
+            &mut payment_data,
+            connector.as_ref(),
+        )
+        .await?;
 
     override_wallet_session_connector(
         state,
@@ -1007,6 +1008,7 @@ where
             dimensions: &dimensions,
             eligible_connectors: eligible_connectors.as_ref(),
             customer: customer.as_ref(),
+            merchant_connector_account: wallet_merchant_connector_account.as_ref(),
         }),
     )
     .await;
@@ -6293,6 +6295,7 @@ struct WalletConfirmRouting<'a> {
     dimensions: &'a DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     eligible_connectors: Option<&'a Vec<enums::RoutableConnectors>>,
     customer: Option<&'a domain::Customer>,
+    merchant_connector_account: Option<&'a helpers::MerchantConnectorAccountType>,
 }
 
 #[cfg(feature = "v1")]
@@ -6322,8 +6325,7 @@ async fn override_wallet_session_connector<F, D>(
         business_profile,
         payment_data,
         wallet_type,
-        routing.dimensions,
-        routing.eligible_connectors,
+        &routing,
     )
     .await
     else {
@@ -6349,7 +6351,10 @@ async fn get_decrypted_wallet_pm_token_and_set_pm_data<F, Req, D>(
     business_profile: &domain::Profile,
     payment_data: &mut D,
     connector: Option<&ConnectorCallType>,
-) -> RouterResult<Option<PaymentMethodToken>>
+) -> RouterResult<(
+    Option<PaymentMethodToken>,
+    Option<helpers::MerchantConnectorAccountType>,
+)>
 where
     F: Send + Clone + Sync,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -6380,7 +6385,7 @@ where
             storage_enums::PaymentMethodType::ApplePay => Box::new(ApplePayWallet),
             storage_enums::PaymentMethodType::Paze => Box::new(PazeWallet),
             storage_enums::PaymentMethodType::GooglePay => Box::new(GooglePayWallet),
-            _ => return Ok(None),
+            _ => return Ok((None, None)),
         };
 
         let merchant_connector_account =
@@ -6398,7 +6403,7 @@ where
             wallet.check_predecrypted_token(payment_data, &merchant_connector_account)?
         {
             logger::debug!("Using predecrypted token for wallet");
-            return Ok(Some(predecrypted_token));
+            return Ok((Some(predecrypted_token), Some(merchant_connector_account)));
         }
 
         let decide_wallet_flow = wallet
@@ -6421,12 +6426,12 @@ where
 
                 set_decrypted_wallet_payment_method_data(&token, payment_data);
 
-                Ok(Some(token))
+                Ok((Some(token), Some(merchant_connector_account)))
             }
-            None => Ok(None),
+            None => Ok((None, Some(merchant_connector_account))),
         }
     } else {
-        Ok(None)
+        Ok((None, None))
     }
 }
 

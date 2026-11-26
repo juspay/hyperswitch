@@ -2,9 +2,8 @@
 
 use std::{future::Future, str::FromStr};
 
-use api_models::{
-    enums::RoutableConnectors,
-    payments::{ApplepayCombinedSessionTokenData, GooglePayWalletDetails},
+use api_models::payments::{
+    ApplepayCombinedSessionTokenData, GooglePayWalletDetails, GpaySessionTokenData,
 };
 use common_enums::{Country, CountryAlpha2, PaymentMethodType, TransactionType};
 use common_utils::{ext_traits::OptionExt, id_type::MerchantConnectorAccountId};
@@ -17,11 +16,10 @@ use hyperswitch_domain_models::{
 use super::utils;
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         payments::{
             decrypt_apple_pay_wallet_for_eligibility, decrypt_google_pay_wallet_for_eligibility,
-            helpers::{get_merchant_connector_account, is_googlepay_predecrypted_flow_supported},
-            OperationSessionGetters,
+            helpers::{get_merchant_connector_account, MerchantConnectorAccountType},
+            OperationSessionGetters, WalletConfirmRouting,
         },
         routing::{helpers::get_merchant_default_config, PaymentsDslInput},
     },
@@ -36,15 +34,15 @@ pub(in crate::core::payments) async fn route_wallet_confirmation<F, D>(
     business_profile: &domain::Profile,
     payment_data: &D,
     wallet_type: PaymentMethodType,
-    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-    eligible_connectors: Option<&Vec<RoutableConnectors>>,
+    routing: &WalletConfirmRouting<'_>,
 ) -> Option<api::ConnectorData>
 where
     F: Clone,
     D: OperationSessionGetters<F> + Sync,
 {
     if !state.conf.open_router.static_routing_enabled
-        || !dimensions
+        || !routing
+            .dimensions
             .with_payment_method_type(wallet_type)
             .get_session_override(
                 state.store.as_ref(),
@@ -52,7 +50,7 @@ where
                 None,
             )
             .await
-        || !utils::is_decision_engine_routing_effective(state, dimensions).await
+        || !utils::is_decision_engine_routing_effective(state, routing.dimensions).await
     {
         return None;
     }
@@ -101,24 +99,13 @@ where
                         .apple_pay_accepts_decrypted_token()
                 }),
             PaymentMethodType::GooglePay => {
-                is_googlepay_predecrypted_flow_supported(account.get_metadata())
-                    || get_merchant_connector_account(
-                        state,
-                        processor,
-                        None,
-                        profile_id,
-                        &connector_name,
-                        Some(&account.merchant_connector_id),
-                    )
-                    .await
-                    .ok()
-                    .and_then(|account| {
-                        account
-                            .get_connector_wallets_details()
-                            .parse_value::<GooglePayWalletDetails>("GooglePayWalletDetails")
-                            .ok()
-                    })
-                    .is_some_and(|details| details.google_pay_accepts_decrypted_token())
+                google_pay_accepts_decrypted_token(
+                    state,
+                    processor,
+                    account,
+                    routing.merchant_connector_account,
+                )
+                .await
             }
             _ => false,
         };
@@ -134,7 +121,7 @@ where
         key_store,
         candidates,
         input.clone(),
-        eligible_connectors,
+        routing.eligible_connectors,
         profile_id,
         &TransactionType::Payment,
         &accounts.get_ids(),
@@ -182,6 +169,47 @@ where
         selected.merchant_connector_id,
     )
     .ok()
+}
+
+async fn google_pay_accepts_decrypted_token(
+    state: &SessionState,
+    processor: &domain::Processor,
+    account: &domain::MerchantConnectorAccountWithoutEncrypted,
+    resolved_account: Option<&MerchantConnectorAccountType>,
+) -> bool {
+    let metadata = account
+        .get_metadata()
+        .parse_value::<GpaySessionTokenData>("GpaySessionTokenData")
+        .ok()
+        .map(|metadata| metadata.google_pay)
+        .unwrap_or_default();
+    if metadata.google_pay_accepts_decrypted_token(None) {
+        return true;
+    }
+    let wallet_details = match resolved_account {
+        Some(MerchantConnectorAccountType::DbVal(resolved))
+            if resolved.merchant_connector_id == account.merchant_connector_id
+                && resolved.connector_name == account.connector_name
+                && resolved.profile_id == account.profile_id =>
+        {
+            resolved.get_connector_wallets_details()
+        }
+        _ => get_merchant_connector_account(
+            state,
+            processor,
+            None,
+            &account.profile_id,
+            &account.connector_name,
+            Some(&account.merchant_connector_id),
+        )
+        .await
+        .ok()
+        .and_then(|account| account.get_connector_wallets_details()),
+    };
+    let wallet_details = wallet_details
+        .parse_value::<GooglePayWalletDetails>("GooglePayWalletDetails")
+        .ok();
+    metadata.google_pay_accepts_decrypted_token(wallet_details.as_ref())
 }
 
 /// Best effort: unavailable wallet keys, decryption failures, and missing BIN records must
