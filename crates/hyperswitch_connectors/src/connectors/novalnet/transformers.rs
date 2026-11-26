@@ -431,6 +431,7 @@ impl TryFrom<&NovalnetRouterData<&PaymentsAuthorizeRouterData>> for NovalnetPaym
                     | WalletDataPaymentMethod::TwintRedirect {}
                     | WalletDataPaymentMethod::VippsRedirect {}
                     | WalletDataPaymentMethod::WeroRedirect {}
+                    | WalletDataPaymentMethod::VenmoRedirect {}
                     | WalletDataPaymentMethod::TouchNGoRedirect(_)
                     | WalletDataPaymentMethod::WeChatPayRedirect(_)
                     | WalletDataPaymentMethod::CashappQr(_)
@@ -1915,6 +1916,7 @@ impl TryFrom<&SetupMandateRouterData> for NovalnetPaymentsRequest {
                 | WalletDataPaymentMethod::TwintRedirect {}
                 | WalletDataPaymentMethod::VippsRedirect {}
                 | WalletDataPaymentMethod::WeroRedirect {}
+                | WalletDataPaymentMethod::VenmoRedirect {}
                 | WalletDataPaymentMethod::TouchNGoRedirect(_)
                 | WalletDataPaymentMethod::WeChatPayRedirect(_)
                 | WalletDataPaymentMethod::CashappQr(_)

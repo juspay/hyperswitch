@@ -1510,6 +1510,7 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::TwintRedirect {}
         | WalletData::VippsRedirect {}
         | WalletData::WeroRedirect {}
+        | WalletData::VenmoRedirect {}
         | WalletData::TouchNGoRedirect(_)
         | WalletData::SwishQr(_)
         | WalletData::WeChatPayRedirect(_)
@@ -2125,6 +2126,7 @@ impl
             | WalletData::TwintRedirect {}
             | WalletData::VippsRedirect {}
             | WalletData::WeroRedirect {}
+            | WalletData::VenmoRedirect {}
             | WalletData::TouchNGoRedirect(_)
             | WalletData::SwishQr(_)
             | WalletData::WeChatPayRedirect(_)

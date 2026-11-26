@@ -320,6 +320,7 @@ impl TryFrom<&SetupMandateRouterData> for BankOfAmericaPaymentsRequest {
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::WeroRedirect {}
+                | WalletData::VenmoRedirect {}
                 | WalletData::TouchNGoRedirect(_)
                 | WalletData::WeChatPayRedirect(_)
                 | WalletData::WeChatPayQr(_)
@@ -1123,6 +1124,7 @@ impl TryFrom<&BankOfAmericaRouterData<&PaymentsAuthorizeRouterData>>
                         | WalletData::TwintRedirect {}
                         | WalletData::VippsRedirect {}
                         | WalletData::WeroRedirect {}
+                        | WalletData::VenmoRedirect {}
                         | WalletData::TouchNGoRedirect(_)
                         | WalletData::WeChatPayRedirect(_)
                         | WalletData::WeChatPayQr(_)

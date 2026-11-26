@@ -589,6 +589,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::WeroRedirect {}
+                | WalletData::VenmoRedirect {}
                 | WalletData::TouchNGoRedirect(_)
                 | WalletData::WeChatPayRedirect(_)
                 | WalletData::WeChatPayQr(_)
@@ -2563,6 +2564,7 @@ fn get_wallet_data(
         | WalletData::TwintRedirect {}
         | WalletData::VippsRedirect {}
         | WalletData::WeroRedirect {}
+        | WalletData::VenmoRedirect {}
         | WalletData::TouchNGoRedirect(_)
         | WalletData::WeChatPayRedirect(_)
         | WalletData::WeChatPayQr(_)

@@ -463,6 +463,7 @@ impl TryFrom<&PaymentMethodData> for SalePaymentMethod {
                 | WalletData::TwintRedirect {}
                 | WalletData::VippsRedirect {}
                 | WalletData::WeroRedirect {}
+                | WalletData::VenmoRedirect {}
                 | WalletData::TouchNGoRedirect(_)
                 | WalletData::WeChatPayRedirect(_)
                 | WalletData::WeChatPayQr(_)

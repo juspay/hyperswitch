@@ -51822,6 +51822,19 @@
           },
           {
             "type": "object",
+            "title": "VenmoRedirect",
+            "required": [
+              "venmo_redirect"
+            ],
+            "properties": {
+              "venmo_redirect": {
+                "type": "object",
+                "description": "Wallet data for Venmo Redirection"
+              }
+            }
+          },
+          {
+            "type": "object",
             "title": "WeChatPayQr",
             "required": [
               "we_chat_pay_qr"

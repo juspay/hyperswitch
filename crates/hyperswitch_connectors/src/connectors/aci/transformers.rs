@@ -228,6 +228,7 @@ impl TryFrom<(&WalletData, &PaymentsAuthorizeRouterData)> for PaymentDetails {
             | WalletData::TwintRedirect { .. }
             | WalletData::VippsRedirect { .. }
             | WalletData::WeroRedirect { .. }
+            | WalletData::VenmoRedirect { .. }
             | WalletData::TouchNGoRedirect(_)
             | WalletData::WeChatPayRedirect(_)
             | WalletData::WeChatPayQr(_)

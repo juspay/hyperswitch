@@ -385,6 +385,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                 | WalletDataPaymentMethod::TwintRedirect {}
                 | WalletDataPaymentMethod::VippsRedirect {}
                 | WalletDataPaymentMethod::WeroRedirect {}
+                | WalletDataPaymentMethod::VenmoRedirect {}
                 | WalletDataPaymentMethod::BluecodeRedirect {}
                 | WalletDataPaymentMethod::TouchNGoRedirect(_)
                 | WalletDataPaymentMethod::WeChatPayRedirect(_)
