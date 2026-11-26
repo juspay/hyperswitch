@@ -215,8 +215,6 @@ where
                 )
             )
         } else {
-            #[cfg(feature = "logs")]
-            logger::error!("Invalid client secret: {val_str}");
             WithType::fmt(val, f)
         }
     }
