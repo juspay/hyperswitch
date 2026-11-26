@@ -745,9 +745,11 @@ impl webhooks::IncomingWebhook for Tokenio {
 }
 
 static TOKENIO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    // Tokenio has no capture API (the Capture flow returns `FlowNotSupported`), so a
+    // manual-capture payment can never be completed. `SequentialAutomatic` stays: a charge
+    // never reports `Authorized`, so no follow-up capture call is made for it.
     let supported_capture_methods = vec![
         enums::CaptureMethod::Automatic,
-        enums::CaptureMethod::Manual,
         enums::CaptureMethod::SequentialAutomatic,
     ];
 
@@ -787,5 +789,37 @@ impl ConnectorSpecifications for Tokenio {
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
         Some(&TOKENIO_SUPPORTED_WEBHOOK_FLOWS)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use common_enums::enums::{CaptureMethod, PaymentMethod, PaymentMethodType};
+    use hyperswitch_interfaces::api::{ConnectorSpecifications, ConnectorValidation};
+
+    use super::Tokenio;
+
+    fn validate_capture_method(capture_method: CaptureMethod) -> bool {
+        Tokenio::new()
+            .validate_connector_against_payment_request(
+                Some(capture_method),
+                PaymentMethod::OpenBanking,
+                Some(PaymentMethodType::OpenBankingPIS),
+            )
+            .is_ok()
+    }
+
+    /// `ConnectorIntegration<Capture, ..>::build_request` returns `FlowNotSupported`, so a
+    /// manual-capture payment is accepted at authorization and then cannot be captured.
+    /// Declaring it is worse than refusing it: the failure lands after the customer has paid.
+    #[test]
+    fn rejects_manual_capture_because_capture_flow_is_not_supported() {
+        assert!(!validate_capture_method(CaptureMethod::Manual));
+    }
+
+    #[test]
+    fn accepts_automatic_and_sequential_automatic_capture() {
+        assert!(validate_capture_method(CaptureMethod::Automatic));
+        assert!(validate_capture_method(CaptureMethod::SequentialAutomatic));
     }
 }
