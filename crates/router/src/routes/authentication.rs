@@ -11,7 +11,7 @@ use router_env::{instrument, Flow};
 
 use crate::{
     core::{api_locking, unified_authentication_service},
-    routes::app::{self},
+    routes::app,
     services::{api, authentication as auth},
 };
 

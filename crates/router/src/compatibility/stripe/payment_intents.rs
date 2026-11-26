@@ -11,7 +11,7 @@ use router_env::{instrument, tracing, Flow};
 use crate::{
     compatibility::{stripe::errors, wrap},
     core::payments,
-    routes::{self},
+    routes,
     services::{api, authentication as auth},
 };
 #[cfg(feature = "v1")]
