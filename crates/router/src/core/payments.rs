@@ -42,11 +42,7 @@ use std::future;
 
 #[cfg(feature = "v2")]
 use api_models::payments::RevenueRecoveryGetIntentResponse;
-use api_models::{
-    self, enums,
-    mandates::RecurringDetails,
-    payments::{self as payments_api},
-};
+use api_models::{self, enums, mandates::RecurringDetails, payments as payments_api};
 pub use common_enums::enums::{CallConnectorAction, ExecutionMode, ExecutionPath, GatewaySystem};
 use common_types::payments as common_payments_types;
 use common_utils::{
@@ -153,8 +149,7 @@ use crate::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
             is_googlepay_predecrypted_flow_supported,
         },
-        payouts,
-        routing::{self as core_routing},
+        payouts, routing as core_routing,
         unified_authentication_service::types::{ClickToPay, UnifiedAuthenticationService},
         utils as core_utils,
     },

@@ -427,7 +427,7 @@ impl SuperpositionProxyFlow for ListDefaultConfigsQuery {
             .set_count(self.count)
             .set_page(self.page)
             .set_all(self.all)
-            .set_name(self.name.map(|name| vec![name])))
+            .set_search(self.name))
     }
 
     async fn execute(
