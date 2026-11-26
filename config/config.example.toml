@@ -181,6 +181,7 @@ max_feed_count = 200              # The maximum number of frames that will be fe
 # [cache.success_based_dynamic_algorithm]     # SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
 # [cache.elimination_based_dynamic_algorithm] # ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE
 # [cache.contract_based_dynamic_algorithm]    # CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE
+# [cache.gsm]                                 # GSM_CACHE, 5 min time to live by default
 
 # This section provides configs for currency conversion api
 [forex_api]
