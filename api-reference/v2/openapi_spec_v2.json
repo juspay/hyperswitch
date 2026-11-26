@@ -33697,7 +33697,8 @@
           "adaptive_retry",
           "hybrid_adaptive_retry",
           "systematic_k_max_at_softmax",
-          "systematic_k_max_at_score"
+          "systematic_k_max_at_score",
+          "score_mix"
         ]
       },
       "RevenueRecoveryAlgorithmType": {

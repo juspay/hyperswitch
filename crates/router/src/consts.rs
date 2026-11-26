@@ -491,6 +491,9 @@ pub mod superposition {
     pub const REVENUE_RECOVERY_AB_ENABLED: &str = "revenue_recovery.ab_enabled";
     /// Which retry implementation inside the `Smart` arm a retry decision runs under A/B routing.
     pub const REVENUE_RECOVERY_AB_ALGORITHM: &str = "revenue_recovery.ab_algorithm";
+    /// How the `score_mix` retry implementation mixes the calendar with the time since the card's
+    /// last failure, per error code: the weights, the calendar combine and the delta limits.
+    pub const REVENUE_RECOVERY_SCORE_MIX: &str = "revenue_recovery.score_mix";
     /// Days from the first attempt during which an invoice may still be retried
     pub const RECOVERY_GRACE_PERIOD_DAYS: &str = "revenue_recovery.grace_period_days";
     /// Total retries an invoice is allowed across its whole recovery lifecycle

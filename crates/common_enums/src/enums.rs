@@ -480,6 +480,10 @@ pub enum RevenueRecoveryABAlgorithm {
     /// Systematic sampling over the max of the raw scores. Differs from `SystematicKMaxAtSoftmax`
     /// in the combine alone, so a difference between those two is attributable to the combine.
     SystematicKMaxAtScore,
+    /// The calendar score and the score for the time since the card's last failure, averaged by
+    /// the error code's weights, with the day drawn by the per-day walk. Never systematic
+    /// sampling.
+    ScoreMix,
 }
 
 #[derive(

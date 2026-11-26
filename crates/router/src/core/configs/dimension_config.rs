@@ -951,6 +951,18 @@ impl superposition::Config for RevenueRecoveryAbAlgorithmForAttempt {
     }
 }
 
+/// `revenue_recovery.score_mix` resolved per retry decision, read from Superposition only. `Null`
+/// when nothing is configured.
+#[cfg(feature = "v2")]
+pub struct RevenueRecoveryScoreMixForAttempt;
+
+#[cfg(feature = "v2")]
+impl superposition::Config for RevenueRecoveryScoreMixForAttempt {
+    type Output = serde_json::Value;
+    type TargetingKey = id_type::GlobalAttemptId;
+    const SUPERPOSITION_KEY: &'static str = superposition_consts::REVENUE_RECOVERY_SCORE_MIX;
+}
+
 config! {
     superposition_key = RECOVERY_GRACE_PERIOD_DAYS,
     output = i64,
