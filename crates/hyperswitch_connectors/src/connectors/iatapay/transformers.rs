@@ -286,6 +286,8 @@ pub enum IatapayPaymentStatus {
     Failed,
     #[serde(rename = "UNEXPECTED SETTLED")]
     UnexpectedSettled,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<IatapayPaymentStatus> for enums::AttemptStatus {
@@ -297,6 +299,12 @@ impl From<IatapayPaymentStatus> for enums::AttemptStatus {
             IatapayPaymentStatus::Failed | IatapayPaymentStatus::UnexpectedSettled => Self::Failure,
             IatapayPaymentStatus::Created => Self::AuthenticationPending,
             IatapayPaymentStatus::Initiated => Self::Pending,
+            IatapayPaymentStatus::Unknown => {
+                router_env::logger::warn!(
+                    "Unknown iatapay payment status received, defaulting to AuthenticationPending"
+                );
+                Self::AuthenticationPending
+            }
         }
     }
 }
@@ -320,8 +328,8 @@ pub struct IatapayPaymentsResponse {
     pub iata_refund_id: Option<String>,
     pub merchant_id: Option<Secret<String>>,
     pub merchant_payment_id: Option<String>,
-    pub amount: FloatMajorUnit,
-    pub currency: String,
+    pub amount: Option<Secret<String>>,
+    pub currency: Option<Secret<String>>,
     pub checkout_methods: Option<CheckoutMethod>,
     pub failure_code: Option<String>,
     pub failure_details: Option<String>,
@@ -490,6 +498,8 @@ pub enum RefundStatus {
     Settled,
     Cleared,
     Failed,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
@@ -502,6 +512,12 @@ impl From<RefundStatus> for enums::RefundStatus {
             RefundStatus::Authorized => Self::Pending,
             RefundStatus::Settled => Self::Success,
             RefundStatus::Cleared => Self::Success,
+            RefundStatus::Unknown => {
+                router_env::logger::warn!(
+                    "Unknown iatapay refund status received, defaulting to Pending"
+                );
+                Self::Pending
+            }
         }
     }
 }
@@ -511,22 +527,22 @@ impl From<RefundStatus> for enums::RefundStatus {
 pub struct RefundResponse {
     iata_refund_id: String,
     status: RefundStatus,
-    merchant_refund_id: String,
-    amount: FloatMajorUnit,
-    currency: String,
-    bank_transfer_description: Option<String>,
+    merchant_refund_id: Option<Secret<String>>,
+    amount: Option<Secret<String>>,
+    currency: Option<Secret<String>>,
+    bank_transfer_description: Option<Secret<String>>,
     failure_code: Option<String>,
     failure_details: Option<String>,
-    lock_reason: Option<String>,
-    creation_date_time: Option<String>,
-    finish_date_time: Option<String>,
-    update_date_time: Option<String>,
-    clearance_date_time: Option<String>,
-    iata_payment_id: Option<String>,
-    merchant_payment_id: Option<String>,
-    payment_amount: Option<FloatMajorUnit>,
+    lock_reason: Option<Secret<String>>,
+    creation_date_time: Option<Secret<String>>,
+    finish_date_time: Option<Secret<String>>,
+    update_date_time: Option<Secret<String>>,
+    clearance_date_time: Option<Secret<String>>,
+    iata_payment_id: Option<Secret<String>>,
+    merchant_payment_id: Option<Secret<String>>,
+    payment_amount: Option<Secret<String>>,
     merchant_id: Option<Secret<String>>,
-    account_country: Option<String>,
+    account_country: Option<Secret<String>>,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, RefundResponse>> for RefundsRouterData<Execute> {
@@ -632,9 +648,9 @@ pub struct IatapayPaymentWebhookBody {
     pub merchant_payment_id: Option<String>,
     pub failure_code: Option<String>,
     pub failure_details: Option<String>,
-    pub amount: FloatMajorUnit,
-    pub currency: String,
-    pub checkout_methods: Option<CheckoutMethod>,
+    pub amount: Option<Secret<String>>,
+    pub currency: Option<Secret<String>>,
+    pub checkout_methods: Option<Secret<serde_json::Value>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -645,8 +661,8 @@ pub struct IatapayRefundWebhookBody {
     pub merchant_refund_id: Option<String>,
     pub failure_code: Option<String>,
     pub failure_details: Option<String>,
-    pub amount: FloatMajorUnit,
-    pub currency: String,
+    pub amount: Option<Secret<String>>,
+    pub currency: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -654,6 +670,7 @@ pub struct IatapayRefundWebhookBody {
 pub enum IatapayWebhookResponse {
     IatapayPaymentWebhookBody(IatapayPaymentWebhookBody),
     IatapayRefundWebhookBody(IatapayRefundWebhookBody),
+    Unknown(Secret<serde_json::Value>),
 }
 
 impl TryFrom<IatapayWebhookResponse> for IncomingWebhookEvent {

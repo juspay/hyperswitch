@@ -736,6 +736,14 @@ impl IncomingWebhook for Iatapay {
                     )),
                 }
             }
+            iatapay::IatapayWebhookResponse::Unknown(_) => {
+                router_env::logger::warn!(
+                    "Unknown iatapay webhook response received, unable to extract object reference id"
+                );
+                Err(errors::ConnectorError::WebhookReferenceIdNotFound)
+                    .into_report()
+                    .attach_printable("Unknown iatapay webhook body")
+            }
         }
     }
 
@@ -767,6 +775,12 @@ impl IncomingWebhook for Iatapay {
             }
             iatapay::IatapayWebhookResponse::IatapayRefundWebhookBody(refund_wh_body) => {
                 Ok(Box::new(refund_wh_body))
+            }
+            iatapay::IatapayWebhookResponse::Unknown(body) => {
+                router_env::logger::warn!(
+                    "Unknown iatapay webhook response received, returning raw body"
+                );
+                Ok(Box::new(body))
             }
         }
     }
