@@ -145,28 +145,13 @@ impl GsmInterface for Store {
 
         // Most lookups are for an error no rule is configured for, so the absence of a rule is
         // cached as well as a rule.
-        let rule = match Box::pin(cache::get_or_populate_in_memory_redis(
+        let rule = Box::pin(cache::get_or_populate_in_memory_redis(
             self,
             &key,
             find_rule_in_db(),
             CacheId::Gsm,
         ))
-        .await
-        {
-            Ok(rule) => rule,
-            // The rules decide how payments are retried, so they are still read while redis
-            // cannot be reached.
-            Err(error)
-                if matches!(
-                    error.current_context(),
-                    errors::StorageError::KVError | errors::StorageError::RedisError(_)
-                ) =>
-            {
-                logger::warn!(?error, "Failed to read the gsm cache, reading the database");
-                find_rule_in_db().await?
-            }
-            Err(error) => return Err(error),
-        };
+        .await?;
 
         rule.ok_or_else(|| {
             report!(errors::StorageError::ValueNotFound(
