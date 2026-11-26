@@ -353,7 +353,7 @@ where
             let payments_response_operation = Box::new(PaymentResponse);
 
             connector_http_status_code = router_data.connector_http_status_code;
-            add_connector_http_status_code_metrics::<F>(connector_http_status_code);
+            add_connector_http_status_code_metrics(connector_http_status_code);
 
             payments_response_operation
                 .to_post_update_tracker()?
@@ -464,7 +464,7 @@ where
             let payments_response_operation = Box::new(PaymentResponse);
 
             connector_http_status_code = router_data.connector_http_status_code;
-            add_connector_http_status_code_metrics::<F>(connector_http_status_code);
+            add_connector_http_status_code_metrics(connector_http_status_code);
 
             payments_response_operation
                 .to_post_update_tracker()?
@@ -632,7 +632,7 @@ where
     let payments_response_operation = Box::new(PaymentResponse);
 
     let connector_http_status_code = router_data.connector_http_status_code;
-    add_connector_http_status_code_metrics::<F>(connector_http_status_code);
+    add_connector_http_status_code_metrics(connector_http_status_code);
 
     let payment_data = payments_response_operation
         .to_post_update_tracker()?
@@ -1297,7 +1297,7 @@ where
                     external_latency = router_data.external_latency;
                     current_flow_info_for_recurrence_webhook = router_data.current_flow_info();
                     //add connector http status code metrics
-                    add_connector_http_status_code_metrics::<F>(connector_http_status_code);
+                    add_connector_http_status_code_metrics(connector_http_status_code);
 
                     handle_pm_and_mandate_post_update(
                         state,
@@ -1542,7 +1542,7 @@ where
                     external_latency = router_data.external_latency;
                     current_flow_info_for_recurrence_webhook = router_data.current_flow_info();
                     //add connector http status code metrics
-                    add_connector_http_status_code_metrics::<F>(connector_http_status_code);
+                    add_connector_http_status_code_metrics(connector_http_status_code);
 
                     handle_pm_and_mandate_post_update(
                         state,
@@ -1982,7 +1982,7 @@ where
     let connector_http_status_code = router_data.connector_http_status_code;
     let external_latency = router_data.external_latency;
 
-    add_connector_http_status_code_metrics::<F>(connector_http_status_code);
+    add_connector_http_status_code_metrics(connector_http_status_code);
 
     #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
     let routable_connectors =
@@ -2118,7 +2118,7 @@ where
             )
             .await?;
 
-            add_connector_http_status_code_metrics::<F>(router_data.connector_http_status_code);
+            add_connector_http_status_code_metrics(router_data.connector_http_status_code);
 
             let payments_response_operation = Box::new(PaymentResponse);
 
@@ -3599,7 +3599,7 @@ where
             let connector_http_status_code = router_data.connector_http_status_code;
             let external_latency = router_data.external_latency;
 
-            add_connector_http_status_code_metrics::<F>(connector_http_status_code);
+            add_connector_http_status_code_metrics(connector_http_status_code);
 
             #[cfg(all(feature = "dynamic_routing", feature = "v1"))]
             let routable_connectors =

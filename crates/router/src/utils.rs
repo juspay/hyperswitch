@@ -732,18 +732,15 @@ pub fn trim_string(value: String) -> Option<String> {
     (!trimmed.is_empty()).then_some(trimmed)
 }
 
-pub fn add_connector_http_status_code_metrics<F>(option_status_code: Option<u16>) {
+pub fn add_connector_http_status_code_metrics(option_status_code: Option<u16>) {
     if let Some(status_code) = option_status_code {
         let status_code_type = get_http_status_code_type(status_code).ok();
-        let flow =
-            crate::core::utils::get_flow_name::<F>().unwrap_or_else(|_| "UnknownFlow".to_string());
-        let attributes = router_env::metric_attributes!(("flow", flow));
         match status_code_type.as_deref() {
-            Some("1xx") => metrics::CONNECTOR_HTTP_STATUS_CODE_1XX_COUNT.add(1, attributes),
-            Some("2xx") => metrics::CONNECTOR_HTTP_STATUS_CODE_2XX_COUNT.add(1, attributes),
-            Some("3xx") => metrics::CONNECTOR_HTTP_STATUS_CODE_3XX_COUNT.add(1, attributes),
-            Some("4xx") => metrics::CONNECTOR_HTTP_STATUS_CODE_4XX_COUNT.add(1, attributes),
-            Some("5xx") => metrics::CONNECTOR_HTTP_STATUS_CODE_5XX_COUNT.add(1, attributes),
+            Some("1xx") => metrics::CONNECTOR_HTTP_STATUS_CODE_1XX_COUNT.add(1, &[]),
+            Some("2xx") => metrics::CONNECTOR_HTTP_STATUS_CODE_2XX_COUNT.add(1, &[]),
+            Some("3xx") => metrics::CONNECTOR_HTTP_STATUS_CODE_3XX_COUNT.add(1, &[]),
+            Some("4xx") => metrics::CONNECTOR_HTTP_STATUS_CODE_4XX_COUNT.add(1, &[]),
+            Some("5xx") => metrics::CONNECTOR_HTTP_STATUS_CODE_5XX_COUNT.add(1, &[]),
             _ => logger::info!("Skip metrics as invalid http status code received from connector"),
         };
     } else {
