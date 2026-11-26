@@ -533,4 +533,66 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {}
 
 // Connector dependent test cases goes here
 
+fn get_decrypted_apple_pay_data(cryptogram: &str) -> domain::PaymentMethodData {
+    domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(domain::ApplePayWalletData {
+        payment_data: common_types::payments::ApplePayPaymentData::Decrypted(
+            common_types::payments::ApplePayPredecryptData {
+                application_primary_account_number: cards::CardNumber::from_str("4111111111111111")
+                    .unwrap(),
+                application_expiration_month: Secret::new("03".to_string()),
+                application_expiration_year: Secret::new("30".to_string()),
+                payment_data: common_types::payments::ApplePayCryptogramData {
+                    online_payment_cryptogram: Secret::new(cryptogram.to_string()),
+                    eci_indicator: Some("07".to_string()),
+                },
+                device_manufacturer_identifier: None,
+            },
+        ),
+        payment_method: domain::ApplepayPaymentMethod {
+            display_name: "Visa 1111".to_string(),
+            network: "Visa".to_string(),
+            pm_type: "credit".to_string(),
+        },
+        transaction_identifier: "test_transaction_identifier".to_string(),
+    }))
+}
+
+// Creates a payment with a decrypted Apple Pay token, sent as a payment token with its cryptogram.
+#[actix_web::test]
+async fn should_make_payment_with_decrypted_apple_pay_token() {
+    let response = CONNECTOR
+        .make_payment(
+            Some(types::PaymentsAuthorizeData {
+                amount: 320,
+                payment_method_data: get_decrypted_apple_pay_data("dGVzdC1jcnlwdG9ncmFt"),
+                ..utils::PaymentAuthorizeType::default().0
+            }),
+            None,
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status, enums::AttemptStatus::Pending);
+}
+
+// Fails a payment with a decrypted Apple Pay token that has no cryptogram.
+#[actix_web::test]
+async fn should_fail_payment_for_decrypted_apple_pay_token_without_cryptogram() {
+    let error = CONNECTOR
+        .make_payment(
+            Some(types::PaymentsAuthorizeData {
+                payment_method_data: get_decrypted_apple_pay_data(""),
+                ..utils::PaymentAuthorizeType::default().0
+            }),
+            None,
+        )
+        .await
+        .unwrap_err();
+    match error.current_context() {
+        router::core::errors::ConnectorError::MissingRequiredField { field_name } => {
+            assert_eq!(*field_name, "apple_pay_cryptogram")
+        }
+        other => panic!("unexpected error: {other:?}"),
+    }
+}
+
 // [#478]: add unit tests for non 3DS, wallets & webhooks in connector tests
