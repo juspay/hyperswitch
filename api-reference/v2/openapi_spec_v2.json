@@ -23667,6 +23667,14 @@
             "description": "Id of the recovery request that recorded this transaction, for a transaction the merchant\nreported on a profile whose retries it triggers.",
             "example": "revenue_recovery_6JkQbHp7Wbq3cXUtvTqV",
             "nullable": true
+          },
+          "retry_algorithm": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RevenueRecoveryABAlgorithm"
+              }
+            ],
+            "nullable": true
           }
         }
       },

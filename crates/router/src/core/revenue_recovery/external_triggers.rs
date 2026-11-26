@@ -306,7 +306,6 @@ async fn decide_next_retry(
             Box::pin(schedule_next_retry(
                 state,
                 platform,
-                profile,
                 &inputs,
                 retry_algorithm_type,
                 grace_window_end,
@@ -326,7 +325,6 @@ async fn decide_next_retry(
 async fn schedule_next_retry(
     state: &SessionState,
     platform: &Platform,
-    profile: &domain::Profile,
     inputs: &NextRetryInputs<'_>,
     retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
     grace_window_end: PrimitiveDateTime,
@@ -335,7 +333,6 @@ async fn schedule_next_retry(
     let retry_time = Box::pin(get_retry_time(
         state,
         platform,
-        profile,
         inputs,
         retry_algorithm_type,
         grace_window_end,
@@ -377,7 +374,6 @@ async fn schedule_next_retry(
 async fn get_retry_time(
     state: &SessionState,
     platform: &Platform,
-    profile: &domain::Profile,
     inputs: &NextRetryInputs<'_>,
     retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
     grace_window_end: PrimitiveDateTime,
@@ -397,11 +393,6 @@ async fn get_retry_time(
             remaining_budget: u32::from(inputs.retry_config.max_retry_count)
                 .saturating_sub(u32::from(inputs.retry_count)),
             provider_merchant_id: platform.get_provider().get_provider_merchant_id(),
-            merchant_context: pcr::RecoveryMerchantContext {
-                merchant_account: platform.get_processor().get_account(),
-                key_store: platform.get_processor().get_key_store().inner(),
-                profile,
-            },
         },
         inputs.dimensions,
     ))
@@ -411,11 +402,11 @@ async fn get_retry_time(
         Ok(RetryTiming::At {
             retry_time,
             next_static_ladder_progress,
-            assigned_ab_algorithm: _,
+            assigned_ab_algorithm,
         }) => Ok(RetryTimeChoice {
             retry_time,
             next_ladder_progress: next_static_ladder_progress,
-            assigned_ab_algorithm: None,
+            assigned_ab_algorithm,
         }),
         Ok(RetryTiming::Decider) => {
             revenue_recovery_workflow::get_schedule_time_to_retry_mit_payments(

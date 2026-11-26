@@ -913,42 +913,21 @@ impl DatabaseBackedConfig for RevenueRecoveryAbEnabled {
     }
 }
 
-// Unlike the other revenue recovery configs this one is bucketed: the targeting key is the
-// invoice, so an experiment on this key splits traffic per invoice rather than per merchant.
+// Unlike the other revenue recovery configs this one is bucketed: the targeting key is the failed
+// attempt, so an experiment on this key splits traffic per retry decision rather than per merchant.
 #[cfg(feature = "v2")]
 config! {
     superposition_key = REVENUE_RECOVERY_AB_ALGORITHM,
     output = common_enums::RevenueRecoveryABAlgorithm,
     default = common_enums::RevenueRecoveryABAlgorithm::SystematicKMaxAtScore,
     string_enum = true,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
-    targeting_key = id_type::GlobalPaymentId
+    requires = dimension_state::DimensionsWithRecoveryErrorCode,
+    targeting_key = id_type::GlobalAttemptId
 }
 
 #[cfg(feature = "v2")]
 impl DatabaseBackedConfig for RevenueRecoveryAbAlgorithm {
     const KEY: &'static str = "revenue_recovery_ab_algorithm";
-
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        dimensions
-            .get_profile_id()
-            .map(|profile_id| format!("{}_{}", Self::KEY, profile_id.get_string_repr()))
-    }
-}
-
-/// `revenue_recovery.ab_algorithm` resolved per retry decision, read from Superposition only.
-#[cfg(feature = "v2")]
-pub struct RevenueRecoveryAbAlgorithmForAttempt;
-
-#[cfg(feature = "v2")]
-impl superposition::Config for RevenueRecoveryAbAlgorithmForAttempt {
-    type Output = String;
-    type TargetingKey = id_type::GlobalAttemptId;
-    const SUPERPOSITION_KEY: &'static str = superposition_consts::REVENUE_RECOVERY_AB_ALGORITHM;
-
-    fn default_value() -> Self::Output {
-        String::new()
-    }
 }
 
 /// `revenue_recovery.score_mix` resolved per retry decision, read from Superposition only. `Null`
