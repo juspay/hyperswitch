@@ -1,7 +1,12 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
-import { cardCreditEnabled } from "../../configs/PaymentMethodList/Commons";
+// `cardCreditEnabled` restricts accepted_currencies to USD only, while the
+// per-connector Payment configs this spec drives are frequently EUR — the
+// merchant connector account was then ineligible and every payment failed
+// with IR_39 before any connector was chosen. Use the same payment-method
+// list the payments suite provisions with.
+import { payment_methods_enabled } from "../../configs/Payment/Commons";
 
 let globalState;
 
@@ -9,7 +14,11 @@ describe("UCS Comprehensive Test", () => {
   before("Initialize and Setup", function () {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
-      const connectorId = Cypress.env("CYPRESS_CONNECTOR");
+      // Cypress strips the `CYPRESS_` prefix when mapping env vars onto
+      // `Cypress.env()`, so reading "CYPRESS_CONNECTOR" always yielded
+      // undefined and `shouldIncludeConnector(undefined, ...)` was always
+      // true — this spec skipped unconditionally, for every connector.
+      const connectorId = Cypress.env("CONNECTOR");
       if (
         utils.shouldIncludeConnector(
           connectorId,
@@ -37,13 +46,18 @@ describe("UCS Comprehensive Test", () => {
     });
 
     it("connector-create-call-test", () => {
+      // Every payment below reads getConnectorDetails(connectorId), i.e. the
+      // connector under test, so creating a hard-coded "authorizedotnet"
+      // account made this spec unusable for every other connector: the
+      // credentials lookup fails and no merchant connector account exists.
+      const connectorId = globalState.get("connectorId");
       cy.createNamedConnectorCallTest(
         "payment_processor",
         fixtures.createConnectorBody,
-        cardCreditEnabled,
+        payment_methods_enabled,
         globalState,
-        "authorizedotnet",
-        "authorizedotnet_default"
+        connectorId,
+        `${connectorId}_default`
       );
     });
 
