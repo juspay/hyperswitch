@@ -7,6 +7,7 @@ counter_metric!(REQUEST_BUILD_FAILURE, GLOBAL_METER);
 histogram_metric_f64!(EXTERNAL_REQUEST_TIME, GLOBAL_METER);
 
 counter_metric!(AUTO_RETRY_CONNECTION_CLOSED, GLOBAL_METER);
+counter_metric!(CONNECTION_CLOSED_NOT_RESENT, GLOBAL_METER);
 
 // HTTP Client creation metrics
 counter_metric!(HTTP_CLIENT_CREATED, GLOBAL_METER);
