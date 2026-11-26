@@ -10609,8 +10609,7 @@
                         "payment_id": "pay_1234",
                         "payment_method_id": "pm_1234",
                         "status": "succeeded"
-                      },
-                      "token_id": "pm_1234"
+                      }
                     }
                   },
                   "03. The card was stored without a charge": {
@@ -50403,13 +50402,13 @@
         "properties": {
           "charge_id": {
             "type": "string",
-            "description": "The Hyperswitch `payment_id`, on a successful charge. Left out of the body entirely when\nthere is no charge to point at — a `tokenize`, which moves no money and answers through\n`token_id` instead, or a charge that did not go through.",
+            "description": "The Hyperswitch `payment_id`, on a successful charge. Omitted when there is no charge to\npoint at: a `tokenize`, which answers through `token_id`, or a failure.",
             "example": "pay_1234",
             "nullable": true
           },
           "token_id": {
             "type": "string",
-            "description": "The stored card, as a Hyperswitch `payment_method_id`. The whole answer on a successful\n`tokenize`; on a charge it is set as well when `parameters.setup_future_usage` asked for the\ncard to be kept. Left out of the body entirely when there is no token to send: a failure, a\ncharge that did not ask for the card to be kept, or a charge whose `setup_future_usage` was\ndowngraded to `on_session` before the connector call, which moves the save behind the\nresponse. Charge a stored card again by passing it as\n`recurring_details.payment_method_id`.",
+            "description": "The stored card, as a Hyperswitch `payment_method_id`: the answer to a successful\n`tokenize`, and sent on nothing else. A charge that kept the card reports it as\n`parameters.payment_method_id` instead. Charge it again as\n`recurring_details.payment_method_id`.",
             "example": "pm_1234",
             "nullable": true
           },
