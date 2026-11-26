@@ -688,7 +688,7 @@ async fn get_retry_time_for_error_code(
     prev_attempt_error_code: Option<common_enums::StandardisedCode>,
     remaining_grace_days: u32,
     remaining_budget: u32,
-    score_mix: Option<ScoreMixInputs>,
+    ab_inputs: AbDecisionInputs,
 ) -> Option<time::PrimitiveDateTime> {
     let Some(error_code) = prev_attempt_error_code else {
         crate::routes::metrics::REVENUE_RECOVERY_AB_MISSING_ERROR_CODE.add(
@@ -708,13 +708,8 @@ async fn get_retry_time_for_error_code(
         error_code,
         remaining_grace_days,
         remaining_budget,
-        score_mix.map_or(RetryModelVariant::from(algorithm), |inputs| {
-            RetryModelVariant {
-                combine: inputs.config.calendar_combine,
-                ..RetryModelVariant::from(algorithm)
-            }
-        }),
-        score_mix,
+        RetryModelVariant::from(algorithm),
+        Some(ab_inputs),
     )
     .await
     .map(common_utils::date_time::convert_to_pdt)
@@ -745,17 +740,16 @@ async fn get_ab_routed_retry_time(
     )
     .await;
 
-    let score_mix = if algorithm == common_enums::RevenueRecoveryABAlgorithm::ScoreMix {
-        Some(
-            resolve_score_mix_inputs(
-                state,
-                payment_intent,
-                ab_dimensions,
-                prev_attempt_error_code,
-                prev_attempt_id,
-            )
-            .await,
+    let last_failure_at = get_card_last_failure_at(state, payment_intent).await;
+    let delta_mix = if RetryModelVariant::from(algorithm).selection == DaySelection::PerTick {
+        resolve_delta_mix_inputs(
+            state,
+            ab_dimensions,
+            prev_attempt_error_code,
+            prev_attempt_id,
+            last_failure_at,
         )
+        .await
     } else {
         None
     };
@@ -766,7 +760,11 @@ async fn get_ab_routed_retry_time(
         prev_attempt_error_code,
         remaining_grace_days,
         remaining_budget,
-        score_mix,
+        AbDecisionInputs {
+            last_failure_at,
+            max_retry_gap_days: state.conf.revenue_recovery.max_retry_gap_days.resolve(),
+            delta_mix,
+        },
     )
     .await;
 
@@ -782,55 +780,13 @@ async fn get_ab_routed_retry_time(
     (schedule_time, algorithm)
 }
 
-/// The error code's `score_mix` config and the invoice card's last failure time, for the `ScoreMix`
-/// arm. A config that is missing, unusable or unresolvable falls back to
-/// `ScoreMixConfig::default()`. When the card's record holds no last failure time, no day gets a
-/// delta score.
+/// When the invoice's card last failed, from the card's record, or `None` when it holds none.
 #[cfg(feature = "v2")]
-async fn resolve_score_mix_inputs(
+async fn get_card_last_failure_at(
     state: &SessionState,
     payment_intent: &PaymentIntent,
-    profile_dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
-    error_code: Option<common_enums::StandardisedCode>,
-    prev_attempt_id: &id_type::GlobalAttemptId,
-) -> ScoreMixInputs {
-    use external_services::superposition::Config as _;
-
-    use crate::core::configs::{
-        dimension_config::RevenueRecoveryScoreMixForAttempt,
-        dimension_state::{DimensionsBase, DimensionsWithRecoveryErrorCode},
-    };
-
-    let context = DimensionsWithRecoveryErrorCode::new(profile_dimensions.clone(), error_code)
-        .to_superposition_context();
-    let config = match RevenueRecoveryScoreMixForAttempt::fetch(
-        state.superposition_service.as_ref(),
-        context.as_ref(),
-        Some(prev_attempt_id),
-    )
-    .await
-    {
-        Ok(configured) => ScoreMixConfig::from_config(&configured).unwrap_or_else(|| {
-            logger::warn!(
-                ?error_code,
-                %configured,
-                "score mix: no usable config is set for this error code, so the default config \
-                 applies"
-            );
-            ScoreMixConfig::default()
-        }),
-        Err(error) => {
-            logger::warn!(
-                ?error,
-                ?error_code,
-                "score mix: Superposition could not resolve the config, so the default config \
-                 applies"
-            );
-            ScoreMixConfig::default()
-        }
-    };
-
-    let last_failure_at = match payment_intent.extract_connector_customer_id_from_payment_intent() {
+) -> Option<time::PrimitiveDateTime> {
+    match payment_intent.extract_connector_customer_id_from_payment_intent() {
         Ok(connector_customer_id) => RedisTokenManager::get_previous_attempt_details(
             state,
             &connector_customer_id,
@@ -841,22 +797,77 @@ async fn resolve_score_mix_inputs(
         Err(error) => {
             logger::warn!(
                 ?error,
-                "score mix: the invoice has no connector customer, so no day gets a delta score"
+                "the invoice has no connector customer, so its card's last failure is unknown"
             );
             None
         }
-    };
+    }
+}
+
+/// The error code's delta algorithm and weights, or `None` when the delta does not run: the
+/// algorithm is off, or its weight is 0. Weights that are not usable fall back to
+/// `ScoreWeights::default()`, the calendar alone.
+#[cfg(feature = "v2")]
+async fn resolve_delta_mix_inputs(
+    state: &SessionState,
+    profile_dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
+    error_code: Option<common_enums::StandardisedCode>,
+    prev_attempt_id: &id_type::GlobalAttemptId,
+    last_failure_at: Option<time::PrimitiveDateTime>,
+) -> Option<DeltaMixInputs> {
+    let dimensions = crate::core::configs::dimension_state::DimensionsWithRecoveryErrorCode::new(
+        profile_dimensions.clone(),
+        error_code,
+    );
+    let algorithm = dimensions
+        .get_revenue_recovery_delta_algorithm(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(prev_attempt_id),
+        )
+        .await;
+    if algorithm == common_enums::RevenueRecoveryDeltaAlgorithm::Off {
+        return None;
+    }
+
+    let weights = dimensions
+        .get_revenue_recovery_score_weights(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(prev_attempt_id),
+        )
+        .await
+        .usable()
+        .unwrap_or_else(|| {
+            logger::warn!(
+                ?error_code,
+                "delta mix: the weights set for this error code are not usable, so the default \
+                 weights apply"
+            );
+            ScoreWeights::default()
+        });
+    if weights.delta <= 0.0 {
+        logger::warn!(
+            ?error_code,
+            ?algorithm,
+            "delta mix: a delta algorithm is chosen for this error code but its weight is 0, so \
+             the calendar runs alone"
+        );
+        return None;
+    }
 
     logger::info!(
         ?error_code,
-        ?config,
+        ?algorithm,
+        ?weights,
         last_failure_known = last_failure_at.is_some(),
-        "score mix: resolved the config and the card's last failure"
+        "delta mix: resolved the algorithm, the weights and the card's last failure"
     );
-    ScoreMixInputs {
-        config,
-        last_failure_at,
-    }
+    Some(DeltaMixInputs {
+        algorithm,
+        weights,
+        min_retries: state.conf.revenue_recovery.delta_min_retries.0,
+    })
 }
 
 /// When a retry runs, as the algorithm decides it. Which card it is made with is decided apart
@@ -1958,24 +1969,12 @@ fn slot_scores(slots: &[SlotCounter]) -> BTreeMap<u8, f64> {
 /// two are comparable whatever their raw spread. Taking the max first skips that, so the axis
 /// carrying larger raw scores wins on scale alone.
 #[cfg(feature = "v2")]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DayCombine {
     /// Softmax each axis over the candidate days, then take the elementwise max.
     MaxAtSoftmax,
     /// Take the elementwise max of the raw scores, then softmax once.
     MaxAtScore,
-}
-
-/// Whether the time since the card's last failure is mixed into the calendar's per-day weights.
-#[cfg(feature = "v2")]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DeltaMix {
-    /// The calendar's weights alone.
-    Off,
-    /// The calendar's weights averaged with the delta's by the error code's `score_mix` weights,
-    /// with the max-gap guard on the per-tick walk.
-    Weighted,
 }
 
 /// How one day is drawn from the per-day weights.
@@ -2003,7 +2002,6 @@ pub struct RetryModelVariant {
     pub combine: DayCombine,
     pub selection: DaySelection,
     pub ladder: pcr::schedule::StaticLadderRole,
-    pub delta: DeltaMix,
 }
 
 /// The pairing production ran before systematic sampling landed, which is what an invoice outside
@@ -2015,7 +2013,6 @@ impl Default for RetryModelVariant {
             combine: DayCombine::MaxAtSoftmax,
             selection: DaySelection::PerTick,
             ladder: pcr::schedule::StaticLadderRole::Ceiling,
-            delta: DeltaMix::Off,
         }
     }
 }
@@ -2037,32 +2034,21 @@ impl From<common_enums::RevenueRecoveryABAlgorithm> for RetryModelVariant {
                 combine: DayCombine::MaxAtSoftmax,
                 selection: DaySelection::PerTick,
                 ladder: pcr::schedule::StaticLadderRole::Standby,
-                delta: DeltaMix::Off,
             },
             common_enums::RevenueRecoveryABAlgorithm::HybridAdaptiveRetry => Self {
                 combine: DayCombine::MaxAtSoftmax,
                 selection: DaySelection::PerTick,
                 ladder: pcr::schedule::StaticLadderRole::Ceiling,
-                delta: DeltaMix::Off,
             },
             common_enums::RevenueRecoveryABAlgorithm::SystematicKMaxAtSoftmax => Self {
                 combine: DayCombine::MaxAtSoftmax,
                 selection: DaySelection::SystematicK,
                 ladder: pcr::schedule::StaticLadderRole::Standby,
-                delta: DeltaMix::Off,
             },
             common_enums::RevenueRecoveryABAlgorithm::SystematicKMaxAtScore => Self {
                 combine: DayCombine::MaxAtScore,
                 selection: DaySelection::SystematicK,
                 ladder: pcr::schedule::StaticLadderRole::Standby,
-                delta: DeltaMix::Off,
-            },
-            // The error code's `score_mix` config may set another calendar combine.
-            common_enums::RevenueRecoveryABAlgorithm::ScoreMix => Self {
-                combine: DayCombine::MaxAtSoftmax,
-                selection: DaySelection::PerTick,
-                ladder: pcr::schedule::StaticLadderRole::Standby,
-                delta: DeltaMix::Weighted,
             },
         }
     }
@@ -2076,7 +2062,7 @@ enum DayAxis {
     Dow,
     Dom,
     Tie,
-    /// `DeltaMix::Weighted`: the delta reshuffled this day's share.
+    /// The delta's share was mixed into this day's weight.
     Mixed,
 }
 
@@ -2092,78 +2078,63 @@ impl DayAxis {
     }
 }
 
-/// How the `ScoreMix` arm mixes the calendar with the time since the card's last failure. Read
-/// per error code from `revenue_recovery.score_mix`.
+/// The calendar's and the delta's weights for an error code, read from
+/// `revenue_recovery.score_weights`.
 #[cfg(feature = "v2")]
-#[derive(Clone, Copy, Debug, PartialEq, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ScoreMixConfig {
-    pub absolute_weight: f64,
-    pub relative_weight: f64,
-    /// How the day-of-week and day-of-month scores fold into the calendar's per-day weights
-    #[serde(default = "ScoreMixConfig::default_calendar_combine")]
-    pub calendar_combine: DayCombine,
-    /// Fewest pooled retries a day needs for a delta score
-    #[serde(default = "ScoreMixConfig::default_min_retries")]
-    pub min_retries: u64,
-    /// Most days after the card's last failure the per-tick walk goes without firing
-    #[serde(default = "ScoreMixConfig::default_max_gap_days")]
-    pub max_gap_days: u32,
+pub struct ScoreWeights {
+    pub calendar: f64,
+    pub delta: f64,
 }
 
 #[cfg(feature = "v2")]
-impl ScoreMixConfig {
-    const DEFAULT_MIN_RETRIES: u64 = 100;
-    const DEFAULT_MAX_GAP_DAYS: u32 = 7;
-
-    fn default_calendar_combine() -> DayCombine {
-        DayCombine::MaxAtSoftmax
-    }
-
-    fn default_min_retries() -> u64 {
-        Self::DEFAULT_MIN_RETRIES
-    }
-
-    fn default_max_gap_days() -> u32 {
-        Self::DEFAULT_MAX_GAP_DAYS
-    }
-
-    /// The configured value, or `None` when it is not usable: both weights finite and
-    /// non-negative, and not both zero.
-    fn from_config(value: &serde_json::Value) -> Option<Self> {
-        serde_json::from_value::<Self>(value.clone())
-            .ok()
-            .filter(|config| {
-                [config.absolute_weight, config.relative_weight]
-                    .iter()
-                    .all(|weight| weight.is_finite() && *weight >= 0.0)
-                    && config.absolute_weight + config.relative_weight > 0.0
-            })
+impl ScoreWeights {
+    /// The weights, or `None` when they are not usable: both finite and non-negative, and not both
+    /// zero.
+    fn usable(self) -> Option<Self> {
+        let usable = [self.calendar, self.delta]
+            .iter()
+            .all(|weight| weight.is_finite() && *weight >= 0.0)
+            && self.calendar + self.delta > 0.0;
+        usable.then_some(self)
     }
 }
 
-/// Equal weights over `MaxAtSoftmax`, used when an error code has no usable config.
+/// The calendar alone, used when an error code sets no usable weights.
 #[cfg(feature = "v2")]
-impl Default for ScoreMixConfig {
+impl Default for ScoreWeights {
     fn default() -> Self {
         Self {
-            absolute_weight: 0.5,
-            relative_weight: 0.5,
-            calendar_combine: Self::default_calendar_combine(),
-            min_retries: Self::DEFAULT_MIN_RETRIES,
-            max_gap_days: Self::DEFAULT_MAX_GAP_DAYS,
+            calendar: 1.0,
+            delta: 0.0,
         }
     }
 }
 
-/// What `DeltaMix::Weighted` reads besides the cluster stats.
+/// What an A/B decision reads besides the cluster stats.
 #[cfg(feature = "v2")]
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct ScoreMixInputs {
-    pub config: ScoreMixConfig,
-    /// When the invoice's card last failed. `None` leaves every day without a delta score and
-    /// counts the max gap from the decision date.
+pub struct AbDecisionInputs {
+    /// When the invoice's card last failed. `None` counts the max gap from the decision date and
+    /// leaves every day without a delta score.
     pub last_failure_at: Option<time::PrimitiveDateTime>,
+    /// Most days after the card's last failure the pick goes without retrying. `None` turns the
+    /// guard off.
+    pub max_retry_gap_days: Option<u32>,
+    /// The delta mixed into the calendar, for a per-tick arm whose error code picks one.
+    pub delta_mix: Option<DeltaMixInputs>,
+}
+
+/// What mixing the time since the card's last failure into the calendar reads besides the
+/// cluster stats.
+#[cfg(feature = "v2")]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct DeltaMixInputs {
+    pub algorithm: common_enums::RevenueRecoveryDeltaAlgorithm,
+    pub weights: ScoreWeights,
+    /// Fewest pooled retries a day needs for a delta score
+    pub min_retries: u64,
 }
 
 /// Why `pick_index` landed on the index it returned — so the caller can attribute the pick honestly
@@ -2376,53 +2347,76 @@ fn combine_day_weight(
     (weights, winners)
 }
 
-/// The calendar's per-day weights with the delta mixed in by `config`'s weights, as shares of the
-/// window. The days the delta scored keep their calendar share between them, redistributed by the
-/// softmax of their delta scores; every other day keeps its calendar share. The result is the
-/// weighted average of the two.
+/// The delta's shares of the window under `inputs`' algorithm, or `None` when it gives none: the
+/// algorithm is off, the card's last failure is unknown, or fewer than two days are scored.
 #[cfg(feature = "v2")]
-fn mix_delta_into_calendar(
-    calendar_weights: &[f64],
-    delta_scores: &[Option<f64>],
-    config: &ScoreMixConfig,
-) -> Vec<f64> {
-    let total: f64 = calendar_weights.iter().sum();
-    if total <= 0.0 {
-        return calendar_weights.to_vec();
-    }
-    let calendar: Vec<f64> = calendar_weights
-        .iter()
-        .map(|weight| weight / total)
-        .collect();
-    let scored: Vec<(usize, f64)> = delta_scores
-        .iter()
-        .enumerate()
-        .filter_map(|(day, score)| score.map(|score| (day, score)))
-        .filter(|(day, _)| *day < calendar.len())
-        .collect();
-    if scored.is_empty() || config.relative_weight <= 0.0 {
-        return calendar;
-    }
-
-    let scored_share: f64 = scored
-        .iter()
-        .filter_map(|(day, _)| calendar.get(*day))
-        .sum();
-    let delta_shares = softmax(&scored.iter().map(|(_, score)| *score).collect::<Vec<_>>());
-    let mut relative = calendar.clone();
-    for ((day, _), delta_share) in scored.iter().zip(delta_shares) {
-        if let Some(weight) = relative.get_mut(*day) {
-            *weight = scored_share * delta_share;
+fn delta_day_shares(
+    delta_hours: &[SlotCounter; SlotFamily::DELTA_HOURS_SLOT_COUNT],
+    inputs: &DeltaMixInputs,
+    last_failure_at: Option<time::PrimitiveDateTime>,
+    decision_date: time::Date,
+    grace_days: u32,
+) -> Option<Vec<f64>> {
+    let last_failure_at = last_failure_at?;
+    match inputs.algorithm {
+        common_enums::RevenueRecoveryDeltaAlgorithm::Off => None,
+        common_enums::RevenueRecoveryDeltaAlgorithm::DailyPooled => {
+            let scores: Vec<Option<f64>> = delta_day_scores(
+                delta_hours,
+                last_failure_at,
+                decision_date,
+                grace_days,
+                inputs.min_retries,
+                u32::MAX,
+            )
+            .iter()
+            .map(|day| day.score)
+            .collect();
+            delta_shares(&scores)
         }
     }
-    let weight_total = config.absolute_weight + config.relative_weight;
+}
+
+/// The delta's shares of the window from its day scores: their softmax, with an unscored day at 0.
+/// `None` when it scored fewer than two days, since a lone scored day has no other day to rank
+/// against and scores 0 as well.
+#[cfg(feature = "v2")]
+fn delta_shares(scores: &[Option<f64>]) -> Option<Vec<f64>> {
+    (scores.iter().flatten().count() >= 2).then(|| {
+        softmax(
+            &scores
+                .iter()
+                .map(|score| score.unwrap_or(0.0))
+                .collect::<Vec<_>>(),
+        )
+    })
+}
+
+/// The per-day weighted average of the calendar's and the delta's shares of the window.
+#[cfg(feature = "v2")]
+fn mix_calendar_and_delta(calendar: &[f64], delta: &[f64], weights: ScoreWeights) -> Vec<f64> {
+    let total = weights.calendar + weights.delta;
+    if total <= 0.0 {
+        return calendar.to_vec();
+    }
     calendar
         .iter()
-        .zip(&relative)
-        .map(|(absolute, relative)| {
-            (config.absolute_weight * absolute + config.relative_weight * relative) / weight_total
+        .zip(delta)
+        .map(|(calendar_share, delta_share)| {
+            (weights.calendar * calendar_share + weights.delta * delta_share) / total
         })
         .collect()
+}
+
+/// `weights` scaled to sum to 1, or unchanged when they sum to 0.
+#[cfg(feature = "v2")]
+fn normalise(weights: &[f64]) -> Vec<f64> {
+    let total: f64 = weights.iter().sum();
+    if total > 0.0 {
+        weights.iter().map(|weight| weight / total).collect()
+    } else {
+        weights.to_vec()
+    }
 }
 
 /// Per-day values → inclusion probabilities. Exact optimum of
@@ -2760,8 +2754,8 @@ fn hours_until(from: time::PrimitiveDateTime, to: time::PrimitiveDateTime) -> i6
 ///                `grace_days - 1` future days, capped at 31.
 /// * `default_hour` fallback hour-of-day (UTC) used when the cluster has no usable hour history
 ///                (from `revenue_recovery.default_retry_hour_utc` config).
-/// * `score_mix`  the error code's `score_mix` config and the card's last failure time, read only
-///                under `DeltaMix::Weighted`
+/// * `ab_inputs`  for an A/B decision: the card's last failure time, the max-gap guard, and the
+///                error code's delta algorithm and weights, mixed in only under the per-tick walk
 ///
 /// The window starts on the **NEXT day** (failure day + 1), never on the failure day itself — the
 /// charge just failed today, so a same-day retry is low value. That is also what keeps the result
@@ -2784,7 +2778,7 @@ pub fn compute_predicted_retry_time(
     variant: RetryModelVariant,
     exploration_floor: f64,
     tie_tolerance: f64,
-    score_mix: Option<&ScoreMixInputs>,
+    ab_inputs: Option<&AbDecisionInputs>,
 ) -> Option<time::OffsetDateTime> {
     // `grace_days` COUNTS the failure day (today), which we never retry on — so the retriable window
     // is the `grace_days - 1` future days [failure_day + 1 .. failure_day + grace_days - 1]. When that
@@ -2839,65 +2833,46 @@ pub fn compute_predicted_retry_time(
         tie_tolerance = tie_tolerance,
         combine = ?variant.combine,
         selection = ?variant.selection,
-        score_mix_config = ?score_mix.map(|inputs| inputs.config),
-        last_failure_at = ?score_mix.and_then(|inputs| inputs.last_failure_at),
+        ab_inputs = ?ab_inputs,
         "retry model: decision start"
     );
 
     let (calendar_weights, calendar_winners) =
         combine_day_weight(&dates, &dow_scores, &dom_scores, variant.combine);
-    let score_mix = score_mix.filter(|_| variant.delta == DeltaMix::Weighted);
-    let delta_scores: Vec<Option<f64>> = score_mix
-        .and_then(|inputs| {
-            inputs.last_failure_at.map(|last_failure_at| {
-                delta_day_scores(
-                    &stats.delta_hours,
-                    last_failure_at,
-                    now.date(),
-                    grace_days,
-                    inputs.config.min_retries,
-                    u32::MAX,
-                )
-                .iter()
-                .map(|day| day.score)
-                .collect()
-            })
-        })
-        .unwrap_or_default();
-    let (day_weights, winners) = match score_mix {
-        Some(inputs) => {
-            let mixed = mix_delta_into_calendar(&calendar_weights, &delta_scores, &inputs.config);
-            let winners = calendar_winners
-                .iter()
-                .enumerate()
-                .map(|(day, &winner)| {
-                    let reshuffled = inputs.config.relative_weight > 0.0
-                        && delta_scores.get(day).copied().flatten().is_some();
-                    if reshuffled {
-                        DayAxis::Mixed
-                    } else {
-                        winner
-                    }
-                })
-                .collect();
-            (mixed, winners)
-        }
+    let last_failure_at = ab_inputs.and_then(|inputs| inputs.last_failure_at);
+    let delta = ab_inputs
+        .and_then(|inputs| inputs.delta_mix)
+        .filter(|_| variant.selection == DaySelection::PerTick)
+        .and_then(|delta_mix| {
+            delta_day_shares(
+                &stats.delta_hours,
+                &delta_mix,
+                last_failure_at,
+                now.date(),
+                grace_days,
+            )
+            .map(|shares| (delta_mix.weights, shares))
+        });
+    let (day_weights, winners) = match delta {
+        Some((weights, delta)) => (
+            mix_calendar_and_delta(&normalise(&calendar_weights), &delta, weights),
+            vec![DayAxis::Mixed; dates.len()],
+        ),
         None => (calendar_weights, calendar_winners),
     };
-    let max_gap_day = score_mix.and_then(|inputs| {
-        let gap_start = inputs
-            .last_failure_at
-            .map_or(now.date(), |last_failure_at| last_failure_at.date());
-        dates.iter().position(|date| {
-            (*date - gap_start).whole_days() >= i64::from(inputs.config.max_gap_days)
-        })
-    });
+    let max_gap_day = ab_inputs
+        .and_then(|inputs| inputs.max_retry_gap_days)
+        .and_then(|max_gap_days| {
+            let gap_start =
+                last_failure_at.map_or(now.date(), |last_failure_at| last_failure_at.date());
+            dates
+                .iter()
+                .position(|date| (*date - gap_start).whole_days() >= i64::from(max_gap_days))
+        });
 
     // Per-candidate-day scores: the day-of-week and day-of-month signals plus the combined weight the
     // pick is about to run on. Zipped (not indexed) over the parallel vectors.
-    for (day, ((date, &weight), &winner)) in
-        dates.iter().zip(&day_weights).zip(&winners).enumerate()
-    {
+    for ((date, &weight), &winner) in dates.iter().zip(&day_weights).zip(&winners) {
         let dow_score = dow_scores
             .get(&date.weekday().number_days_from_monday())
             .copied()
@@ -2912,7 +2887,6 @@ pub fn compute_predicted_retry_time(
             day_of_month = date.day(),
             dow_score = dow_score,
             dom_score = dom_score,
-            delta_score = ?delta_scores.get(day).copied().flatten(),
             combined_weight = weight,
             winning_axis = winner.as_str(),
             "retry model: candidate day score"
@@ -2931,8 +2905,14 @@ pub fn compute_predicted_retry_time(
         DaySelection::SystematicK => {
             let (idx, pi) =
                 select_systematic_k_day(&day_weights, budget, exploration_floor, tie_tolerance)?;
-            let axis = winners.get(idx).map_or("unknown", |axis| axis.as_str());
-            (idx, axis, Some(pi))
+            match max_gap_day.filter(|guard_day| idx > *guard_day) {
+                Some(guard_day) => (guard_day, PickDriver::<DayAxis>::MaxGapGuard.label(), None),
+                None => (
+                    idx,
+                    winners.get(idx).map_or("unknown", |axis| axis.as_str()),
+                    Some(pi),
+                ),
+            }
         }
     };
     let hour = pick_hour(&stats.hod, default_hour);
@@ -2979,7 +2959,7 @@ pub async fn compute_model_retry_time(
     remaining_grace_days: u32,
     remaining_budget: u32,
     variant: RetryModelVariant,
-    score_mix: Option<ScoreMixInputs>,
+    ab_inputs: Option<AbDecisionInputs>,
 ) -> Option<time::OffsetDateTime> {
     // The store builds the cluster key and parses the stored document internally. A missing cluster
     // and a failed lookup both decline, but they are different problems, so they are logged apart —
@@ -3029,7 +3009,7 @@ pub async fn compute_model_retry_time(
         variant,
         state.conf.revenue_recovery.exploration_floor.resolve(),
         state.conf.revenue_recovery.tie_tolerance.resolve(),
-        score_mix.as_ref(),
+        ab_inputs.as_ref(),
     );
 
     // Every reason the model itself declines (empty grace window, spent budget, a sampler that
@@ -3125,7 +3105,6 @@ mod retry_model_tests {
             combine,
             selection,
             ladder,
-            delta: DeltaMix::Off,
         })
     }
 
@@ -3599,55 +3578,61 @@ mod retry_model_tests {
                 combine: DayCombine::MaxAtSoftmax,
                 selection: DaySelection::PerTick,
                 ladder: pcr::schedule::StaticLadderRole::Standby,
-                delta: DeltaMix::Off,
             }
         );
     }
 
     #[test]
-    fn unusable_score_mix_configs_are_rejected() {
+    fn delta_algorithms_and_score_weights_are_read_and_unusable_weights_rejected() {
+        use common_enums::RevenueRecoveryDeltaAlgorithm as Delta;
+        for (algorithm, expected) in [(Delta::Off, "off"), (Delta::DailyPooled, "daily_pooled")] {
+            assert_eq!(algorithm.to_string(), expected);
+            assert_eq!(expected.parse::<Delta>().ok(), Some(algorithm));
+        }
+
+        let read = |configured: serde_json::Value| {
+            serde_json::from_value::<ScoreWeights>(configured)
+                .ok()
+                .and_then(ScoreWeights::usable)
+        };
+        assert_eq!(
+            read(serde_json::json!({"calendar": 0.7, "delta": 0.3})),
+            Some(ScoreWeights {
+                calendar: 0.7,
+                delta: 0.3,
+            })
+        );
         for configured in [
-            serde_json::Value::Null,
-            serde_json::json!({}),
-            serde_json::json!({"absolute_weight": 0.6}),
-            serde_json::json!({"absolute_weight": -0.1, "relative_weight": 1.1}),
-            serde_json::json!({"absolute_weight": 0, "relative_weight": 0}),
-            serde_json::json!({
-                "absolute_weight": 0.5,
-                "relative_weight": 0.5,
-                "calendar_combine": "weighted_mix"
-            }),
-            serde_json::json!({
-                "absolute_weight": 0.5,
-                "relative_weight": 0.5,
-                "selection": "systematic_k"
-            }),
+            serde_json::json!({"calendar": 1}),
+            serde_json::json!({"calendar": -0.1, "delta": 1.1}),
+            serde_json::json!({"calendar": 0, "delta": 0}),
         ] {
-            assert_eq!(
-                ScoreMixConfig::from_config(&configured),
-                None,
-                "{configured}"
-            );
+            assert_eq!(read(configured.clone()), None, "{configured}");
         }
     }
 
     #[test]
     fn calendar_and_delta_shares_are_averaged_by_weight() {
-        // Five equal calendar days; the delta scored the first three, which hold 0.6 between them.
-        let mixed = mix_delta_into_calendar(
-            &[2.0; 5],
-            &[Some(0.0), Some(1.0), Some(3.0), None, None],
-            &ScoreMixConfig::default(),
+        let delta =
+            delta_shares(&[Some(0.0), Some(1.0), Some(3.0), None, None]).unwrap_or_default();
+        let expected_delta = softmax(&[0.0, 1.0, 3.0, 0.0, 0.0]);
+        let mixed = mix_calendar_and_delta(
+            &[0.2; 5],
+            &delta,
+            ScoreWeights {
+                calendar: 0.6,
+                delta: 0.2,
+            },
         );
-        let delta = softmax(&[0.0, 1.0, 3.0]);
 
         assert_eq!(mixed.len(), 5);
-        for (day, weight) in mixed.iter().enumerate() {
-            let expected = delta
-                .get(day)
-                .map_or(0.2, |delta_share| 0.5 * 0.2 + 0.5 * 0.6 * delta_share);
-            assert!(approx(*weight, expected, 1e-12), "day {day}");
+        for ((day, weight), delta_share) in mixed.iter().enumerate().zip(&expected_delta) {
+            assert!(
+                approx(*weight, 0.75 * 0.2 + 0.25 * delta_share, 1e-12),
+                "day {day}"
+            );
         }
+        assert_eq!(delta_shares(&[Some(2.0), None, None]), None);
     }
 
     #[test]
@@ -3675,7 +3660,6 @@ mod retry_model_tests {
                 combine: DayCombine::MaxAtSoftmax,
                 selection: DaySelection::PerTick,
                 ladder: pcr::schedule::StaticLadderRole::Ceiling,
-                delta: DeltaMix::Off,
             }
         );
     }
@@ -3739,7 +3723,6 @@ mod retry_model_tests {
             (Arm::HybridAdaptiveRetry, "hybrid_adaptive_retry"),
             (Arm::SystematicKMaxAtSoftmax, "systematic_k_max_at_softmax"),
             (Arm::SystematicKMaxAtScore, "systematic_k_max_at_score"),
-            (Arm::ScoreMix, "score_mix"),
         ] {
             assert_eq!(arm.to_string(), expected);
             assert_eq!(

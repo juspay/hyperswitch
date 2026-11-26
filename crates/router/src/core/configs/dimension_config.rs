@@ -930,16 +930,34 @@ impl DatabaseBackedConfig for RevenueRecoveryAbAlgorithm {
     const KEY: &'static str = "revenue_recovery_ab_algorithm";
 }
 
-/// `revenue_recovery.score_mix` resolved per retry decision, read from Superposition only. `Null`
-/// when nothing is configured.
 #[cfg(feature = "v2")]
-pub struct RevenueRecoveryScoreMixForAttempt;
+config! {
+    superposition_key = REVENUE_RECOVERY_DELTA_ALGORITHM,
+    output = common_enums::RevenueRecoveryDeltaAlgorithm,
+    default = common_enums::RevenueRecoveryDeltaAlgorithm::Off,
+    string_enum = true,
+    requires = dimension_state::DimensionsWithRecoveryErrorCode,
+    targeting_key = id_type::GlobalAttemptId
+}
 
 #[cfg(feature = "v2")]
-impl superposition::Config for RevenueRecoveryScoreMixForAttempt {
-    type Output = serde_json::Value;
-    type TargetingKey = id_type::GlobalAttemptId;
-    const SUPERPOSITION_KEY: &'static str = superposition_consts::REVENUE_RECOVERY_SCORE_MIX;
+impl DatabaseBackedConfig for RevenueRecoveryDeltaAlgorithm {
+    const KEY: &'static str = "revenue_recovery_delta_algorithm";
+}
+
+#[cfg(feature = "v2")]
+config! {
+    superposition_key = REVENUE_RECOVERY_SCORE_WEIGHTS,
+    output = crate::workflows::revenue_recovery::ScoreWeights,
+    default = crate::workflows::revenue_recovery::ScoreWeights::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithRecoveryErrorCode,
+    targeting_key = id_type::GlobalAttemptId
+}
+
+#[cfg(feature = "v2")]
+impl DatabaseBackedConfig for RevenueRecoveryScoreWeights {
+    const KEY: &'static str = "revenue_recovery_score_weights";
 }
 
 config! {

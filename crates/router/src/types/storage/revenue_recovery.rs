@@ -165,6 +165,14 @@ pub struct RevenueRecoverySettings {
     /// equally. `ROUTER__REVENUE_RECOVERY__TIE_TOLERANCE`. See [`TieTolerance`] before raising it.
     #[serde(default)]
     pub tie_tolerance: TieTolerance,
+    /// Fewest pooled retries a day needs for a delta score.
+    /// `ROUTER__REVENUE_RECOVERY__DELTA_MIN_RETRIES`.
+    #[serde(default)]
+    pub delta_min_retries: DeltaMinRetries,
+    /// Most days after the card's last failure an A/B decision goes without retrying; 0 turns the
+    /// guard off. `ROUTER__REVENUE_RECOVERY__MAX_RETRY_GAP_DAYS`.
+    #[serde(default)]
+    pub max_retry_gap_days: MaxRetryGapDays,
 }
 
 /// Redis distributed-lock settings for revenue-recovery retry-stats recording
@@ -285,6 +293,47 @@ impl TieTolerance {
             "revenue_recovery.tie_tolerance is negative or not finite; using the default"
         );
         fallback
+    }
+}
+
+/// Fewest pooled retries a day needs for a delta score; 100 when not configured.
+#[derive(Debug, Clone, Copy, serde::Deserialize)]
+pub struct DeltaMinRetries(pub u64);
+
+impl Default for DeltaMinRetries {
+    fn default() -> Self {
+        Self(100)
+    }
+}
+
+/// Most days after the card's last failure an A/B decision goes without retrying; 7 when not
+/// configured, 0 to turn the guard off.
+#[derive(Debug, Clone, Copy, serde::Deserialize)]
+pub struct MaxRetryGapDays(pub u32);
+
+impl Default for MaxRetryGapDays {
+    fn default() -> Self {
+        Self(7)
+    }
+}
+
+impl MaxRetryGapDays {
+    /// The gap to guard: `None` when configured 0, the configured one when it is at least 2 days,
+    /// the default otherwise. At 1 the guard fires on the first candidate day every time.
+    pub fn resolve(self) -> Option<u32> {
+        match self.0 {
+            0 => None,
+            1 => {
+                let fallback = Self::default().0;
+                logger::warn!(
+                    configured = self.0,
+                    fallback,
+                    "revenue_recovery.max_retry_gap_days is 1; using the default"
+                );
+                Some(fallback)
+            }
+            days => Some(days),
+        }
     }
 }
 

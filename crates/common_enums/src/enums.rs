@@ -480,10 +480,28 @@ pub enum RevenueRecoveryABAlgorithm {
     /// Systematic sampling over the max of the raw scores. Differs from `SystematicKMaxAtSoftmax`
     /// in the combine alone, so a difference between those two is attributable to the combine.
     SystematicKMaxAtScore,
-    /// The calendar score and the score for the time since the card's last failure, averaged by
-    /// the error code's weights, with the day drawn by the per-day walk. Never systematic
-    /// sampling.
-    ScoreMix,
+}
+
+/// How a retry decision scores days by the time since the card's last failure, mixed into the
+/// calendar's per-day weights by the error code's weights.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RevenueRecoveryDeltaAlgorithm {
+    /// The calendar alone.
+    Off,
+    /// Pools the card's hours since its last failure into calendar days and ranks the days.
+    DailyPooled,
 }
 
 #[derive(
