@@ -3,6 +3,7 @@ import {
   customerAcceptance,
   multiUseMandateData,
   singleUseMandateData,
+  standardBillingAddress,
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
@@ -817,6 +818,7 @@ export const connectorDetails = {
         },
       },
       Request: { amount: 6000 },
+      billing: standardBillingAddress,
       Response: {
         status: 200,
         body: {

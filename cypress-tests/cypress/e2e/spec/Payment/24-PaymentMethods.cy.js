@@ -166,6 +166,22 @@ describe("Payment Methods Tests", () => {
           }
         });
 
+        cy.step("retrieve-payment-call-test", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: retrieve-payment-call-test");
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["SaveCardUseNo3DSAutoCaptureOffSession"];
+
+          cy.retrievePaymentCallTest({ globalState, data });
+
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
         cy.step("List PM for customer", () => {
           if (!shouldContinue) {
             cy.task("cli_log", "Skipping step: List PM for customer");
