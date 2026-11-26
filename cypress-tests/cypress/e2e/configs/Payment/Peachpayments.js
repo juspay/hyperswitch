@@ -768,6 +768,7 @@ export const connectorDetails = {
             santander: null,
             paypal: null,
             worldpayxml: null,
+            worldpayraft: null,
             checkout: null,
             stripe: null,
           },

@@ -42,11 +42,7 @@ use std::future;
 
 #[cfg(feature = "v2")]
 use api_models::payments::RevenueRecoveryGetIntentResponse;
-use api_models::{
-    self, enums,
-    mandates::RecurringDetails,
-    payments::{self as payments_api},
-};
+use api_models::{self, enums, mandates::RecurringDetails, payments as payments_api};
 pub use common_enums::enums::{CallConnectorAction, ExecutionMode, ExecutionPath, GatewaySystem};
 use common_types::payments as common_payments_types;
 use common_utils::{
@@ -119,6 +115,8 @@ use super::{
     },
 };
 #[cfg(feature = "v1")]
+use crate::configs::settings::{ConnectorFilters, CrossCurrencyMitSupportedConnectors};
+#[cfg(feature = "v1")]
 use crate::core::blocklist::utils as blocklist_utils;
 #[cfg(feature = "v1")]
 use crate::core::card_testing_guard::utils as card_testing_guard_utils;
@@ -151,8 +149,7 @@ use crate::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
             is_googlepay_predecrypted_flow_supported,
         },
-        payouts,
-        routing::{self as core_routing},
+        payouts, routing as core_routing,
         unified_authentication_service::types::{ClickToPay, UnifiedAuthenticationService},
         utils as core_utils,
     },
@@ -12968,6 +12965,8 @@ where
         chosen_connector_routing_data.clone(),
         payment_data,
         &payment_method_info,
+        &state.conf.mandates.cross_currency_mit_supported_connectors,
+        &state.conf.pm_filters,
     )?;
 
     routing_data.routed_through = Some(
@@ -12996,6 +12995,8 @@ pub fn get_mandate_reference_id<F: Clone, D>(
     connector_routing_data: api::ConnectorRoutingData,
     payment_data: &mut D,
     payment_method_info: &domain::PaymentMethod,
+    cross_currency_mit_supported_connectors: &CrossCurrencyMitSupportedConnectors,
+    pm_filters: &ConnectorFilters,
 ) -> RouterResult<Option<mandates::MandateReferenceId>>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -13038,15 +13039,17 @@ where
                 mandate_reference_record,
             )?;
 
-            if let Some(mandate_currency) =
-                mandate_reference_record.original_payment_authorized_currency
-            {
-                if mandate_currency != payment_data.get_currency() {
-                    return Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                        reason: "Cross currency mandates not supported".into(),
-                    }));
-                }
-            }
+            helpers::validate_connector_mandate_currency(
+                cross_currency_mit_supported_connectors,
+                pm_filters,
+                connector_routing_data.connector_data.connector_name,
+                payment_data
+                    .get_payment_attempt()
+                    .payment_method_type
+                    .or(payment_method_info.get_payment_method_subtype()),
+                mandate_reference_record.original_payment_authorized_currency,
+                payment_data.get_currency(),
+            )?;
 
             payment_data.set_recurring_mandate_payment_data(mandate_reference_record.into());
 
@@ -13117,16 +13120,14 @@ where
                                 mandate_reference_record,
                             )?;
 
-                            common_utils::fp_utils::when(
-                                mandate_reference_record
-                                    .original_payment_authorized_currency
-                                    .map(|mandate_currency| mandate_currency != payment_data.get_currency())
-                                    .unwrap_or(false),
-                                || {
-                                    Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                                        reason: "cross currency mandates not supported".into()
-                                    }))
-                                },
+                            helpers::validate_connector_mandate_currency(
+                                &state.conf.mandates.cross_currency_mit_supported_connectors,
+                                &state.conf.pm_filters,
+                                connector_data.connector_name,
+                                payment_data.get_payment_attempt().payment_method_type
+                                    .or(payment_method_info.get_payment_method_subtype()),
+                                mandate_reference_record.original_payment_authorized_currency,
+                                payment_data.get_currency(),
                             )?;
                             let mandate_reference_id = Some(mandates::MandateReferenceId::ConnectorMandateId(
                                 mandates::ConnectorMandateReferenceId::new(

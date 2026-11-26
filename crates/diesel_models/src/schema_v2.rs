@@ -320,6 +320,8 @@ diesel::table! {
         apple_pay_certificates_encrypted -> Nullable<Bytea>,
         #[max_length = 16]
         auto_fallback_capture_method -> Nullable<Varchar>,
+        google_pay_decryption_config -> Nullable<Jsonb>,
+        google_pay_decryption_config_encrypted -> Nullable<Bytea>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time_origin -> Nullable<OrderFulfillmentTimeOrigin>,
@@ -997,6 +999,8 @@ diesel::table! {
         offer_engine_config -> Nullable<Bytea>,
         apple_pay_certificates -> Nullable<Jsonb>,
         apple_pay_certificates_encrypted -> Nullable<Bytea>,
+        google_pay_decryption_config -> Nullable<Jsonb>,
+        google_pay_decryption_config_encrypted -> Nullable<Bytea>,
     }
 }
 

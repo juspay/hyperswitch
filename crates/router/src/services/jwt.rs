@@ -3,7 +3,7 @@ use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;
 use jsonwebtoken::{encode, EncodingKey, Header};
 
-use crate::{configs::Settings, core::errors::UserErrors};
+use crate::{configs::Settings, consts, core::errors::UserErrors};
 
 // deja: JWT expiry uses a raw SystemTime::now() that bypasses the instrumented
 // date_time::now boundary, so the `exp` claim (and thus the whole signed token)
@@ -50,6 +50,25 @@ where
     let jwt_secret = &settings.secrets.get_inner().jwt_secret;
     encode(
         &Header::default(),
+        claims_data,
+        &EncodingKey::from_secret(jwt_secret.peek().as_bytes()),
+    )
+    .change_context(UserErrors::InternalServerError)
+}
+
+pub async fn generate_internal_jwt<T>(
+    claims_data: &T,
+    settings: &Settings,
+) -> CustomResult<String, UserErrors>
+where
+    T: serde::ser::Serialize,
+{
+    let jwt_secret = &settings.secrets.get_inner().jwt_secret;
+    encode(
+        &Header {
+            typ: Some(consts::INTERNAL_JWT_HEADER_TYPE.to_string()),
+            ..Header::default()
+        },
         claims_data,
         &EncodingKey::from_secret(jwt_secret.peek().as_bytes()),
     )

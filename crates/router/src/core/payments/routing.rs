@@ -588,6 +588,10 @@ pub fn make_dsl_input(
 
                             (!bin.is_empty()).then_some(bin)
                         }
+                        domain::PaymentMethodData::CardWithOptionalCVC(_)
+                        | domain::PaymentMethodData::CardWithNetworkTokenDetails(_) => {
+                            pm_data.get_card_iin()
+                        }
                         _ => None,
                     },
                 );
@@ -638,6 +642,10 @@ pub fn make_dsl_input(
                                 .collect::<String>();
 
                             (!bin.is_empty()).then_some(bin)
+                        }
+                        domain::PaymentMethodData::CardWithOptionalCVC(_)
+                        | domain::PaymentMethodData::CardWithNetworkTokenDetails(_) => {
+                            pm_data.get_card_extended_bin()
                         }
                         _ => None,
                     },

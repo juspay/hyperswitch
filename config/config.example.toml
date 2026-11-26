@@ -474,6 +474,7 @@ placetopay.base_url = "https://test.placetopay.com/rest/gateway"
 plaid.base_url = "https://sandbox.plaid.com"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
+rapidconnect.base_url = "https://stg.dw.us.fdcnet.biz/rc"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 razorpay.base_url = "https://api.razorpay.com/"
 recurly.base_url = "https://v3.recurly.com"
@@ -689,6 +690,10 @@ internal_merchant_id = "juspay000"   # Merchant id of the internal merchant that
 email_token_expiry_in_secs = 86400   # Number of seconds for which email links (verify, reset password, invite, etc.) stay valid
 password_max_attempts = 5            # Wrong passwords in a row before password sign in is locked
 password_lock_duration_in_secs = 1800 # Lock time. The failed attempt count also clears after this long without a wrong password
+forgot_password_max_attempts = 5     # Forgot password requests allowed per email within the window
+forgot_password_attempts_window_in_secs = 1800 # Window for forgot password requests. It starts with the first request
+signup_disabled = false              # Whether to reject self-serve sign ups (magic link and password)
+signup_contact_email = "signup@example.com" # Address shown to unknown emails that request a magic link while sign up is disabled
 
 [oidc.key.k1]
 kid = ""          # Key ID used to identify the signing key in JWKS and JWT headers (Generate using: openssl rand -hex 16)
@@ -785,6 +790,16 @@ bank_redirect.giropay = { connector_list = "globalpay" }
 bank_transfer.pix_automatico_push = { connector_list = "santander" }
 bank_transfer.pix_automatico_qr = { connector_list = "santander" }
 network_token.network_token.connector_list = "peachpayments"
+
+# Listed connectors may reuse connector mandates across currencies, subject to currency rules.
+# Applies across payment methods and currencies. Confirm connector/account support before enabling.
+[mandates.cross_currency_mit_supported_connectors]
+connector_list = ["datatrans", "stripe"]
+# Optional rules by connector and payment-method type; both currencies must be listed.
+# Missing or empty rules use pm_filters for the requested currency; absent filters allow it.
+# [mandates.cross_currency_mit_supported_connectors.currency_rules.stripe]
+# credit = ["USD", "CAD"]
+# debit = ["USD", "CAD"]
 
 [mandates.supported_payment_methods]
 card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan,ecommpay,worldpayraft,elavon_pg"
@@ -1586,7 +1601,7 @@ fetch_altid_url= ""           # base url to fetch Alt-ID and cryptogram for gues
 connector_list = "adyen,cybersource,peachpayments,trustpay" # Supported connectors for network tokenization
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan,worldpayraft" # Supported connectors for network transaction id
+connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan,worldpayraft,paypal" # Supported connectors for network transaction id
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit

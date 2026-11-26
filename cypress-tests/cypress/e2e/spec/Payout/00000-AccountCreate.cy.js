@@ -20,4 +20,8 @@ describe("Account Create flow test", () => {
   it("api-key-create-call-test", () => {
     cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
   });
+
+  it("enable-payouts-for-test-merchant", () => {
+    cy.enablePayouts(globalState);
+  });
 });

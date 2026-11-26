@@ -13092,6 +13092,14 @@
             ],
             "nullable": true
           },
+          "worldpayraft": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorldpayraftConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
           "checkout": {
             "allOf": [
               {
@@ -16027,6 +16035,7 @@
           "payout_expired",
           "payout_reversed",
           "payout_not_permitted",
+          "payout_review_required",
           "invoice_paid",
           "surcharge_payment_succeeded",
           "surcharge_refund_succeeded"
@@ -28595,7 +28604,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
+            "description": "The payout amount in the lowest denomination of the currency (for example, cents for USD or paisa for INR). Set during creation; it cannot be changed in update or confirm requests.",
             "example": 1000,
             "nullable": true,
             "minimum": 0
@@ -28676,7 +28685,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "Existing customer ID used at creation. Ignored on update and confirm.\n_Deprecated: Use customer.id instead._",
+            "description": "Existing customer ID used at creation.\n_Deprecated: Use customer.id instead._",
             "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
@@ -29674,6 +29683,7 @@
           "requires_confirmation",
           "requires_payout_method_data",
           "requires_fulfillment",
+          "requires_review",
           "requires_vendor_account_creation"
         ]
       },
@@ -39003,6 +39013,31 @@
           "Success",
           "Failure"
         ]
+      },
+      "WorldpayraftConnectorMetadata": {
+        "type": "object",
+        "description": "Merchant-supplied data forwarded to Worldpay RAFT's UserDefinedData.",
+        "properties": {
+          "user_data1": {
+            "type": "string",
+            "description": "Worldpay RAFT UserData1. Maximum length: 35 characters.",
+            "nullable": true,
+            "maxLength": 35
+          },
+          "user_data2": {
+            "type": "string",
+            "description": "Worldpay RAFT UserData2. Maximum length: 20 characters.",
+            "nullable": true,
+            "maxLength": 20
+          },
+          "user_data3": {
+            "type": "string",
+            "description": "Worldpay RAFT UserData3. Maximum length: 20 characters.",
+            "nullable": true,
+            "maxLength": 20
+          }
+        },
+        "additionalProperties": false
       },
       "WorldpayxmlData": {
         "type": "object",
