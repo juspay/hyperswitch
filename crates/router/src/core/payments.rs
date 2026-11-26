@@ -1011,44 +1011,41 @@ where
     )
     .await?;
 
-    if let Some(token) = payment_method_token {
-        if wallet_confirm
-            && wallet_session_route
-            && matches!(
-                &token,
-                PaymentMethodToken::ApplePayDecrypt(_) | PaymentMethodToken::GooglePayDecrypt(_)
-            )
+    if wallet_confirm
+        && wallet_session_route
+        && matches!(
+            payment_method_token.as_ref(),
+            Some(PaymentMethodToken::ApplePayDecrypt(_) | PaymentMethodToken::GooglePayDecrypt(_))
+        )
+    {
+        if let Some(selected) = routing::wallet_issuer::route_wallet_confirmation(
+            state,
+            platform.get_processor(),
+            &business_profile,
+            &payment_data,
+            &dimensions,
+            wallet_eligible_connectors.as_ref(),
+        )
+        .await
         {
-            if let Some(selected) = routing::wallet_issuer::route_wallet_confirmation(
-                state,
-                platform.get_processor(),
-                &business_profile,
-                &payment_data,
-                &dimensions,
-                wallet_eligible_connectors.as_ref(),
-            )
-            .await
-            {
-                let selected_customer_id = customer
-                    .as_ref()
-                    .zip(selected.merchant_connector_id.as_ref())
-                    .and_then(|(customer, mca_id)| {
-                        customer.get_connector_customer_id(mca_id.get_string_repr())
-                    })
-                    .map(String::from);
-                payment_data.set_connector_customer_id(selected_customer_id);
-                payment_data
-                    .set_connector_in_payment_attempt(Some(selected.connector_name.to_string()));
-                payment_data
-                    .set_merchant_connector_id_in_attempt(selected.merchant_connector_id.clone());
-                payment_data.set_routing_approach_in_attempt(Some(
-                    enums::RoutingApproach::RuleBasedRouting,
-                ));
-                connector = Some(ConnectorCallType::PreDetermined(selected.into()));
-            }
+            let selected_customer_id = customer
+                .as_ref()
+                .zip(selected.merchant_connector_id.as_ref())
+                .and_then(|(customer, mca_id)| {
+                    customer.get_connector_customer_id(mca_id.get_string_repr())
+                })
+                .map(String::from);
+            payment_data.set_connector_customer_id(selected_customer_id);
+            payment_data
+                .set_connector_in_payment_attempt(Some(selected.connector_name.to_string()));
+            payment_data
+                .set_merchant_connector_id_in_attempt(selected.merchant_connector_id.clone());
+            payment_data
+                .set_routing_approach_in_attempt(Some(enums::RoutingApproach::RuleBasedRouting));
+            connector = Some(ConnectorCallType::PreDetermined(selected.into()));
         }
-        payment_data.set_payment_method_token(Some(token));
     }
+    payment_method_token.map(|token| payment_data.set_payment_method_token(Some(token)));
 
     operation
         .to_domain()?

@@ -580,73 +580,7 @@ pub async fn decision_engine_hybrid_routing(
     business_profile: &domain::Profile,
     payment_id: String,
     hybrid_request: HybridRoutingRequest,
-    _fallback_connectors: Vec<RoutableConnectorChoice>,
-) -> RoutingResult<HybridRoutingOutcome> {
-    request_hybrid_routing(
-        state,
-        business_profile,
-        payment_id,
-        hybrid_request,
-        normalize_hybrid_routing_response,
-    )
-    .await
-}
-
-#[cfg(feature = "v1")]
-pub(super) async fn decision_engine_wallet_confirm_routing(
-    state: &SessionState,
-    business_profile: &domain::Profile,
-    payment_id: String,
-    backend_input: BackendInput,
-    eligible_connectors: Vec<RoutableConnectorChoice>,
-) -> RoutingResult<Option<RoutableConnectorChoice>> {
-    if eligible_connectors.is_empty() {
-        return Ok(None);
-    }
-
-    let static_request = build_static_routing_request_for_hybrid(
-        business_profile.get_id().get_string_repr().to_owned(),
-        payment_id.clone(),
-        backend_input,
-        eligible_connectors.clone(),
-    )?;
-    let outcome = request_hybrid_routing(
-        state,
-        business_profile,
-        payment_id,
-        HybridRoutingRequest {
-            static_routing_request: Some(static_request),
-            dynamic_routing_request: None,
-        },
-        |response| {
-            let selected = response
-                .static_routing
-                .as_ref()
-                .filter(|result| result.status == "success")
-                .and_then(|result| {
-                    let chosen = result.evaluated_output.first()?;
-                    let selected = response.evaluated_connectors.as_ref()?.first().cloned()?;
-                    let selected = RoutableConnectorChoice::from(selected);
-                    (chosen == &selected && eligible_connectors.contains(&selected))
-                        .then_some(selected)
-                });
-            Ok(HybridRoutingOutcome {
-                connectors: selected.into_iter().collect(),
-                routing_approach: RoutingApproach::StaticRouting,
-            })
-        },
-    )
-    .await?;
-
-    Ok(outcome.connectors.into_iter().next())
-}
-
-async fn request_hybrid_routing(
-    state: &SessionState,
-    business_profile: &domain::Profile,
-    payment_id: String,
-    hybrid_request: HybridRoutingRequest,
-    normalize: impl FnOnce(&HybridRoutingResponse) -> RoutingResult<HybridRoutingOutcome>,
+    required_static_candidates: Option<&[RoutableConnectorChoice]>,
 ) -> RoutingResult<HybridRoutingOutcome> {
     let routing_events_wrapper = RoutingEventsWrapper::new(
         state.tenant.tenant_id.clone(),
@@ -678,7 +612,24 @@ async fn request_hybrid_routing(
                 "euclid: response from decision engine hybrid API is empty".to_string(),
             ))?;
 
-    let outcome = normalize(&hybrid_response)?;
+    let outcome = if let Some(candidates) = required_static_candidates {
+        let selection = hybrid_response
+            .static_routing
+            .as_ref()
+            .filter(|response| response.status == "success")
+            .and_then(|response| {
+                let chosen = response.evaluated_output.first()?;
+                let selected = hybrid_response.evaluated_connectors.as_ref()?.first()?;
+                let selected = RoutableConnectorChoice::from(selected.clone());
+                (chosen == &selected && candidates.contains(&selected)).then_some(selected)
+            });
+        HybridRoutingOutcome {
+            connectors: selection.into_iter().collect(),
+            routing_approach: RoutingApproach::StaticRouting,
+        }
+    } else {
+        normalize_hybrid_routing_response(&hybrid_response)?
+    };
     let mut routing_event =
         event_response
             .event

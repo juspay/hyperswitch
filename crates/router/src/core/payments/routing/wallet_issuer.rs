@@ -133,20 +133,37 @@ where
     )
     .await
     .ok()?;
-    let selected = utils::decision_engine_wallet_confirm_routing(
+    if candidates.is_empty() {
+        return None;
+    }
+    let payment_id = payment
+        .payment_attempt
+        .payment_id
+        .get_string_repr()
+        .to_owned();
+    let static_request = utils::build_static_routing_request_for_hybrid(
+        profile_id.get_string_repr().to_owned(),
+        payment_id.clone(),
+        input,
+        candidates.clone(),
+    )
+    .ok()?;
+    let selected = utils::decision_engine_hybrid_routing(
         state,
         business_profile,
-        payment
-            .payment_attempt
-            .payment_id
-            .get_string_repr()
-            .to_owned(),
-        input,
-        candidates,
+        payment_id,
+        utils::HybridRoutingRequest {
+            static_routing_request: Some(static_request),
+            dynamic_routing_request: None,
+        },
+        Some(&candidates),
     )
     .await
     .inspect_err(|_| logger::warn!("Wallet confirm routing failed, keeping the session connector"))
-    .ok()??;
+    .ok()?
+    .connectors
+    .into_iter()
+    .next()?;
 
     api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
