@@ -618,6 +618,7 @@ where
             let payment_attempt_update = storage::PaymentAttemptUpdate::ResponseUpdate {
                 status: router_data.status,
                 connector: None,
+                account_information: None,
                 connector_transaction_id: match resource_id {
                     types::ResponseId::NoResponseId => None,
                     types::ResponseId::ConnectorTransactionId(id)
@@ -732,6 +733,7 @@ where
 
             let payment_attempt_update = storage::PaymentAttemptUpdate::ErrorUpdate {
                 connector: None,
+                account_information: None,
                 error_code: Some(Some(error_response.code.clone())),
                 error_message: Some(Some(error_response.message.clone())),
                 status: storage_enums::AttemptStatus::Failure,
@@ -830,6 +832,7 @@ pub fn make_new_auto_retry_payment_attempt(
     let created_at @ modified_at @ last_synced = common_utils::date_time::now();
     storage::PaymentAttempt {
         connector: Some(connector),
+        account_information: None,
         attempt_id: old_payment_attempt
             .payment_id
             .get_attempt_id(new_attempt_count),
