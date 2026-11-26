@@ -1,0 +1,1 @@
+DROP INDEX CONCURRENTLY IF EXISTS idx_payment_intent_payment_id_merchant_id;
