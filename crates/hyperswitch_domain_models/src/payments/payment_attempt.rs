@@ -1290,7 +1290,12 @@ impl PaymentAttempt {
                             .as_ref()
                             .and_then(|data| data.recovery_request_id.clone())
                     }),
-                    retry_algorithm: None,
+                    retry_algorithm: request.feature_metadata.as_ref().and_then(|metadata| {
+                        metadata
+                            .revenue_recovery
+                            .as_ref()
+                            .and_then(|data| data.retry_algorithm)
+                    }),
                 }
             }),
         };
@@ -3074,7 +3079,8 @@ pub enum PaymentAttemptUpdate {
         amount_to_capture: Option<MinorUnit>,
         updated_by: String,
     },
-    /// Update only the attempt's feature metadata.
+    /// Update the attempt's feature metadata after recording the payment back to the
+    /// billing connector. Touches nothing else.
     RecordBackUpdate {
         feature_metadata: Option<PaymentAttemptFeatureMetadata>,
         updated_by: String,

@@ -73,79 +73,6 @@ use common_enums::enums::ProcessTrackerStatus;
 #[cfg(feature = "v1")]
 use crate::types::common_enums;
 
-/// Records on a retry attempt the A/B arm of the decision that scheduled it.
-pub async fn record_ab_routing(
-    state: &SessionState,
-    attempt_id: &id_type::GlobalAttemptId,
-    merchant_context: pcr::RecoveryMerchantContext<'_>,
-    assigned_algorithm: common_enums::RevenueRecoveryABAlgorithm,
-) {
-    let processor_account =
-        domain::ProcessorMerchantAccount::from_untagged(merchant_context.merchant_account.clone());
-    let processor_key_store =
-        domain::ProcessorKeyStore::from_untagged(merchant_context.key_store.clone());
-    let storage_scheme = processor_account.get_storage_scheme();
-
-    let attempt = match state
-        .store
-        .find_payment_attempt_by_id(&processor_key_store, attempt_id, storage_scheme)
-        .await
-    {
-        Ok(attempt) => attempt,
-        Err(error) => {
-            router_env::logger::error!(
-                ?error,
-                attempt_id = %attempt_id.get_string_repr(),
-                "Failed to fetch the attempt to record this decision's A/B arm on"
-            );
-            return;
-        }
-    };
-
-    let Some(mut feature_metadata) = attempt.feature_metadata.clone() else {
-        router_env::logger::warn!(
-            attempt_id = %attempt_id.get_string_repr(),
-            "Cannot record an A/B arm: the attempt has no feature metadata"
-        );
-        return;
-    };
-    let Some(revenue_recovery) = feature_metadata.revenue_recovery.as_mut() else {
-        router_env::logger::warn!(
-            attempt_id = %attempt_id.get_string_repr(),
-            "Cannot record an A/B arm: the attempt has no revenue recovery metadata"
-        );
-        return;
-    };
-    if revenue_recovery.retry_algorithm == Some(assigned_algorithm) {
-        return;
-    }
-    revenue_recovery.retry_algorithm = Some(assigned_algorithm);
-
-    let update =
-        hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::RecordBackUpdate {
-            feature_metadata: Some(feature_metadata),
-            updated_by: storage_scheme.inner().to_string(),
-        };
-
-    match state
-        .store
-        .update_payment_attempt(&processor_key_store, attempt, update, storage_scheme)
-        .await
-    {
-        Ok(_) => router_env::logger::info!(
-            attempt_id = %attempt_id.get_string_repr(),
-            algorithm = %assigned_algorithm,
-            "A/B routing recorded this decision's arm on the attempt"
-        ),
-        Err(error) => router_env::logger::error!(
-            ?error,
-            attempt_id = %attempt_id.get_string_repr(),
-            algorithm = %assigned_algorithm,
-            "Failed to record this decision's A/B arm on the attempt"
-        ),
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 pub async fn upsert_calculate_pcr_task(
     billing_connector_account: &domain::MerchantConnectorAccount,
@@ -322,20 +249,12 @@ pub async fn record_internal_attempt_and_execute_payment(
         &payment_processor_token
             .payment_processor_token_details
             .payment_processor_token,
+        tracking_data.retry_algorithm,
     )
     .await;
 
     match record_attempt {
         Ok(record_attempt_response) => {
-            if let Some(retry_algorithm) = tracking_data.retry_algorithm {
-                record_ab_routing(
-                    state,
-                    &record_attempt_response.id,
-                    revenue_recovery_payment_data.get_merchant_context(),
-                    retry_algorithm,
-                )
-                .await;
-            }
             let action = Box::pin(types::Action::execute_payment(
                 state,
                 revenue_recovery_payment_data.merchant_account.get_id(),
