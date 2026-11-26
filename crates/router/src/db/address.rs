@@ -316,7 +316,7 @@ mod storage {
                 self,
                 behaviour::{Conversion, ReverseConversion},
             },
-            storage::{self as storage_types},
+            storage as storage_types,
         },
         utils::db_utils,
     };

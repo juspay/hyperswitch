@@ -24,7 +24,7 @@ use crate::{
     services,
     types::{
         api::{self, PaymentIdTypeExt},
-        domain::{self},
+        domain,
         storage::{self, enums as storage_enums},
     },
     utils::{self, OptionExt},
