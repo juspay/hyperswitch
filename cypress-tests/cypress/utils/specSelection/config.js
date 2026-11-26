@@ -173,6 +173,7 @@ const PAYMENT_SPEC_METHODS = Object.freeze({
   "52-VoucherPayment.cy.js": ["voucher"],
   "53-ClearPanRetry.cy.js": ["card"],
   "53-DelayedSessionToken.cy.js": ["wallet"],
+  "53-MerchantReferenceIdAsCustomerId.cy.js": ["card"],
   "54-OpenBanking.cy.js": ["open_banking"],
   "54-RefundType.cy.js": ["card"],
   "55-DynamicFields.cy.js": ["card"],
