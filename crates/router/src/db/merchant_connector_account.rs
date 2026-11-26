@@ -125,10 +125,7 @@ mod merchant_connector_account_cache_tests {
             app::{settings::Settings, StorageImpl},
         },
         services,
-        types::{
-            domain::{self},
-            storage,
-        },
+        types::{domain, storage},
     };
 
     #[tokio::test]

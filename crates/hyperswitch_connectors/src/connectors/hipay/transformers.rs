@@ -1,11 +1,7 @@
 use std::collections::HashMap;
 
 use common_enums::{enums, CardNetwork};
-use common_utils::{
-    pii::{self},
-    request::Method,
-    types::StringMajorUnit,
-};
+use common_utils::{pii, request::Method, types::StringMajorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{
