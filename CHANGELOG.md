@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.18.0-hotfix4
+
+### Features
+
+- **connector:** [PayPal] allow network transaction id MITs ([#15429](https://github.com/juspay/hyperswitch/pull/15429)) ([`d9cb10d`](https://github.com/juspay/hyperswitch/commit/d9cb10d91d9fddd5ca0e058173ffe3eb4b6354b4))
+
+### Bug Fixes
+
+- **router:** Allow apple pay sessions for all web browsers ([#15428](https://github.com/juspay/hyperswitch/pull/15428)) ([`d13358c`](https://github.com/juspay/hyperswitch/commit/d13358cfff8ab1423c9cac3c073efe43eb0d158e))
+- **ucs:** Map AliPay HK redirect wallet in payment requests ([#15427](https://github.com/juspay/hyperswitch/pull/15427)) ([`cd7bcec`](https://github.com/juspay/hyperswitch/commit/cd7bcec78b571569efeaa98f13d3ce6b016dd769))
+
+**Full Changelog:** [`2026.11.18.0-hotfix3...2026.11.18.0-hotfix4`](https://github.com/juspay/hyperswitch/compare/2026.11.18.0-hotfix3...2026.11.18.0-hotfix4)
+
+- - -
+
 ## 2026.11.18.0-hotfix3
 
 ### Features
