@@ -2635,7 +2635,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                     (
                         Some(payment_data),
                         None,
-                        StripeBillingAddress::default(),
+                        billing_address.unwrap_or_default(),
                         None,
                         None,
                     )
