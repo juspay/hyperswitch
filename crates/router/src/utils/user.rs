@@ -103,10 +103,18 @@ pub async fn generate_jwt_auth_token_with_attributes(
     profile_id: id_type::ProfileId,
     tenant_id: Option<id_type::TenantId>,
 ) -> UserResult<Secret<String>> {
+    let role_info = RoleInfo::from_role_id_org_id_tenant_id(
+        state,
+        &role_id,
+        &org_id,
+        tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)?;
     let token = AuthToken::new_token(
         user_id,
         merchant_id,
-        role_id,
+        &role_info,
         &state.conf,
         org_id,
         profile_id,
