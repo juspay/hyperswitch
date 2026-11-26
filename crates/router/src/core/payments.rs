@@ -968,25 +968,7 @@ where
     )
     .await?;
 
-    let attempt = payment_data.get_payment_attempt();
-    let wallet_confirm = is_operation_confirm(&operation)
-        && matches!(call_connector_action, CallConnectorAction::Trigger)
-        && payment_data.get_payment_intent().attempt_count == 1
-        && attempt.connector.is_none()
-        && attempt.get_connector_payment_id().is_none()
-        && attempt.authentication_data.is_none()
-        && payment_data.get_creds_identifier().is_none()
-        && !<Req as Authenticate>::is_external_three_ds_data_passed_by_merchant(&req)
-        && matches!(
-            attempt.payment_method_type,
-            Some(enums::PaymentMethodType::ApplePay | enums::PaymentMethodType::GooglePay)
-        );
-    let wallet_eligible_connectors = if wallet_confirm {
-        eligible_connectors.clone()
-    } else {
-        None
-    };
-    let (mut connector, wallet_session_route) = choose_connector(
+    let (mut connector, wallet_session_override) = choose_connector(
         &operation,
         state,
         &req,
@@ -994,7 +976,7 @@ where
         &business_profile,
         &feature_config,
         &mut payment_data,
-        eligible_connectors,
+        eligible_connectors.as_ref(),
         mandate_type,
         &dimensions,
         call_connector_action.clone(),
@@ -1004,9 +986,9 @@ where
     )
     .await?;
 
-    let wallet_routing = (wallet_confirm && wallet_session_route).then_some(WalletConfirmRouting {
+    let wallet_routing = wallet_session_override.then_some(WalletConfirmRouting {
         dimensions: &dimensions,
-        eligible_connectors: wallet_eligible_connectors.as_ref(),
+        eligible_connectors: eligible_connectors.as_ref(),
     });
     let (payment_method_token, wallet_connector) = get_decrypted_wallet_pm_token_and_set_pm_data(
         &operation,
@@ -11924,7 +11906,7 @@ pub async fn choose_connector<F, Req, D>(
     business_profile: &domain::Profile,
     feature_config: &core_utils::FeatureConfig,
     payment_data: &mut D,
-    eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
+    eligible_connectors: Option<&Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
     dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     call_connector_action: CallConnectorAction,
@@ -11932,6 +11914,7 @@ pub async fn choose_connector<F, Req, D>(
 ) -> RouterResult<(Option<ConnectorCallType>, bool)>
 where
     F: Send + Clone + 'static,
+    Req: Authenticate,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let connector_choice = operation
@@ -11955,7 +11938,8 @@ where
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("euclid: failed to fetch fallback config")?;
 
-    let mut wallet_session_route = false;
+    let is_connector_trigger = matches!(call_connector_action, CallConnectorAction::Trigger);
+    let mut wallet_session_override = false;
     let connector = match routing::make_dsl_input(&transaction_data).inspect_err(|err| {
         logger::error!(
             error=?err,
@@ -12013,6 +11997,22 @@ where
                     }
 
                     api::ConnectorChoice::Decide => {
+                        let attempt = payment_data.get_payment_attempt();
+                        let wallet_confirm = is_connector_trigger
+                            && matches!(
+                                attempt.payment_method_type,
+                                Some(
+                                    enums::PaymentMethodType::ApplePay
+                                        | enums::PaymentMethodType::GooglePay
+                                )
+                            )
+                            && is_operation_confirm(operation)
+                            && payment_data.get_payment_intent().attempt_count == 1
+                            && attempt.connector.is_none()
+                            && attempt.get_connector_payment_id().is_none()
+                            && attempt.authentication_data.is_none()
+                            && payment_data.get_creds_identifier().is_none()
+                            && !req.is_external_three_ds_data_passed_by_merchant();
                         let (connector, pre_routed) = perform_routing_for_connector_selection(
                             state,
                             processor,
@@ -12028,7 +12028,7 @@ where
                             customer_preferred_connectors,
                         )
                         .await?;
-                        wallet_session_route = pre_routed;
+                        wallet_session_override = wallet_confirm && pre_routed;
                         connector
                     }
                 })
@@ -12049,7 +12049,7 @@ where
             Some(ConnectorCallType::Retryable(fallback_routing_data))
         }
     };
-    Ok((connector, wallet_session_route))
+    Ok((connector, wallet_session_override))
 }
 
 async fn get_eligible_connector_for_proxy<T: core_routing::GetRoutableConnectorsForChoice, F, D>(
@@ -12289,7 +12289,7 @@ pub async fn perform_routing_for_connector_selection<F, D>(
     feature_config: &core_utils::FeatureConfig,
     payment_data: &mut D,
     request_straight_through: Option<serde_json::Value>,
-    eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
+    eligible_connectors: Option<&Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
     dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
@@ -12575,7 +12575,7 @@ pub async fn decide_connector<F, D>(
     payment_data: &mut D,
     request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
     routing_data: &mut storage::RoutingData,
-    eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
+    eligible_connectors: Option<&Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
     dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
@@ -12761,7 +12761,7 @@ where
                         processor.get_key_store(),
                         connectors.clone(),
                         &txn,
-                        eligible_connectors.clone(),
+                        eligible_connectors.cloned(),
                         business_profile,
                         Some(&ids),
                     )
@@ -12771,7 +12771,7 @@ where
                     let fallback = routing::get_eligibility_fallback_config(
                         &state,
                         &txn,
-                        eligible_connectors.clone(),
+                        eligible_connectors.cloned(),
                         business_profile,
                     )
                     .await;
