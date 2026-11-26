@@ -849,6 +849,8 @@ pub enum ZenPaymentStatus {
     Pending,
     Rejected,
     Canceled,
+    #[serde(other)]
+    Unknown,
 }
 
 impl ForeignTryFrom<(ZenPaymentStatus, Option<ZenActions>)> for enums::AttemptStatus {
@@ -862,10 +864,22 @@ impl ForeignTryFrom<(ZenPaymentStatus, Option<ZenActions>)> for enums::AttemptSt
             ZenPaymentStatus::Pending => {
                 item_action_status.map_or(Self::Pending, |action| match action {
                     ZenActions::Redirect => Self::AuthenticationPending,
+                    ZenActions::Unknown => {
+                        router_env::logger::warn!(
+                            "Unknown Zen action received, preserving current state"
+                        );
+                        Self::Pending
+                    }
                 })
             }
             ZenPaymentStatus::Rejected => Self::Failure,
             ZenPaymentStatus::Canceled => Self::Voided,
+            ZenPaymentStatus::Unknown => {
+                router_env::logger::warn!(
+                    "Unknown Zen payment status received, preserving current state"
+                );
+                Self::Pending
+            }
         })
     }
 }
@@ -904,6 +918,8 @@ pub struct ZenMerchantAction {
 #[serde(rename_all = "UPPERCASE")]
 pub enum ZenActions {
     Redirect,
+    #[serde(other)]
+    Unknown,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1074,6 +1090,8 @@ pub enum RefundStatus {
     #[default]
     Pending,
     Rejected,
+    #[serde(other)]
+    Unknown,
 }
 
 impl From<RefundStatus> for enums::RefundStatus {
@@ -1082,6 +1100,12 @@ impl From<RefundStatus> for enums::RefundStatus {
             RefundStatus::Accepted => Self::Success,
             RefundStatus::Pending | RefundStatus::Authorized => Self::Pending,
             RefundStatus::Rejected => Self::Failure,
+            RefundStatus::Unknown => {
+                router_env::logger::warn!(
+                    "Unknown Zen refund status received, preserving current state"
+                );
+                Self::Pending
+            }
         }
     }
 }
