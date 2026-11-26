@@ -2,6 +2,10 @@ pub mod models {
     use std::collections::HashMap;
 
     use async_trait::async_trait;
+    pub use common_utils::types::proxy::{
+        ProxyEncoding, ProxyEncryptScheme, ProxyMessagePart, ProxySerializeFormat, ProxySignScheme,
+        ProxyTransformInstruction, ProxyTransformation,
+    };
     use common_utils::{fp_utils::when, pii::SecretSerdeValue, request::ConnectorContentType};
     use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
     use router_env::logger;
@@ -141,6 +145,9 @@ pub mod models {
         pub cert_format: Option<String>,
         /// Maximum response size in bytes (defaults to 10MB if not specified)
         pub max_response_size: Option<usize>,
+        /// Steps the vault proxy runs on the body after substituting vault data, such as
+        /// encrypting a field and signing the request. Supported only by the Hyperswitch vault.
+        pub transformation: Option<ProxyTransformation>,
     }
 
     #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -181,6 +188,8 @@ pub mod models {
         pub token_type: String,
         /// HTTP method to use for the forwarded request
         pub method: String,
+        /// Steps the proxy runs on the body after substituting vault data
+        pub transformation: Option<ProxyTransformation>,
     }
 
     impl HyperswitchVaultProxyRequest {
@@ -251,6 +260,7 @@ pub mod models {
                 token,
                 token_type: "payment_method_token".to_string(),
                 method,
+                transformation: connection_config.transformation.clone(),
             })
         }
     }
@@ -474,6 +484,7 @@ pub mod models {
                 cert_password: None,
                 cert_format: None,
                 max_response_size: None,
+                transformation: None,
             }
         }
 

@@ -1,5 +1,5 @@
-//! JSON bodies: placeholders are resolved inside string values, and a placeholder that is a
-//! whole value keeps the vault value's JSON type.
+//! JSON bodies: placeholders are resolved inside string values, and an unfiltered placeholder
+//! that is a whole value keeps the vault value's JSON type.
 
 use serde_json::Value;
 
@@ -27,7 +27,11 @@ pub(super) fn render(body: &Value, vault: &Value) -> Result<Vec<u8>, ProxyBodyEr
 pub(super) fn resolve(item: &Value, vault: &Value) -> Result<Value, ProxyBodyError> {
     match item {
         Value::String(text) => match parse_placeholder(text)? {
-            Some((field, consumed)) if consumed == text.len() => value(vault, field),
+            Some((placeholder, consumed))
+                if consumed == text.len() && placeholder.filter.is_none() =>
+            {
+                value(vault, placeholder.field)
+            }
             _ => substitute(text, vault, str::to_owned).map(Value::String),
         },
         Value::Array(items) => items

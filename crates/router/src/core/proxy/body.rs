@@ -30,6 +30,9 @@ pub enum ProxyBodyError {
     /// The referenced field does not exist or cannot be used as a scalar.
     #[error("Missing or non-scalar vault field: {0}")]
     InvalidField(String),
+    /// The referenced field's value is not valid input for its placeholder filter.
+    #[error("Vault field is not valid input for its placeholder filter: {0}")]
+    InvalidFilterInput(String),
     /// The Content-Type is neither JSON nor XML.
     #[error("Unsupported connector Content-Type; only JSON and XML are supported")]
     UnsupportedContentType,

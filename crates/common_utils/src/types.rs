@@ -12,6 +12,9 @@ pub mod primitive_wrappers;
 /// List-query pagination and sorting types
 pub mod list;
 
+/// Vault proxy transformation instructions
+pub mod proxy;
+
 use std::{
     borrow::Cow,
     fmt::Display,
