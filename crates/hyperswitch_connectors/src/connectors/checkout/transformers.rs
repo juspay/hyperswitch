@@ -2111,10 +2111,12 @@ pub struct PaymentVoidResponse {
 
 impl From<&PaymentVoidResponse> for AttemptStatus {
     fn from(item: &PaymentVoidResponse) -> Self {
-        if item.status == 202 {
+        // HTTP 202 only accepts the void; a webhook or PSync confirms its outcome.
+        // HTTP 200 confirms the payment was already voided. Non-2xx uses the error path.
+        if item.status == 200 {
             Self::Voided
         } else {
-            Self::VoidFailed
+            Self::Pending
         }
     }
 }
@@ -2215,7 +2217,9 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
         let connector_meta = serde_json::json!(CheckoutMeta {
             psync_flow: CheckoutPaymentIntent::Capture,
         });
-        let (status, amount_captured) = if item.http_code == 202 {
+        // HTTP 202 only accepts the capture, so do not report captured funds yet.
+        // HTTP 200 confirms the payment was already captured.
+        let (status, amount_captured) = if item.http_code == 200 {
             (
                 AttemptStatus::Charged,
                 Some(item.data.request.amount_to_capture),
@@ -2284,10 +2288,12 @@ pub struct CheckoutRefundResponse {
 
 impl From<&CheckoutRefundResponse> for enums::RefundStatus {
     fn from(item: &CheckoutRefundResponse) -> Self {
-        if item.status == 202 {
+        // HTTP 202 is asynchronous; RSync or a webhook determines the final outcome.
+        // HTTP 200 confirms the payment was already refunded. Non-2xx uses the error path.
+        if item.status == 200 {
             Self::Success
         } else {
-            Self::Failure
+            Self::Pending
         }
     }
 }

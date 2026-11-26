@@ -2974,7 +2974,17 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "sessionTokenCall",
   (sessionTokenBody, data, globalState) => {
-    const { Request: reqData = {}, Response: resData } = data || {};
+    const {
+      Request: reqData = {},
+      Response: resData,
+      Configs: configs,
+    } = data || {};
+
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task("cli_log", "TRIGGER_SKIP enabled, skipping sessionTokenCall");
+      return;
+    }
 
     sessionTokenBody.wallets = reqData.wallets || [];
     if ("payment_id" in reqData) {
@@ -5558,11 +5568,16 @@ Cypress.Commands.add(
     }
 
     if (validatedConfigs?.POLL_BEFORE) {
-      cy.pollPaymentStatusCallTest(globalState).then(() => {
+      const refundableStatuses = ["succeeded", "partially_captured"];
+      cy.pollPaymentStatusCallTest(globalState, [
+        ...refundableStatuses,
+        "failed",
+        "cancelled",
+      ]).then(() => {
         expect(
           globalState.get("polledPaymentStatus"),
           "payment status before refund"
-        ).to.equal("succeeded");
+        ).to.be.oneOf(refundableStatuses);
       });
     }
 
