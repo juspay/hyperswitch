@@ -11,7 +11,7 @@
     ),
     request_body(
         content = TwilioGenericPayRequest,
-        description = "The provider's request. Shown here in Twilio's Generic Pay Connector shape. `method` follows the `<Pay>` verb's `chargeAmount`: `0` or absent makes it a `tokenize`. Storing a card — a `tokenize`, or a charge carrying `parameters.setup_future_usage` — additionally needs `parameters.customer_id` and `parameters.customer_acceptance`.",
+        description = "The provider's request. Shown here in Twilio's Generic Pay Connector shape. `method` follows the `<Pay>` verb's `chargeAmount`: `0` or absent makes it a `tokenize`. Storing a card is asked for by `parameters.setup_future_usage`, which is never assumed — a `tokenize` needs it as much as a charge does — and additionally needs `parameters.customer_id` and `parameters.customer_acceptance`. Note that Twilio's `<Parameter>` tags carry flat string pairs and cannot express the `customer_acceptance` and `billing` objects; those are for callers that post structured parameters.",
         examples(
             ("01. Charge a card collected over the phone" = (
                 value = json!({
@@ -45,8 +45,10 @@
                     "parameters": {
                         "customer_id": "cus_1234",
                         "setup_future_usage": "off_session",
-                        "customer_acceptance": "offline",
-                        "acceptance_timestamp": "2026-11-26T10:11:12Z"
+                        "customer_acceptance": {
+                            "acceptance_type": "offline",
+                            "accepted_at": "2026-11-26T10:11:12Z"
+                        }
                     }
                 })
             )),
@@ -62,7 +64,22 @@
                     "parameters": {
                         "customer_id": "cus_1234",
                         "currency": "USD",
-                        "customer_acceptance": "offline"
+                        "setup_future_usage": "off_session",
+                        "customer_acceptance": {
+                            "acceptance_type": "offline",
+                            "accepted_at": "2026-11-26T10:11:12Z"
+                        },
+                        "billing": {
+                            "email": "caller@example.com",
+                            "address": {
+                                "first_name": "John",
+                                "last_name": "Doe",
+                                "line1": "1467 Harrison Street",
+                                "city": "San Francisco",
+                                "state": "CA",
+                                "country": "US"
+                            }
+                        }
                     }
                 })
             ))
@@ -150,14 +167,14 @@
                 ("06. The IVR did not take the caller's consent" = (
                     value = json!({
                         "error_code": "ACCEPTANCE_REQUIRED",
-                        "error_message": "customer_acceptance is required to store a card; ask the caller to agree and pass it as a <Parameter>",
+                        "error_message": "customer_acceptance is required to store a card. Ask the caller to agree and pass it as a <Parameter>",
                         "parameters": {}
                     })
                 )),
                 ("07. The card has no customer to be stored against" = (
                     value = json!({
                         "error_code": "CUSTOMER_REQUIRED",
-                        "error_message": "customer_id is required to store a card; pass it as a <Parameter>",
+                        "error_message": "customer_id is required to store a card. Pass it as a <Parameter>",
                         "parameters": {}
                     })
                 ))

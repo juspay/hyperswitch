@@ -112,7 +112,7 @@ fn build_charge(
     // message naming neither the cause nor the fix.
     fp_utils::when(amount == MinorUnit::zero(), || {
         Err(invalid_request(
-            "amount must be greater than zero for a charge; set chargeAmount to 0 on the <Pay> \
+            "amount must be greater than zero for a charge. Set chargeAmount to 0 on the <Pay> \
              verb to store a card without charging it",
         ))
     })?;
@@ -147,7 +147,7 @@ fn build_tokenize(
                 .and_then(|parameters| parameters.currency)
         })
         .ok_or_else(|| {
-            invalid_request("currency is required to store a card; pass it as a <Parameter>")
+            invalid_request("currency is required to store a card. Pass it as a <Parameter>")
         })?;
 
     let billing = context.billing_address(request.postal_code.clone());

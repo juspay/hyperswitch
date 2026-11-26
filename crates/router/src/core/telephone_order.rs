@@ -159,19 +159,25 @@ pub struct Context {
 }
 
 impl Context {
-    /// The IVR's address plus the postal code the provider collected. `zip` wins: it came from
-    /// the caller on the call, not from the merchant's records.
+    /// The IVR's address, with the postal code the provider collected filling in for a missing
+    /// `zip`. A fallback, not an override: an IVR that sent a whole address sent a coherent one,
+    /// and dropping a phone-collected postal code into the middle of it would make an address
+    /// that matches nothing — which fails AVS harder than either would alone.
     pub fn billing_address(
         &self,
-        zip: Option<hyperswitch_masking::Secret<String>>,
+        postal_code: Option<hyperswitch_masking::Secret<String>>,
     ) -> Option<api_models::payments::Address> {
-        if self.billing.is_none() && zip.is_none() {
+        if self.billing.is_none() && postal_code.is_none() {
             return None;
         }
 
         let mut billing = self.billing.clone().unwrap_or_default();
-        if zip.is_some() {
-            billing.address.get_or_insert_with(Default::default).zip = zip;
+        if let Some(postal_code) = postal_code {
+            billing
+                .address
+                .get_or_insert_with(Default::default)
+                .zip
+                .get_or_insert(postal_code);
         }
         Some(billing)
     }
@@ -564,7 +570,7 @@ fn finalize_payments_request(
         if payments_request.customer_id.is_none() {
             return Err(Failure::new(
                 error_codes::CUSTOMER_REQUIRED,
-                "customer_id is required to store a card; pass it as a <Parameter>",
+                "customer_id is required to store a card. Pass it as a <Parameter>",
             ));
         }
 
@@ -573,7 +579,7 @@ fn finalize_payments_request(
         if payments_request.customer_acceptance.is_none() {
             return Err(Failure::new(
                 error_codes::ACCEPTANCE_REQUIRED,
-                "customer_acceptance is required to store a card; ask the caller to agree and \
+                "customer_acceptance is required to store a card. Ask the caller to agree and \
                  pass it as a <Parameter>",
             ));
         }

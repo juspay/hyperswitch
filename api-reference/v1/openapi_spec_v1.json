@@ -10658,14 +10658,14 @@
                   "06. The IVR did not take the caller's consent": {
                     "value": {
                       "error_code": "ACCEPTANCE_REQUIRED",
-                      "error_message": "customer_acceptance is required to store a card; ask the caller to agree and pass it as a <Parameter>",
+                      "error_message": "customer_acceptance is required to store a card. Ask the caller to agree and pass it as a <Parameter>",
                       "parameters": {}
                     }
                   },
                   "07. The card has no customer to be stored against": {
                     "value": {
                       "error_code": "CUSTOMER_REQUIRED",
-                      "error_message": "customer_id is required to store a card; pass it as a <Parameter>",
+                      "error_message": "customer_id is required to store a card. Pass it as a <Parameter>",
                       "parameters": {}
                     }
                   }
