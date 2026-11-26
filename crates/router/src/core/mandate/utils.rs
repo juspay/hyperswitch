@@ -64,9 +64,7 @@ pub async fn construct_mandate_revoke_router_data(
         connector_api_version: None,
         payment_method_status: None,
         request: types::MandateRevokeRequestData {
-            mandate_id: Some(mandate.mandate_id),
             connector_mandate_id: mandate.connector_mandate_id,
-            payment_method_id: None,
         },
         response: Err(types::ErrorResponse::get_not_implemented()),
         connector_request_reference_id:
@@ -151,9 +149,7 @@ pub async fn construct_pm_connector_mandate_revoke_router_data(
         connector_api_version: None,
         payment_method_status: None,
         request: types::MandateRevokeRequestData {
-            mandate_id: None,
             connector_mandate_id: Some(mandate_reference_record.connector_mandate_id.clone()),
-            payment_method_id: Some(payment_method.payment_method_id.clone()),
         },
         response: Err(types::ErrorResponse::get_not_implemented()),
         connector_request_reference_id:
