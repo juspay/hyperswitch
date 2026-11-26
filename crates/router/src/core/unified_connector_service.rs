@@ -2692,6 +2692,13 @@ pub fn build_unified_connector_service_payment_method(
                         payments_grpc::AliPayRedirectWallet {  }
                     )),
                 }),
+                hyperswitch_domain_models::payment_method_data::WalletData::AliPayHkRedirect(
+                    _,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::AliPayHkRedirect(
+                        payments_grpc::AliPayHkRedirectWallet {  }
+                    )),
+                }),
                 hyperswitch_domain_models::payment_method_data::WalletData::RevolutPay(
                     _,
                 ) => Ok(payments_grpc::PaymentMethod {
