@@ -148,7 +148,7 @@ where
         candidates.clone(),
     )
     .ok()?;
-    let selected = utils::decision_engine_hybrid_routing(
+    let outcome = utils::decision_engine_hybrid_routing(
         state,
         business_profile,
         payment_id,
@@ -156,14 +156,15 @@ where
             static_routing_request: Some(static_request),
             dynamic_routing_request: None,
         },
-        Some(&candidates),
+        Vec::new(),
     )
     .await
     .inspect_err(|_| logger::warn!("Wallet confirm routing failed, keeping the session connector"))
-    .ok()?
-    .connectors
-    .into_iter()
-    .next()?;
+    .ok()?;
+    let selected = outcome.connectors.into_iter().next()?;
+    if !outcome.first_connector_matches_static_rule || !candidates.contains(&selected) {
+        return None;
+    }
 
     api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,

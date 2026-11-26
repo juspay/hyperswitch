@@ -1705,7 +1705,7 @@ impl RoutingStage for HybridRoutingStage {
                         static_routing_request,
                         dynamic_routing_request,
                     },
-                    None,
+                    input.static_connectors.to_vec(),
                 )
                 .await
                 .unwrap_or_else(|error| {

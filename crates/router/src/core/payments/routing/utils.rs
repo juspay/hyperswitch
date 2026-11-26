@@ -89,6 +89,7 @@ pub struct DynamicRoutingWrapper {
 pub struct HybridRoutingOutcome {
     pub connectors: Vec<RoutableConnectorChoice>,
     pub routing_approach: RoutingApproach,
+    pub(super) first_connector_matches_static_rule: bool,
 }
 
 impl HybridRoutingOutcome {
@@ -97,6 +98,7 @@ impl HybridRoutingOutcome {
         Self {
             connectors: Vec::new(),
             routing_approach: RoutingApproach::Default,
+            first_connector_matches_static_rule: false,
         }
     }
 }
@@ -501,9 +503,15 @@ pub fn normalize_hybrid_routing_response(
             .iter()
             .cloned()
             .map(RoutableConnectorChoice::from)
-            .collect();
+            .collect::<Vec<_>>();
+        let first_static_rule_connector = response
+            .static_routing
+            .as_ref()
+            .filter(|result| result.status == "success")
+            .and_then(|result| result.evaluated_output.first());
 
         HybridRoutingOutcome {
+            first_connector_matches_static_rule: connectors.first() == first_static_rule_connector,
             connectors,
             routing_approach: infer_hybrid_routing_approach(response),
         }
@@ -534,6 +542,7 @@ pub fn normalize_hybrid_routing_response(
         HybridRoutingOutcome {
             connectors: static_connectors,
             routing_approach: RoutingApproach::StaticRouting,
+            first_connector_matches_static_rule: false,
         }
     } else {
         logger::debug!(
@@ -580,7 +589,7 @@ pub async fn decision_engine_hybrid_routing(
     business_profile: &domain::Profile,
     payment_id: String,
     hybrid_request: HybridRoutingRequest,
-    required_static_candidates: Option<&[RoutableConnectorChoice]>,
+    _fallback_connectors: Vec<RoutableConnectorChoice>,
 ) -> RoutingResult<HybridRoutingOutcome> {
     let routing_events_wrapper = RoutingEventsWrapper::new(
         state.tenant.tenant_id.clone(),
@@ -612,24 +621,7 @@ pub async fn decision_engine_hybrid_routing(
                 "euclid: response from decision engine hybrid API is empty".to_string(),
             ))?;
 
-    let outcome = if let Some(candidates) = required_static_candidates {
-        let selection = hybrid_response
-            .static_routing
-            .as_ref()
-            .filter(|response| response.status == "success")
-            .and_then(|response| {
-                let chosen = response.evaluated_output.first()?;
-                let selected = hybrid_response.evaluated_connectors.as_ref()?.first()?;
-                let selected = RoutableConnectorChoice::from(selected.clone());
-                (chosen == &selected && candidates.contains(&selected)).then_some(selected)
-            });
-        HybridRoutingOutcome {
-            connectors: selection.into_iter().collect(),
-            routing_approach: RoutingApproach::StaticRouting,
-        }
-    } else {
-        normalize_hybrid_routing_response(&hybrid_response)?
-    };
+    let outcome = normalize_hybrid_routing_response(&hybrid_response)?;
     let mut routing_event =
         event_response
             .event
