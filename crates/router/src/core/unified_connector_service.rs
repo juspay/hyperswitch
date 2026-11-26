@@ -1336,11 +1336,7 @@ async fn resolve_ucs_execution_decision(
             | CallConnectorAction::HandleResponseWithoutBuildRequest
             | CallConnectorAction::Avoid
             | CallConnectorAction::StatusUpdate { .. } => {
-                let execution_mode = if rollout_result.should_execute {
-                    rollout_result.execution_mode
-                } else {
-                    ExecutionMode::Shadow
-                };
+                let execution_mode = rollout_execution_mode(rollout_result);
                 let execution_mode = resolve_execution_mode(execution_mode, ucs_availability);
                 decide_execution_path(connector_integration_type, previous_gateway, execution_mode)?
             }
@@ -1383,10 +1379,12 @@ async fn resolve_ucs_execution_decision(
                 threshold = rollout_result.kill_switch_threshold,
                 connector_decline_threshold = ?rollout_result.connector_decline_threshold,
                 request_id = ?state.request_id,
-                "UCS_KILL_SWITCH_DIVERTED_TO_SHADOW"
+                "UCS_KILL_SWITCH_DIVERTED_TO_DIRECT"
             );
+            // A safety fallback must not depend on the comparison service or MITM proxy.
+            // Shadow traffic is an explicit rollout choice, not a kill-switch fallback.
             gateway_system = GatewaySystem::Direct;
-            execution_path = ExecutionPath::ShadowUnifiedConnectorService;
+            execution_path = ExecutionPath::Direct;
         }
     }
 
@@ -1471,6 +1469,81 @@ fn resolve_execution_mode(
         ExecutionMode::NotApplicable
     } else {
         execution_mode
+    }
+}
+
+// Only explicitly sampled shadow traffic may depend on the comparison proxy.
+fn rollout_execution_mode(rollout_result: &RolloutExecutionResult) -> ExecutionMode {
+    if rollout_result.should_execute {
+        rollout_result.execution_mode
+    } else {
+        ExecutionMode::NotApplicable
+    }
+}
+
+#[cfg(test)]
+mod routing_fallback_tests {
+    use super::*;
+
+    #[test]
+    fn unsampled_rollout_uses_direct_for_both_previous_gateways() {
+        for execution_mode in [ExecutionMode::Primary, ExecutionMode::Shadow] {
+            let rollout = RolloutExecutionResult {
+                should_execute: false,
+                execution_mode,
+                ..Default::default()
+            };
+            for previous_gateway in [
+                None,
+                Some(GatewaySystem::Direct),
+                Some(GatewaySystem::UnifiedConnectorService),
+            ] {
+                let (gateway, path) = decide_execution_path(
+                    ConnectorIntegrationType::DirectandUCSConnector,
+                    previous_gateway,
+                    rollout_execution_mode(&rollout),
+                )
+                .expect("direct routing is supported");
+                assert!(matches!(gateway, GatewaySystem::Direct));
+                assert!(matches!(path, ExecutionPath::Direct));
+            }
+        }
+    }
+
+    #[test]
+    fn explicitly_sampled_shadow_is_preserved_unless_disabled() {
+        let rollout = RolloutExecutionResult {
+            should_execute: true,
+            execution_mode: ExecutionMode::Shadow,
+            ..Default::default()
+        };
+        for (availability, expect_shadow) in [
+            (UcsAvailability::Enabled, true),
+            (UcsAvailability::ShadowDisabled, false),
+        ] {
+            let (_, path) = decide_execution_path(
+                ConnectorIntegrationType::DirectandUCSConnector,
+                None,
+                resolve_execution_mode(rollout_execution_mode(&rollout), availability),
+            )
+            .expect("shadow routing is supported");
+            assert_eq!(
+                matches!(path, ExecutionPath::ShadowUnifiedConnectorService),
+                expect_shadow
+            );
+        }
+    }
+
+    #[test]
+    fn ucs_only_connectors_remain_exempt_from_kill_switch_fallback() {
+        assert!(!is_kill_switch_applicable(
+            ConnectorIntegrationType::UcsConnector,
+            &CallConnectorAction::Trigger,
+        ));
+        assert!(is_kill_switch_applicable(
+            ConnectorIntegrationType::DirectandUCSConnector,
+            &CallConnectorAction::Trigger,
+        ));
     }
 }
 

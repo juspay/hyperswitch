@@ -1,5 +1,5 @@
 //! Shared Redis kill switches for primary UCS calls and shadow proxy traffic.
-//! Primary UCS failures divert their rollout scope to shadow; qualifying HS proxy failures
+//! Primary UCS failures divert their rollout scope to Direct; qualifying HS proxy failures
 //! divert shadow traffic to Direct. Both use atomic counters with configurable thresholds.
 
 use std::str::FromStr;
@@ -97,12 +97,12 @@ async fn read_counters(
     })
 }
 
-/// Whether the kill switch should divert this scope to shadow mode.
+/// Whether the kill switch should divert this scope to Direct routing.
 ///
 /// Checks: per-scope `kill_switch_enabled` from RolloutConfig must be true. Then reads the
 /// failure counter from Redis and compares against the threshold.
 ///
-/// Fails closed: a Redis error routes to shadow (the safe path).
+/// Fails closed: a Redis error routes to Direct without comparison proxy dependencies.
 pub async fn is_kill_switched(
     state: &SessionState,
     rollout_scope: &str,
@@ -142,9 +142,9 @@ pub async fn is_kill_switched(
                 }
                 exceeded || decline_exceeded
             }
-            // Fails closed: the scope goes to shadow when Redis cannot answer.
+            // Fails closed: the scope goes to Direct when Redis cannot answer.
             Err(error) => {
-                // Fails closed: the scope goes to shadow. Named so an alert can catch a
+                // Fails closed: the scope goes to Direct. Named so an alert can catch a
                 // Redis outage diverting traffic, which no counter or metric would show.
                 logger::error!(
                     ?error,
@@ -326,7 +326,7 @@ async fn record_trippable_failure(
     let (outcome, redis_count) = increment_counter(state, failure, context).await;
 
     // Everything an alert needs from one line: scope, threshold, resulting counter,
-    // and whether that tips the scope into shadow.
+    // and whether that tips the scope into Direct routing.
     // A counter over its threshold on a scope with the switch disabled diverts nothing,
     // so it is not "tripped". Without this an alert on tripped=true fires for scopes that
     // can never divert, which is most of them.
