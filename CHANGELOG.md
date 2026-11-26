@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.26.0
+
+### Features
+
+- **connector:**
+  - [rapidconnect] add connector template code ([#15368](https://github.com/juspay/hyperswitch/pull/15368)) ([`2c4abb1`](https://github.com/juspay/hyperswitch/commit/2c4abb16d4c9eb42e8116151ae3656afa8f158ed))
+  - Pass user data fields in worldpay raft request ([#15359](https://github.com/juspay/hyperswitch/pull/15359)) ([`22804a6`](https://github.com/juspay/hyperswitch/commit/22804a6acb2913db8f2b67f559e70e85306da224))
+- **payouts:** Replace payout kill switch with allowlist ([#15386](https://github.com/juspay/hyperswitch/pull/15386)) ([`422d58d`](https://github.com/juspay/hyperswitch/commit/422d58d963437d15c21c69601b45fdf711e8732c))
+- **router:** Add google pay direct resource linking ([#15334](https://github.com/juspay/hyperswitch/pull/15334)) ([`2ccf92e`](https://github.com/juspay/hyperswitch/commit/2ccf92e5ffd504f77fdfd96bd6e2088640a7401d))
+
+### Bug Fixes
+
+- **connector:** [checkout] fix void response handling ([#15412](https://github.com/juspay/hyperswitch/pull/15412)) ([`3a70c97`](https://github.com/juspay/hyperswitch/commit/3a70c97e8923c8374b3c631c85d3d932ec92d77d))
+- **routing:** Preserve saved-card BINs in Decision Engine requests ([#15388](https://github.com/juspay/hyperswitch/pull/15388)) ([`ba61bc4`](https://github.com/juspay/hyperswitch/commit/ba61bc4b07f056e9f6057aa2c63ae766f513dddc))
+
+**Full Changelog:** [`2026.11.25.0...2026.11.26.0`](https://github.com/juspay/hyperswitch/compare/2026.11.25.0...2026.11.26.0)
+
+- - -
+
 ## 2026.11.25.0
 
 ### Features

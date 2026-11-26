@@ -33,10 +33,7 @@ use crate::{
         utils as core_utils,
     },
     routes::{metrics, SessionState},
-    services::{
-        self,
-        api::{self as service_api},
-    },
+    services::{self, api as service_api},
     types::{self, api, domain},
 };
 

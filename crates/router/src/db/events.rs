@@ -1636,11 +1636,7 @@ mod tests {
             MinorUnit,
         },
     };
-    use diesel_models::{
-        business_profile::WebhookDetails,
-        enums::{self},
-        events::EventMetadata,
-    };
+    use diesel_models::{business_profile::WebhookDetails, enums, events::EventMetadata};
     use futures::future::join_all;
     use hyperswitch_domain_models::{
         master_key::MasterKeyInterface, merchant_account::MerchantAccountSetter,
@@ -2003,6 +1999,8 @@ mod tests {
             offer_engine_config: None,
             apple_pay_certificates: None,
             apple_pay_certificates_encrypted: None,
+            google_pay_decryption_config: None,
+            google_pay_decryption_config_encrypted: None,
         });
         let merchant_account = state
             .accounts_store

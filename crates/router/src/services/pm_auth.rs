@@ -4,12 +4,7 @@ use pm_auth::{
     types::{self as pm_auth_types, api::BoxedConnectorIntegration, PaymentAuthRouterData},
 };
 
-use crate::{
-    core::errors::{self},
-    logger,
-    routes::SessionState,
-    services::{self},
-};
+use crate::{core::errors, logger, routes::SessionState, services};
 
 pub async fn execute_connector_processing_step<'b, T, Req, Resp>(
     state: &'b SessionState,
