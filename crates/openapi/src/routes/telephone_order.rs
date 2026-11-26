@@ -11,7 +11,7 @@
     ),
     request_body(
         content = TwilioGenericPayRequest,
-        description = "The provider's request. Shown here in Twilio's Generic Pay Connector shape. `method` follows the `<Pay>` verb's `chargeAmount`: `0` or absent makes it a `tokenize`. Storing a card is asked for by `parameters.setup_future_usage`, which is never assumed — a `tokenize` needs it as much as a charge does — and additionally needs `parameters.customer_id` and `parameters.customer_acceptance`. Note that Twilio's `<Parameter>` tags carry flat string pairs and cannot express the `customer_acceptance` and `billing` objects; those are for callers that post structured parameters.",
+        description = "The provider's request. Shown here in Twilio's Generic Pay Connector shape.",
         examples(
             ("01. Charge a card collected over the phone" = (
                 value = json!({
@@ -180,7 +180,7 @@
                 ))
             )
         ),
-        (status = 400, description = "The request was rejected before a charge was attempted: the API key is missing or does not belong to this merchant, the provider in the path is unknown, or the body is not a valid charge request for that provider.", body = GenericErrorResponseOpenApi,
+        (status = 400, description = "The request was rejected before the operation was attempted: the API key is missing or does not belong to this merchant, the provider in the path is unknown, or the body is not a valid request for that provider.", body = GenericErrorResponseOpenApi,
             example = json!({
                 "type": "invalid_request",
                 "message": "Missing required param: transaction_id",

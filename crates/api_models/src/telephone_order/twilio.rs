@@ -95,7 +95,7 @@ pub struct TwilioGenericPayResponse {
     #[schema(example = "Your card was declined.")]
     pub error_message: Option<String>,
 
-    /// Returned either way, and the only channel carrying a `payment_id` when there is no `charge_id`. Flat and all-string; the request's own `parameters` are never echoed back.
+    /// Returned either way, and the only channel carrying a `payment_id` when there is no `charge_id`. Flat and all-string. The request's own `parameters` are never echoed back.
     #[schema(value_type = Object, example = json!({
         "payment_id": "pay_1234",
         "status": "succeeded",
