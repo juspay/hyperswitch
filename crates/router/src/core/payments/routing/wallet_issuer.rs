@@ -4,7 +4,10 @@ use std::{future::Future, str::FromStr};
 
 use api_models::{
     enums::RoutableConnectors,
-    payments::{ApplepayCombinedSessionTokenData, GooglePayWalletDetails},
+    payments::{
+        ApplePayCombinedMetadata, ApplepayCombinedSessionTokenData, GooglePayProviderDetails,
+        GooglePayTokenizationType, GooglePayWalletDetails, PaymentProcessingDetailsAt,
+    },
 };
 use common_enums::{Country, CountryAlpha2, PaymentMethodType, TransactionType};
 use common_utils::{ext_traits::OptionExt, id_type::MerchantConnectorAccountId};
@@ -95,11 +98,7 @@ where
             PaymentMethodType::ApplePay => account
                 .get_metadata()
                 .parse_value::<ApplepayCombinedSessionTokenData>("ApplepayCombinedSessionTokenData")
-                .is_ok_and(|metadata| {
-                    metadata
-                        .apple_pay_combined
-                        .connector_configured_for_decrypted_token()
-                }),
+                .is_ok_and(apple_pay_accepts_decrypted_token),
             PaymentMethodType::GooglePay => {
                 is_googlepay_predecrypted_flow_supported(account.get_metadata())
                     || get_merchant_connector_account(
@@ -118,7 +117,7 @@ where
                             .parse_value::<GooglePayWalletDetails>("GooglePayWalletDetails")
                             .ok()
                     })
-                    .is_some_and(|details| details.connector_configured_for_decrypted_token())
+                    .is_some_and(google_pay_uses_hyperswitch_decryption)
             }
             _ => false,
         };
@@ -182,6 +181,35 @@ where
         selected.merchant_connector_id,
     )
     .ok()
+}
+
+fn apple_pay_accepts_decrypted_token(metadata: ApplepayCombinedSessionTokenData) -> bool {
+    let wrapper = metadata.apple_pay_combined;
+    wrapper.is_predecrypted_token_supported()
+        || match wrapper.data {
+            Some(ApplePayCombinedMetadata::Simplified { .. }) => true,
+            Some(ApplePayCombinedMetadata::Manual {
+                session_token_data, ..
+            }) => matches!(
+                session_token_data.payment_processing_details_at,
+                Some(PaymentProcessingDetailsAt::Hyperswitch(_))
+            ),
+            None => false,
+        }
+}
+
+fn google_pay_uses_hyperswitch_decryption(details: GooglePayWalletDetails) -> bool {
+    let GooglePayProviderDetails::GooglePayMerchantDetails(details) =
+        details.google_pay.provider_details;
+    let specification = details.merchant_info.tokenization_specification;
+    match specification.tokenization_type {
+        GooglePayTokenizationType::InternalGateway => true,
+        GooglePayTokenizationType::Direct => {
+            specification.parameters.private_key.is_some()
+                && specification.parameters.recipient_id.is_some()
+        }
+        GooglePayTokenizationType::PaymentGateway => false,
+    }
 }
 
 /// Best effort: unavailable wallet keys, decryption failures, and missing BIN records must
