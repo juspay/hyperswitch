@@ -5228,6 +5228,71 @@
                     "token": "pm_0196ea5a42a67583863d5b1253d62931",
                     "token_type": "PaymentMethodId"
                   }
+                },
+                "Create a proxy request that encrypts and signs": {
+                  "value": {
+                    "destination_url": "https://api.example.com/payments",
+                    "headers": {
+                      "Api-Key": "api_key_example",
+                      "Auth-Token-Type": "HMAC",
+                      "Client-Request-Id": "client_request_id_example",
+                      "Content-Type": "application/json",
+                      "Timestamp": "1763900000000"
+                    },
+                    "method": "POST",
+                    "request_body": {
+                      "amount": {
+                        "currency": "USD",
+                        "total": 12.04
+                      },
+                      "source": {
+                        "encryptionData": {
+                          "encryptionBlock": "{{$card_number}}{{$card_holder_name}}{{$card_exp_month}}{{$card_exp_year | exp_year_4}}{{$card_cvc}}",
+                          "encryptionBlockFields": "card.cardData:{{$card_number | byte_length}},card.nameOnCard:{{$card_holder_name | byte_length}},card.expirationMonth:{{$card_exp_month | byte_length}},card.expirationYear:4,card.securityCode:{{$card_cvc | byte_length}}",
+                          "encryptionTarget": "MANUAL",
+                          "encryptionType": "RSA",
+                          "keyId": "88000000022"
+                        },
+                        "sourceType": "PaymentCard"
+                      }
+                    },
+                    "token": "pm_example_payment_method_id",
+                    "token_type": "payment_method_id",
+                    "transformation": {
+                      "steps": [
+                        {
+                          "encoding": "base64",
+                          "field": "/source/encryptionData/encryptionBlock",
+                          "key": "<base64 DER SubjectPublicKeyInfo public key>",
+                          "operation": "encrypt",
+                          "scheme": "rsa_oaep_sha256"
+                        },
+                        {
+                          "format": "json",
+                          "operation": "serialize"
+                        },
+                        {
+                          "encoding": "base64",
+                          "header": "Authorization",
+                          "key": "<signing secret>",
+                          "message": [
+                            {
+                              "header": "Api-Key"
+                            },
+                            {
+                              "header": "Client-Request-Id"
+                            },
+                            {
+                              "header": "Timestamp"
+                            },
+                            "body"
+                          ],
+                          "operation": "sign",
+                          "scheme": "hmac_sha256"
+                        }
+                      ]
+                    }
+                  }
                 }
               }
             }
@@ -31655,7 +31720,7 @@
         ],
         "properties": {
           "request_body": {
-            "description": "The request body that needs to be forwarded: JSON, or an XML document as a string with\nan XML Content-Type. Other Content-Types are rejected. GET and DELETE send no body."
+            "description": "The request body that needs to be forwarded: JSON, or an XML document as a string with\nan XML Content-Type. Other Content-Types are rejected. GET and DELETE send no body.\n`{{$field}}` placeholders are replaced with vault values. `{{$field | byte_length}}`\nwrites the value's length in UTF-8 bytes, and `{{$field | exp_year_4}}` writes a 2- or\n4-digit year as 4 digits."
           },
           "destination_url": {
             "type": "string",

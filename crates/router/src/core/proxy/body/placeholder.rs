@@ -1,9 +1,48 @@
-//! `{{$field}}` placeholder parsing and vault field lookup, shared by every body format.
+//! `{{$field}}` and `{{$field | filter}}` placeholder parsing and vault field lookup, shared by
+//! every body format.
 
-use common_utils::fp_utils::when;
+use common_utils::{date_time, fp_utils::when};
 use serde_json::Value;
 
 use super::ProxyBodyError;
+
+/// A function applied to a vault value before it is written, as `{{$field | filter}}`.
+#[derive(Clone, Copy, Debug, strum::EnumString)]
+#[strum(serialize_all = "snake_case")]
+pub enum Filter {
+    /// The value's length in UTF-8 bytes, such as the field lengths a connector needs next to an
+    /// encrypted block.
+    ByteLength,
+    /// A 2- or 4-digit year as 4 digits; 2 digits are taken as the current century.
+    #[strum(serialize = "exp_year_4")]
+    ExpYear4,
+}
+
+impl Filter {
+    /// The filtered value; `None` when the value is not valid input for the filter.
+    fn apply(self, value: &str) -> Option<String> {
+        match self {
+            Self::ByteLength => Some(value.len().to_string()),
+            Self::ExpYear4 => {
+                let digits = value.bytes().all(|byte| byte.is_ascii_digit());
+                match value.len() {
+                    2 if digits => Some(format!("{}{value}", date_time::now().year() / 100)),
+                    4 if digits => Some(value.to_owned()),
+                    _ => None,
+                }
+            }
+        }
+    }
+}
+
+/// A parsed placeholder: the vault field and an optional filter.
+#[derive(Debug)]
+pub struct Placeholder<'a> {
+    /// The vault field name
+    pub field: &'a str,
+    /// The filter applied to the field's value
+    pub filter: Option<Filter>,
+}
 
 /// Depth-first lookup of a vault field by name, through nested objects and arrays.
 pub fn find_field<'a>(vault: &'a Value, field: &str) -> Option<&'a Value> {
@@ -16,13 +55,20 @@ pub fn find_field<'a>(vault: &'a Value, field: &str) -> Option<&'a Value> {
     }
 }
 
-/// The value of a placeholder embedded in text.
-fn scalar(vault: &Value, field: &str) -> Result<String, ProxyBodyError> {
-    match find_field(vault, field) {
+/// The value of a placeholder embedded in text, after its filter.
+fn scalar(vault: &Value, placeholder: &Placeholder<'_>) -> Result<String, ProxyBodyError> {
+    let field = placeholder.field;
+    let text = match find_field(vault, field) {
         Some(Value::String(s)) => Ok(s.clone()),
         Some(Value::Number(n)) => Ok(n.to_string()),
         Some(Value::Bool(b)) => Ok(b.to_string()),
         _ => Err(ProxyBodyError::InvalidField(field.to_owned())),
+    }?;
+    match placeholder.filter {
+        None => Ok(text),
+        Some(filter) => filter
+            .apply(&text)
+            .ok_or_else(|| ProxyBodyError::InvalidFilterInput(field.to_owned())),
     }
 }
 
@@ -33,17 +79,24 @@ pub(super) fn value(vault: &Value, field: &str) -> Result<Value, ProxyBodyError>
         .ok_or_else(|| ProxyBodyError::InvalidField(field.to_owned()))
 }
 
-/// Parse a `{{$field}}` placeholder at the start of `input`.
+/// Parse a `{{$field}}` or `{{$field | filter}}` placeholder at the start of `input`.
 ///
-/// Returns the field name and the number of bytes consumed, `None` when `input` does not
-/// start with a placeholder, and an error for a malformed one such as `{{$}}`.
-pub fn parse_placeholder(input: &str) -> Result<Option<(&str, usize)>, ProxyBodyError> {
+/// Returns the placeholder and the number of bytes consumed, `None` when `input` does not
+/// start with a placeholder, and an error for a malformed one such as `{{$}}` or one with an
+/// unknown filter.
+pub fn parse_placeholder(input: &str) -> Result<Option<(Placeholder<'_>, usize)>, ProxyBodyError> {
     input
         .strip_prefix("{{")
         .filter(|rest| rest.trim_start().starts_with('$'))
         .map(|rest| -> Result<_, ProxyBodyError> {
             let end = rest.find("}}").ok_or(ProxyBodyError::InvalidPlaceholder)?;
-            let field = rest[..end]
+            let inner = &rest[..end];
+            let (field, filter) = inner
+                .split_once('|')
+                .map_or((inner, None), |(field, filter)| {
+                    (field, Some(filter.trim()))
+                });
+            let field = field
                 .trim()
                 .strip_prefix('$')
                 .ok_or(ProxyBodyError::InvalidPlaceholder)?;
@@ -51,7 +104,10 @@ pub fn parse_placeholder(input: &str) -> Result<Option<(&str, usize)>, ProxyBody
                 field.is_empty() || !field.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'),
                 || Err(ProxyBodyError::InvalidPlaceholder),
             )?;
-            Ok((field, end + 4))
+            let filter = filter
+                .map(|name| name.parse().map_err(|_| ProxyBodyError::InvalidPlaceholder))
+                .transpose()?;
+            Ok((Placeholder { field, filter }, end + 4))
         })
         .transpose()
 }
@@ -69,8 +125,8 @@ pub(super) fn substitute(
         output.push_str(&rest[..start]);
         rest = &rest[start..];
         match parse_placeholder(rest)? {
-            Some((field, consumed)) => {
-                output.push_str(&escape(&scalar(vault, field)?));
+            Some((placeholder, consumed)) => {
+                output.push_str(&escape(&scalar(vault, &placeholder)?));
                 rest = &rest[consumed..];
             }
             // Not a placeholder: keep the `{{` as text.

@@ -2,7 +2,10 @@ pub mod core {
     use std::collections::HashMap;
 
     use async_trait::async_trait;
-    use common_utils::request::{Method, RequestBuilder, RequestContent};
+    use common_utils::{
+        fp_utils::when,
+        request::{Method, RequestBuilder, RequestContent},
+    };
     use error_stack::{self, ResultExt};
     use hyperswitch_masking::{self, ExposeInterface};
     use nom::{
@@ -382,6 +385,12 @@ pub mod core {
             processed_payload: &str,
             content_type: &ContentType,
         ) -> error_stack::Result<InjectorResponse, InjectorError>;
+
+        /// Whether the vault runs transformation instructions. Others reject them, as sending
+        /// the request without its encryption or signature would be wrong.
+        fn supports_transformation(&self) -> bool {
+            false
+        }
     }
 
     // ---- VGS / Proxy strategy --------------------------------------------------
@@ -442,6 +451,10 @@ pub mod core {
             injector
                 .make_hyperswitch_vault_request(request, processed_payload)
                 .await
+        }
+
+        fn supports_transformation(&self) -> bool {
+            true
         }
     }
 
@@ -654,6 +667,15 @@ pub mod core {
             );
 
             let strategy = Box::<dyn VaultConnectorStrategy>::from(&request);
+            when(
+                request.connection_config.transformation.is_some()
+                    && !strategy.supports_transformation(),
+                || {
+                    Err(error_stack::Report::new(InjectorError::InvalidTemplate(
+                        "Transformation is supported only with the Hyperswitch vault".to_string(),
+                    )))
+                },
+            )?;
 
             // Step 1: process the template
             let processed_payload = strategy.process_payload(
@@ -1043,6 +1065,7 @@ mod tests {
                 cert_password: None,
                 cert_format: None,
                 max_response_size: None,
+                transformation: None,
                 vault_auth_data: None,
                 vault_connector_id: Some(VaultConnectors::VGS),
                 vault_connector_type: Some(VaultConnectorType::Proxy),
@@ -1119,6 +1142,7 @@ mod tests {
                 cert_password: None,
                 cert_format: None,
                 max_response_size: None,
+                transformation: None,
                 vault_auth_data: None,
                 vault_connector_id: Some(VaultConnectors::VGS),
                 vault_connector_type: Some(VaultConnectorType::Proxy),
