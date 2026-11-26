@@ -611,6 +611,7 @@ export const CONNECTOR_LISTS = {
       // "cybersource",    // issues with MULTIPLE_CONNECTORS handling
       "paypal",
       // "stripe",
+      "wellsfargo",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
     CARD_HOLDER_NAME_BILLING_FALLBACK: ["worldpayxml"],
