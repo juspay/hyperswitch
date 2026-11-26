@@ -459,7 +459,7 @@ where
 
     let url = locker.get_host(endpoint_path);
 
-    let mut request = services::Request::new(Method::Post, &url);
+    let mut request = services::Request::new_intranet(Method::Post, &url);
     request.add_header(headers::CONTENT_TYPE, "application/json".into());
     request.add_header(headers::X_TENANT_ID, tenant_id.get_string_repr().into());
 
@@ -809,7 +809,7 @@ pub fn mk_get_card_request(
 
     let mut url = locker.host.to_owned();
     url.push_str("/card/getCard");
-    let mut request = services::Request::new(Method::Post, &url);
+    let mut request = services::Request::new_intranet(Method::Post, &url);
     request.set_body(RequestContent::FormUrlEncoded(Box::new(get_card_req)));
     Ok(request)
 }
