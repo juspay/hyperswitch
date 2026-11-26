@@ -62,6 +62,8 @@ CREATE TABLE payment_intents
     `organization_id` String,
     `processor_merchant_id` Nullable(String),
     `created_by` Nullable(String),
+    `revenue_recovery_algorithm_type` LowCardinality(Nullable(String)),
+    `api_version` LowCardinality(String) DEFAULT 'v1',
     `sign_flag` Int8,
     INDEX connectorIndex connector_id TYPE bloom_filter GRANULARITY 1,
     INDEX currencyIndex currency TYPE bloom_filter GRANULARITY 1,
@@ -134,3 +136,66 @@ SELECT
     created_by,
     sign_flag
 FROM payment_intents_queue;
+
+-- v2 payment intents: the v2 app publishes to its own topic. The v2 MV writes into the shared
+-- payment_intents table and stamps api_version = 'v2'; v1 rows get the column default 'v1'.
+CREATE TABLE payment_intents_v2_queue
+(
+    `payment_id` String,
+    `merchant_id` String,
+    `status` LowCardinality(String),
+    `amount` UInt32,
+    `currency` LowCardinality(Nullable(String)),
+    `amount_captured` Nullable(UInt32),
+    `customer_id` Nullable(String),
+    `description` Nullable(String),
+    `return_url` Nullable(String),
+    `statement_descriptor` Nullable(String),
+    `setup_future_usage` LowCardinality(Nullable(String)),
+    `off_session` Nullable(Bool),
+    `active_attempt_id` Nullable(String),
+    `attempt_count` UInt8,
+    `profile_id` Nullable(String),
+    `modified_at` DateTime CODEC(T64, LZ4),
+    `created_at` DateTime CODEC(T64, LZ4),
+    `last_synced` Nullable(DateTime) CODEC(T64, LZ4),
+    `organization_id` String,
+    `processor_merchant_id` Nullable(String),
+    `created_by` Nullable(String),
+    `revenue_recovery_algorithm_type` LowCardinality(Nullable(String)),
+    `sign_flag` Int8
+) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
+kafka_topic_list = 'hyperswitch-v2-payment-intent-events',
+kafka_group_name = 'hyper_v2',
+kafka_format = 'JSONEachRow',
+kafka_handle_error_mode = 'stream';
+
+CREATE MATERIALIZED VIEW payment_intents_v2_mv TO payment_intents AS
+SELECT
+    payment_id,
+    merchant_id,
+    status,
+    amount,
+    currency,
+    amount_captured,
+    customer_id,
+    description,
+    return_url,
+    statement_descriptor AS statement_descriptor_name,
+    setup_future_usage,
+    off_session,
+    coalesce(active_attempt_id, '') AS active_attempt_id,
+    attempt_count,
+    profile_id,
+    modified_at,
+    created_at,
+    last_synced,
+    now() AS inserted_at,
+    organization_id,
+    processor_merchant_id,
+    created_by,
+    revenue_recovery_algorithm_type,
+    'v2' AS api_version,
+    sign_flag
+FROM payment_intents_v2_queue
+WHERE length(_error) = 0;
