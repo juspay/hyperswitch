@@ -1269,7 +1269,7 @@ static CARD_ISIN_REGEX: LazyLock<Vec<(CardIssuer, Result<Regex, regex::Error>)>>
                 CardIssuer::JCB,
                 Regex::new(r"^3(?:088|096|112|158|337|5(?:2[89]|[3-8][0-9]))[0-9]{2}"),
             ),
-            (CardIssuer::UnionPay, Regex::new(r"^62[0-9]{4}")),
+            (CardIssuer::UnionPay, Regex::new(r"^(?:62|81)[0-9]{4}")),
             (CardIssuer::Visa, Regex::new(r"^4[0-9]{5}")),
             // Cartes Bancaires is co-badged and has no unique ISIN range.
         ]
