@@ -4,7 +4,6 @@ use std::{future::Future, str::FromStr};
 
 use api_models::enums::RoutableConnectors;
 use common_enums::{Country, CountryAlpha2, PaymentMethodType, TransactionType};
-use common_types::payments::{ApplePayPaymentData, GpayTokenizationData};
 use common_utils::id_type::MerchantConnectorAccountId;
 use euclid::backend::inputs::{BackendInput, IssuerDataInput};
 use hyperswitch_domain_models::{
@@ -30,25 +29,12 @@ use crate::{
     SessionState,
 };
 
-pub(in crate::core::payments) fn is_encrypted_wallet(
-    payment_method: Option<&PaymentMethodData>,
-) -> bool {
-    match payment_method {
-        Some(PaymentMethodData::Wallet(WalletData::ApplePay(data))) => {
-            matches!(&data.payment_data, ApplePayPaymentData::Encrypted(_))
-        }
-        Some(PaymentMethodData::Wallet(WalletData::GooglePay(data))) => {
-            matches!(&data.tokenization_data, GpayTokenizationData::Encrypted(_))
-        }
-        _ => false,
-    }
-}
-
 pub(in crate::core::payments) async fn route_wallet_confirmation<F, D>(
     state: &SessionState,
     processor: &domain::Processor,
     business_profile: &domain::Profile,
     payment_data: &D,
+    wallet_type: PaymentMethodType,
     dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     eligible_connectors: Option<&Vec<RoutableConnectors>>,
 ) -> Option<api::ConnectorData>
@@ -56,11 +42,6 @@ where
     F: Clone,
     D: OperationSessionGetters<F> + Sync,
 {
-    let wallet_type = match payment_data.get_payment_method_data()?.get_wallet_data()? {
-        WalletData::ApplePay(_) => PaymentMethodType::ApplePay,
-        WalletData::GooglePay(_) => PaymentMethodType::GooglePay,
-        _ => return None,
-    };
     if !state.conf.open_router.static_routing_enabled
         || !dimensions
             .with_payment_method_type(wallet_type)
