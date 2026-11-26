@@ -987,6 +987,21 @@ impl ConnectorSpecifications for ConnectorEnum {
             Self::New(connector) => connector.get_webhook_registration_plan(scope, connectors),
         }
     }
+
+    fn get_webhook_registration_metadata(
+        &self,
+        identifier: &ScopeIdentifier,
+        base_url: &str,
+    ) -> Option<serde_json::Value> {
+        match self {
+            Self::Old(connector) => {
+                connector.get_webhook_registration_metadata(identifier, base_url)
+            }
+            Self::New(connector) => {
+                connector.get_webhook_registration_metadata(identifier, base_url)
+            }
+        }
+    }
 }
 
 impl ConnectorEnum {

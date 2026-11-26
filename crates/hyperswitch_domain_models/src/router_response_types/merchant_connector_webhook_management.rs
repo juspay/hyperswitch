@@ -10,6 +10,9 @@ pub struct ConnectorWebhookRegisterResponse {
     pub error_code: Option<String>,
     /// Error message, if the registration failed.
     pub error_message: Option<String>,
+    /// Non-sensitive metadata to expose in the per-scope API response.
+    pub response_metadata: Option<serde_json::Value>,
+    /// Connector metadata patch to persist on the merchant connector account.
     pub metadata: Option<common_utils::pii::SecretSerdeValue>,
 }
 

@@ -77,6 +77,11 @@ pub struct WebhookRegistrationResult {
     /// Error details, if the registration failed.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<WebhookRegistrationError>,
+    /// Connector-supplied, non-sensitive details about this webhook registration.
+    /// This is returned for each individual registration call, including when a
+    /// single scope requires multiple connector webhooks.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<serde_json::Value>,
 }
 
 /// Error details for a failed webhook registration.
