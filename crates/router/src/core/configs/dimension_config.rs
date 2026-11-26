@@ -1063,6 +1063,37 @@ impl DatabaseBackedConfig for RoutingResultSource {
     }
 }
 
+/// Superposition-only endpoint rollout, scoped by processor/provider merchant and profile.
+pub struct DecisionEngineDecideEnabled;
+
+impl superposition::Config for DecisionEngineDecideEnabled {
+    type Output = bool;
+    type TargetingKey = id_type::ProfileId;
+    const SUPERPOSITION_KEY: &'static str = superposition_consts::DECISION_ENGINE_DECIDE_ENABLED;
+
+    fn default_value() -> Self::Output {
+        false
+    }
+}
+
+impl dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId {
+    pub async fn get_decision_engine_decide_enabled(
+        &self,
+        superposition_client: &superposition::SuperpositionClient,
+    ) -> bool {
+        use superposition::Config;
+
+        // There is no DB fallback: absent or unavailable rollout config keeps hybrid.
+        DecisionEngineDecideEnabled::fetch(
+            superposition_client,
+            self.to_superposition_context().as_ref(),
+            self.get_profile_id(),
+        )
+        .await
+        .unwrap_or_else(|_| DecisionEngineDecideEnabled::default_value())
+    }
+}
+
 config! {
     superposition_key = THREEDS_ROUTING_REGION_UAS,
     output = common_enums::RoutingRegion,

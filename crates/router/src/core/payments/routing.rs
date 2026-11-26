@@ -1,4 +1,6 @@
 use hyperswitch_domain_models::mandates;
+#[cfg(feature = "v1")]
+mod decide;
 #[cfg(all(test, feature = "v1"))]
 mod tests;
 mod transformers;
@@ -1586,6 +1588,7 @@ impl RoutingConnectorOutcomeWithApproach {
 pub struct HybridRoutingInput<'a> {
     pub state: &'a SessionState,
     pub business_profile: &'a domain::Profile,
+    pub dimensions: &'a dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     pub payment_dsl_input: &'a routing::PaymentsDslInput<'a>,
     pub backend_input: &'a backend::BackendInput,
     pub fallback_config: &'a [routing_types::RoutableConnectorChoice],
@@ -1599,7 +1602,6 @@ pub struct HybridRoutingStage;
 
 #[cfg(feature = "v1")]
 impl HybridRoutingStage {
-    #[cfg(any(feature = "dynamic_routing", test))]
     fn resolve_preferred_connector(
         preferred: &str,
         static_connectors: &[routing_types::RoutableConnectorChoice],
@@ -1662,17 +1664,65 @@ impl RoutingStage for HybridRoutingStage {
 
     fn route<'a>(&'a self, input: Self::Input<'a>) -> Self::Fut<'a> {
         Box::pin(async move {
-            let dynamic_routing_request = self.build_dynamic_routing_request(&input);
-
-            // Under DE cutover, always evaluate the profile's rule on DE; the caller falls back to HS static/default on empty or error.
-            let should_include_static_request = input.state.conf.open_router.static_routing_enabled;
-
             let payment_id = input
                 .payment_dsl_input
                 .payment_attempt
                 .payment_id
                 .get_string_repr()
                 .to_string();
+
+            if input
+                .dimensions
+                .get_decision_engine_decide_enabled(input.state.superposition_service.as_ref())
+                .await
+            {
+                let preferred_connectors = input
+                    .preferred_connector
+                    .as_deref()
+                    .and_then(|preferred| {
+                        Self::resolve_preferred_connector(preferred, input.static_connectors)
+                    })
+                    .map(|preferred| vec![preferred]);
+                let mut request = decide::build_decide_request(
+                    payment_id.clone(),
+                    input.backend_input,
+                    input.fallback_config,
+                    preferred_connectors,
+                    Some(or_types::RankingAlgorithm::SrBasedRouting),
+                )?;
+                request.merchant_reference_id = input
+                    .payment_dsl_input
+                    .payment_intent
+                    .merchant_order_reference_id
+                    .clone();
+                request.customer_id = input
+                    .payment_dsl_input
+                    .payment_intent
+                    .customer_id
+                    .as_ref()
+                    .map(|customer_id| customer_id.get_string_repr().to_string());
+                let outcome = utils::decision_engine_decide_routing(
+                    input.state,
+                    input.business_profile,
+                    payment_id,
+                    request,
+                )
+                .await
+                .unwrap_or_else(|error| {
+                    logger::error!(error=?error, "decision_engine: /decide failed, using HS fallback");
+                    utils::HybridRoutingOutcome::empty()
+                });
+
+                return Ok(RoutingConnectorOutcomeWithApproach {
+                    connectors: outcome.connectors,
+                    routing_approach: outcome.routing_approach.into(),
+                });
+            }
+
+            let dynamic_routing_request = self.build_dynamic_routing_request(&input);
+
+            // Under DE cutover, always evaluate the profile's rule on DE; the caller falls back to HS static/default on empty or error.
+            let should_include_static_request = input.state.conf.open_router.static_routing_enabled;
 
             let static_routing_request = if should_include_static_request {
                 Some(utils::build_static_routing_request_for_hybrid(
@@ -1798,6 +1848,7 @@ pub async fn perform_hybrid_routing_if_enabled(
             let input = HybridRoutingInput {
                 state,
                 business_profile,
+                dimensions,
                 payment_dsl_input,
                 backend_input,
                 fallback_config: &eligible_fallback,

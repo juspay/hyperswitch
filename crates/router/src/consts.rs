@@ -440,6 +440,24 @@ pub const CREQ_CHALLENGE_REQUEST_KEY: &str = "creq";
 pub const UCS_DDC_METHOD_DATA_KEY: &str = "threeDsMethodData";
 pub const UCS_DDC_METHOD_URL_KEY: &str = "threeDsMethodUrl";
 
+pub mod decision_engine_payment_method {
+    pub const PAY_LATER: &str = "pay_later";
+    pub const WALLET: &str = "wallet";
+    pub const UPI: &str = "upi";
+    pub const VOUCHER: &str = "voucher";
+    pub const BANK_REDIRECT: &str = "bank_redirect";
+    pub const BANK_DEBIT: &str = "bank_debit";
+    pub const BANK_TRANSFER: &str = "bank_transfer";
+    pub const REAL_TIME_PAYMENT: &str = "real_time_payment";
+    pub const GIFT_CARD: &str = "gift_card";
+    pub const CARD_REDIRECT: &str = "card_redirect";
+    pub const OPEN_BANKING: &str = "open_banking";
+    pub const MOBILE_PAYMENT: &str = "mobile_payment";
+    pub const CRYPTO: &str = "crypto";
+    pub const REWARD: &str = "reward";
+    pub const NETWORK_TOKEN: &str = "network_token";
+}
+
 /// Superposition configuration keys
 pub mod superposition {
     /// Offer Engine master gate key: boolean, `false` (default) disables all Offer Engine calls.
@@ -582,6 +600,8 @@ pub mod superposition {
     pub const CLIENT_SESSION_VALIDATION_ENABLED: &str = "client_session_validation_enabled";
     /// routing result source configuration key (selects between Hyperswitch and Decision Engine)
     pub const ROUTING_RESULT_SOURCE: &str = "routing.routing_result_source";
+    /// Select `/decide` for DE-routed payments, with merchant/profile overrides and hybrid rollback.
+    pub const DECISION_ENGINE_DECIDE_ENABLED: &str = "routing.decision_engine_decide_enabled";
     /// 3DS routing region configuration key for UAS
     pub const THREEDS_ROUTING_REGION_UAS: &str = "routing.threeds_routing_region_uas";
     /// disabled webhook events configuration key per merchant and connector
