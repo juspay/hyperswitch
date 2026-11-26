@@ -1,7 +1,4 @@
-//! Issuer-country routing for Apple Pay and Google Pay confirmations.
-//!
-//! Wallet identity remains `wallet` / `apple_pay` or `google_pay`. Only the issuer country
-//! is enriched from the decrypted payment number's eight-digit BIN.
+//! Uses the decrypted wallet's exact eight-digit BIN to determine issuer country.
 
 use std::{future::Future, str::FromStr};
 

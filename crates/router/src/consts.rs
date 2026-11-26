@@ -637,7 +637,6 @@ pub mod superposition {
         "routing.preferred_connectors_enabled_payment_method_types";
     /// Opt-in by profile and wallet type for overriding the session route at confirmation.
     pub const SESSION_OVERRIDE: &str = "routing.session_override";
-    /// Exact merchant connector account IDs allowed for wallet issuer country confirm routing.
     pub const WALLET_ISSUER_COUNTRY_CONFIRM_ROUTING_MCA_IDS: &str =
         "routing.wallet_issuer_country_confirm_routing_mca_ids";
     /// Payout blocklist guard configuration key
