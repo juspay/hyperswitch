@@ -11944,15 +11944,7 @@ where
         )
         .await?;
 
-    let transaction_data = core_routing::PaymentsDslInput::new(
-        payment_data.get_setup_mandate(),
-        payment_data.get_payment_attempt(),
-        payment_data.get_payment_intent(),
-        payment_data.get_payment_method_data(),
-        payment_data.get_address(),
-        payment_data.get_recurring_details(),
-        payment_data.get_currency(),
-    );
+    let transaction_data = payment_data.payment_routing_input();
 
     let fallback_config = routing_helpers::get_merchant_default_config(
         &*state.clone().store,
@@ -12659,15 +12651,7 @@ where
             })
         });
 
-    let transaction_data = core_routing::PaymentsDslInput::new(
-        payment_data.get_setup_mandate(),
-        payment_data.get_payment_attempt(),
-        payment_data.get_payment_intent(),
-        payment_data.get_payment_method_data(),
-        payment_data.get_address(),
-        payment_data.get_recurring_details(),
-        payment_data.get_currency(),
-    );
+    let transaction_data = payment_data.payment_routing_input();
 
     // Straight through routing block
     let request_straight_through_routing_stage =
@@ -16304,6 +16288,18 @@ impl<F: Clone> PaymentMethodChecker<F> for PaymentData<F> {
 }
 
 pub trait OperationSessionGetters<F> {
+    fn payment_routing_input(&self) -> core_routing::PaymentsDslInput<'_> {
+        core_routing::PaymentsDslInput::new(
+            self.get_setup_mandate(),
+            self.get_payment_attempt(),
+            self.get_payment_intent(),
+            self.get_payment_method_data(),
+            self.get_address(),
+            self.get_recurring_details(),
+            self.get_currency(),
+        )
+    }
+
     fn get_payment_attempt(&self) -> &storage::PaymentAttempt;
     #[cfg(feature = "v2")]
     fn list_payments_attempts(&self) -> &Vec<storage::PaymentAttempt>;
