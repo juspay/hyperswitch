@@ -19,10 +19,7 @@ use hyperswitch_domain_models::{
         RefundSyncRouterData, RefundsRouterData,
     },
 };
-use hyperswitch_interfaces::{
-    consts,
-    errors::{self},
-};
+use hyperswitch_interfaces::{consts, errors};
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 

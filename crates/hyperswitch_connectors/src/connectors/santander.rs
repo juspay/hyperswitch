@@ -2286,6 +2286,9 @@ impl webhooks::IncomingWebhook for Santander {
                     | responses::RecurrenceStatus::Cancelada => {
                         Ok(IncomingWebhookEvent::MandateRevoked)
                     }
+                    responses::RecurrenceStatus::Unknown => {
+                        Err(errors::ConnectorError::WebhookBodyDecodingFailed.into())
+                    }
                     _ => Ok(IncomingWebhookEvent::EventNotSupported),
                 }
             }
@@ -2322,7 +2325,7 @@ impl webhooks::IncomingWebhook for Santander {
                         Ok(IncomingWebhookEvent::PaymentIntentFailure)
                     }
                     responses::SantanderPixAutomaticoCobrWebhookStatus::Unknown => {
-                        Ok(IncomingWebhookEvent::EventNotSupported)
+                        Err(errors::ConnectorError::WebhookBodyDecodingFailed.into())
                     }
                 }
             }
