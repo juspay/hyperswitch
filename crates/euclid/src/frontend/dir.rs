@@ -1,11 +1,14 @@
 //! Domain Intermediate Representation
+//! This ensures that the ast which is used for frontend specific generic types can be validated and mapped
+//! to domain specific types. This will ensure that the Generic String objects can be properly
+//! transformed to some type on backend and hence a proper validated Rule can be created.
+
 pub mod enums;
 pub mod lowering;
 pub mod transformers;
 
 use strum::IntoEnumIterator;
 
-// use common_utils::types::MinorUnit;
 use crate::{enums as euclid_enums, frontend::ast, types};
 
 #[macro_export]
