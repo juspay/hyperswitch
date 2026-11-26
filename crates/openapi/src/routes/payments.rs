@@ -957,7 +957,9 @@ pub fn payments_capture() {}
 pub fn payments_connector_session() {}
 
 #[cfg(feature = "v2")]
-/// Payments - Session token
+/// Payments - Session token (Experimental)
+///
+/// Experimental API. Requests, responses, and behavior may change without backward compatibility guarantees.
 ///
 /// Creates a session object or a session token for wallets like Apple Pay, Google Pay, etc. These tokens are used by Hyperswitch's SDK to initiate these wallets' SDK.
 #[utoipa::path(
@@ -1349,7 +1351,9 @@ pub fn payments_submit_eligibility_check() {}
 )]
 pub fn payments_submit_eligibility() {}
 
-/// Payments - Create Intent
+/// Payments - Create Intent (Experimental)
+///
+/// Experimental API. Requests, responses, and behavior may change without backward compatibility guarantees.
 ///
 /// **Creates a payment intent object when amount_details are passed.**
 ///
@@ -1378,7 +1382,9 @@ pub fn payments_submit_eligibility() {}
 #[cfg(feature = "v2")]
 pub fn payments_create_intent() {}
 
-/// Payments - Get Intent
+/// Payments - Get Intent (Experimental)
+///
+/// Experimental API. Requests, responses, and behavior may change without backward compatibility guarantees.
 ///
 /// **Get a payment intent object when id is passed in path**
 ///
@@ -1398,7 +1404,9 @@ pub fn payments_create_intent() {}
 #[cfg(feature = "v2")]
 pub fn payments_get_intent() {}
 
-/// Payments - Update Intent
+/// Payments - Update Intent (Experimental)
+///
+/// Experimental API. Requests, responses, and behavior may change without backward compatibility guarantees.
 ///
 /// **Update a payment intent object**
 ///
@@ -1434,7 +1442,9 @@ pub fn payments_get_intent() {}
 #[cfg(feature = "v2")]
 pub fn payments_update_intent() {}
 
-/// Payments - Confirm Intent
+/// Payments - Confirm Intent (Experimental)
+///
+/// Experimental API. Requests, responses, and behavior may change without backward compatibility guarantees.
 ///
 /// **Confirms a payment intent object with the payment method data**
 ///
@@ -1482,7 +1492,9 @@ pub fn payments_update_intent() {}
 #[cfg(feature = "v2")]
 pub fn payments_confirm_intent() {}
 
-/// Payments - Get
+/// Payments - Get (Experimental)
+///
+/// Experimental API. Requests, responses, and behavior may change without backward compatibility guarantees.
 ///
 /// Retrieves a Payment. This API can also be used to get the status of a previously initiated payment or next action for an ongoing payment
 #[utoipa::path(
@@ -1503,7 +1515,9 @@ pub fn payments_confirm_intent() {}
 #[cfg(feature = "v2")]
 pub fn payment_status() {}
 
-/// Payments - Create and Confirm Intent
+/// Payments - Create and Confirm Intent (Experimental)
+///
+/// Experimental API. Requests, responses, and behavior may change without backward compatibility guarantees.
 ///
 /// **Creates and confirms a payment intent object when the amount and payment method information are passed.**
 ///
@@ -1563,7 +1577,9 @@ pub(crate) enum ForceSync {
     False,
 }
 
-/// Payments - Payment Methods List
+/// Payments - Payment Methods List (Experimental)
+///
+/// Experimental API. Requests, responses, and behavior may change without backward compatibility guarantees.
 ///
 /// List the payment methods eligible for a payment. This endpoint also returns the saved payment methods for the customer when the customer_id is passed when creating the payment
 #[cfg(feature = "v2")]
@@ -1588,7 +1604,9 @@ pub(crate) enum ForceSync {
 )]
 pub fn list_payment_methods() {}
 
-/// Payments - List
+/// Payments - List (Experimental)
+///
+/// Experimental API. Requests, responses, and behavior may change without backward compatibility guarantees.
 ///
 /// List payments and their total count within the authenticated X-Profile-Id.
 /// An optional profile_id query filter must match X-Profile-Id.
@@ -1611,7 +1629,9 @@ pub fn list_payment_methods() {}
 )]
 pub fn payments_list() {}
 
-/// Payments - Check Balance and Apply PM Data
+/// Payments - Check Balance and Apply PM Data (Experimental)
+///
+/// Experimental API. Requests, responses, and behavior may change without backward compatibility guarantees.
 ///
 /// Check the balance of the payment methods, apply the payment method data and recalculate remaining_amount and surcharge
 #[cfg(feature = "v2")]
