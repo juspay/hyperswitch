@@ -1,6 +1,15 @@
 # For documentation on how to configure this file,
 # see diesel.rs/guides/configuring-diesel-cli
 
+# This configuration regenerates `crates/diesel_models/src/schema.rs` (see `[print_schema]` below),
+# which requires `rustfmt` and applies `crates/diesel_models/drop_id.patch` on top of the formatted
+# output. It is the configuration used by developers and CI (`just migrate`).
+#
+# The setup containers (`migration_runner` in the compose files) only apply migrations and use
+# `diesel_migration.toml`, which deliberately omits `[print_schema]` so that it works without
+# `rustfmt` and never rewrites `schema.rs` in the user's checkout. Keep the two files in sync for
+# everything except `[print_schema]`.
+
 [print_schema]
 file = "crates/diesel_models/src/schema.rs"
 import_types = ["diesel::sql_types::*", "crate::enums::diesel_exports::*"]

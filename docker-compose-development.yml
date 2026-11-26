@@ -54,7 +54,7 @@ services:
       curl --proto '=https' --tlsv1.2 -LsSf https://github.com/diesel-rs/diesel/releases/latest/download/diesel_cli-installer.sh | bash &&
       curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin &&
       export PATH="$${PATH}:$${HOME}/.cargo/bin" &&
-      just migrate"
+      just migrate_setup"
     working_dir: /app
     networks:
       - router_net

@@ -67,7 +67,7 @@ services:
         curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
       fi &&
       export PATH="$${PATH}:$${HOME}/.cargo/bin" &&
-      just migrate"
+      just migrate_setup"
     working_dir: /app
     networks:
       - router_net
