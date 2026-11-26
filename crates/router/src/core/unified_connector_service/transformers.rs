@@ -9845,7 +9845,10 @@ impl
             amount,
             payment_method,
             capture_method: capture_method.map(Into::into),
-            state: None,
+            state: router_data
+                .access_token
+                .as_ref()
+                .map(ConnectorState::foreign_from),
         })
     }
 }
