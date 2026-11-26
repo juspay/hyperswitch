@@ -77,8 +77,7 @@ use crate::{
     db::StorageInterface,
     errors::StorageError,
     types::{
-        api::{self as api_types},
-        domain,
+        api as api_types, domain,
         storage::{
             revenue_recovery as pcr_storage_types,
             revenue_recovery_redis_operation::PaymentProcessorTokenDetails,

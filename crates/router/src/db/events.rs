@@ -1636,11 +1636,7 @@ mod tests {
             MinorUnit,
         },
     };
-    use diesel_models::{
-        business_profile::WebhookDetails,
-        enums::{self},
-        events::EventMetadata,
-    };
+    use diesel_models::{business_profile::WebhookDetails, enums, events::EventMetadata};
     use futures::future::join_all;
     use hyperswitch_domain_models::{
         master_key::MasterKeyInterface, merchant_account::MerchantAccountSetter,
