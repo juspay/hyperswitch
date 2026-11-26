@@ -56,7 +56,15 @@ where
         return None;
     }
 
-    let payment = payment_data.payment_routing_input();
+    let payment = PaymentsDslInput::new(
+        payment_data.get_setup_mandate(),
+        payment_data.get_payment_attempt(),
+        payment_data.get_payment_intent(),
+        payment_data.get_payment_method_data(),
+        payment_data.get_address(),
+        payment_data.get_recurring_details(),
+        payment_data.get_currency(),
+    );
     let mut input = super::make_dsl_input(&payment).ok()?;
     enrich_wallet_issuer_country(state, processor, business_profile, &payment, &mut input).await;
     input.issuer_data.as_ref()?.country?;
