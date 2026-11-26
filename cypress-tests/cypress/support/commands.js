@@ -7897,6 +7897,7 @@ Cypress.Commands.add(
     createConfirmPayoutBody.confirm = confirm;
     createConfirmPayoutBody.payout_method_id = globalState.data.paymentMethodId;
     delete createConfirmPayoutBody.payout_token;
+    delete createConfirmPayoutBody.payout_method_data;
     const headers = {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),

@@ -116,6 +116,18 @@ pub(super) fn validate_payout_mutation_request(
 }
 
 #[cfg(feature = "v1")]
+pub(super) fn validate_payout_method_source(
+    req: &payouts::PayoutCreateRequest,
+    persisted_payout_method_id: Option<&str>,
+) -> RouterResult<()> {
+    validate_payout_condition(
+        req.payout_method_data.is_some()
+            && (req.payout_method_id.is_some() || persisted_payout_method_id.is_some()),
+        "Inline payout_method_data cannot be used with a saved payout_method_id",
+    )
+}
+
+#[cfg(feature = "v1")]
 async fn get_and_validate_payout_customer(
     state: &SessionState,
     platform: &domain::Platform,
@@ -191,6 +203,8 @@ pub async fn validate_create_request(
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {
+    validate_payout_method_source(req, None)?;
+
     if req.payout_method_id.is_some() && req.confirm != Some(true) {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
             message: "Confirm must be true for recurring payouts".to_string(),
