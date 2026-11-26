@@ -1,0 +1,12 @@
+rules:
+  github-app:
+    ignore:
+      # The linked issues check must read issues linked from other repositories
+      - pr-convention-checks.yml:75
+
+  dangerous-triggers:
+    ignore:
+      # `pull_request_target` is required so the labeler can edit labels on pull requests from forks, reacting to edits.
+      # Only the labeler writes, and its app token is scoped to `pull-requests: write` on this repository only.
+      # No step checks out or executes code from the pull request, and no job uses the ambient GITHUB_TOKEN, which keeps the trigger acceptable.
+      - pr-convention-checks.yml:3

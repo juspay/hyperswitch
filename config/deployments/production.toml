@@ -173,6 +173,7 @@ placetopay.base_url = "https://checkout.placetopay.com/rest/gateway"
 plaid.base_url = "https://production.plaid.com"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
+rapidconnect.base_url = "https://prod.dw.us.fdcnet.biz/rc"  # TODO: replace with real RapidConnect production hostname once provided
 rapyd.base_url = "https://api.rapyd.net"
 razorpay.base_url = "https://api.razorpay.com/"
 recurly.base_url = "https://v3.recurly.com"
@@ -346,7 +347,7 @@ card.debit = "adyen"
 adyen = "BRL,MXN,JPY"
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,stripe,nuvei,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan,worldpayraft"
+connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,stripe,nuvei,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan,worldpayraft,paypal"
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit

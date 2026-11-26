@@ -3,10 +3,7 @@ pub mod theme;
 use actix_web::{web, HttpRequest, HttpResponse};
 #[cfg(feature = "dummy_connector")]
 use api_models::user::sample_data::SampleDataRequest;
-use api_models::{
-    errors::types::ApiErrorResponse,
-    user::{self as user_api},
-};
+use api_models::{errors::types::ApiErrorResponse, user as user_api};
 use common_enums::TokenPurpose;
 use common_utils::errors::ReportSwitchExt;
 use router_env::Flow;
@@ -14,11 +11,7 @@ use router_env::Flow;
 use super::AppState;
 use crate::{
     core::{api_locking, user as user_core},
-    services::{
-        api,
-        authentication::{self as auth},
-        authorization::permissions::Permission,
-    },
+    services::{api, authentication as auth, authorization::permissions::Permission},
     utils::user::dashboard_metadata::{parse_string_to_enums, set_ip_address_if_required},
 };
 

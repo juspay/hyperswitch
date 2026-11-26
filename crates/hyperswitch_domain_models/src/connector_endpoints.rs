@@ -138,6 +138,7 @@ pub struct Connectors {
     pub plaid: ConnectorParams,
     pub powertranz: ConnectorParams,
     pub prophetpay: ConnectorParams,
+    pub rapidconnect: ConnectorParams,
     pub rapyd: ConnectorParams,
     pub razorpay: ConnectorParamsWithKeys,
     pub recurly: ConnectorParams,
