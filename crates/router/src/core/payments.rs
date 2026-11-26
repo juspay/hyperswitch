@@ -927,18 +927,21 @@ where
         .as_ref()
         .and_then(|customer| customer.connector_customer.as_ref());
 
-    let connector_customer_id = |mca_id: Option<&id_type::MerchantConnectorAccountId>| {
-        customer
-            .as_ref()?
-            .get_connector_customer_id(mca_id?.get_string_repr())
-            .map(String::from)
-    };
-    payment_data.set_connector_customer_id(connector_customer_id(
-        payment_data
-            .get_payment_attempt()
-            .merchant_connector_id
-            .as_ref(),
-    ));
+    let merchant_connector_id = payment_data
+        .get_payment_attempt()
+        .merchant_connector_id
+        .clone();
+
+    let connector_customer_id = connector_customer_map.and_then(|cc| {
+        merchant_connector_id.and_then(|mca_id| {
+            cc.clone()
+                .expose()
+                .get(mca_id.get_string_repr())
+                .and_then(|val| val.as_str().map(String::from))
+        })
+    });
+
+    payment_data.set_connector_customer_id(connector_customer_id);
 
     let authentication_type = Box::pin(call_decision_manager(
         state,
@@ -1026,9 +1029,14 @@ where
             )
             .await
             {
-                payment_data.set_connector_customer_id(connector_customer_id(
-                    selected.merchant_connector_id.as_ref(),
-                ));
+                let selected_customer_id = customer
+                    .as_ref()
+                    .zip(selected.merchant_connector_id.as_ref())
+                    .and_then(|(customer, mca_id)| {
+                        customer.get_connector_customer_id(mca_id.get_string_repr())
+                    })
+                    .map(String::from);
+                payment_data.set_connector_customer_id(selected_customer_id);
                 payment_data
                     .set_connector_in_payment_attempt(Some(selected.connector_name.to_string()));
                 payment_data
@@ -11957,10 +11965,20 @@ where
             "euclid: make_dsl_input failed, falling back"
         );
     }) {
-        Ok(backend_input) => {
+        Ok(mut backend_input) => {
             let transaction_type = enums::TransactionType::Payment;
 
             if should_call_connector(operation, payment_data, call_connector_action) {
+                if matches!(&connector_choice, api::ConnectorChoice::Decide) {
+                    routing::wallet_issuer::enrich_wallet_issuer_country(
+                        state,
+                        processor,
+                        business_profile,
+                        &transaction_data,
+                        &mut backend_input,
+                    )
+                    .await;
+                }
                 Some(match connector_choice {
                     api::ConnectorChoice::SessionMultiple(connectors) => {
                         let routing_output = perform_session_token_routing(
@@ -12564,7 +12582,7 @@ pub async fn decide_connector<F, D>(
     mandate_type: Option<api::MandateTransactionType>,
     dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
-    mut backend_input: dsl_inputs::BackendInput,
+    backend_input: dsl_inputs::BackendInput,
     is_payment_method_modular_allowed: bool,
     customer_preferred_connectors: Option<pii::SecretSerdeValue>,
 ) -> RouterResult<(ConnectorCallType, bool)>
@@ -12645,16 +12663,6 @@ where
         payment_data.get_recurring_details(),
         payment_data.get_currency(),
     );
-    if request_straight_through.is_none() {
-        routing::wallet_issuer::enrich_wallet_issuer_country(
-            &state,
-            processor,
-            business_profile,
-            &transaction_data,
-            &mut backend_input,
-        )
-        .await;
-    }
 
     // Straight through routing block
     let request_straight_through_routing_stage =
