@@ -2,7 +2,7 @@
 use api_models::payouts as payout_models;
 use api_models::{
     enums::{Currency, DisputeStatus, MandateStatus},
-    webhooks::{self as api},
+    webhooks as api,
 };
 use common_utils::{crypto::SignMessage, date_time, ext_traits::Encode};
 #[cfg(feature = "payouts")]
