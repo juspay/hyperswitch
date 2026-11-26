@@ -26,7 +26,7 @@ common_enums = { version = "0.1.0", path = "../common_enums" }
 common_types = { version = "0.1.0", path = "../common_types" }
 connector_configs = { version = "0.1.0", path = "../connector_configs" }
 currency_conversion = { version = "0.1.0", path = "../currency_conversion" }
-euclid = { version = "0.1.0", path = "../euclid", features = [] }
+euclid = { version = "0.1.0", path = "../euclid", features = ["valued_jit"] }
 hyperswitch_constraint_graph = { version = "0.1.0", path = "../hyperswitch_constraint_graph" }
 kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
 
