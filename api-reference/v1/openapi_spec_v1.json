@@ -10505,7 +10505,7 @@
           }
         ],
         "requestBody": {
-          "description": "The provider's request. Shown here in Twilio's Generic Pay Connector shape. `method` follows the `<Pay>` verb's `chargeAmount`: `0` or absent makes it a `tokenize`. Storing a card — a `tokenize`, or a charge carrying `parameters.setup_future_usage` — additionally needs `parameters.customer_id` and `parameters.customer_acceptance`.",
+          "description": "The provider's request. Shown here in Twilio's Generic Pay Connector shape. `method` follows the `<Pay>` verb's `chargeAmount`: `0` or absent makes it a `tokenize`. Storing a card is asked for by `parameters.setup_future_usage`, which is never assumed — a `tokenize` needs it as much as a charge does — and additionally needs `parameters.customer_id` and `parameters.customer_acceptance`. Note that Twilio's `<Parameter>` tags carry flat string pairs and cannot express the `customer_acceptance` and `billing` objects; those are for callers that post structured parameters.",
           "content": {
             "application/json": {
               "schema": {
@@ -10541,8 +10541,10 @@
                     "expiry_year": "28",
                     "method": "charge",
                     "parameters": {
-                      "acceptance_timestamp": "2026-11-26T10:11:12Z",
-                      "customer_acceptance": "offline",
+                      "customer_acceptance": {
+                        "acceptance_type": "offline",
+                        "accepted_at": "2026-11-26T10:11:12Z"
+                      },
                       "customer_id": "cus_1234",
                       "setup_future_usage": "off_session"
                     },
@@ -10557,9 +10559,24 @@
                     "expiry_year": "28",
                     "method": "tokenize",
                     "parameters": {
+                      "billing": {
+                        "address": {
+                          "city": "San Francisco",
+                          "country": "US",
+                          "first_name": "John",
+                          "last_name": "Doe",
+                          "line1": "1467 Harrison Street",
+                          "state": "CA"
+                        },
+                        "email": "caller@example.com"
+                      },
                       "currency": "USD",
-                      "customer_acceptance": "offline",
-                      "customer_id": "cus_1234"
+                      "customer_acceptance": {
+                        "acceptance_type": "offline",
+                        "accepted_at": "2026-11-26T10:11:12Z"
+                      },
+                      "customer_id": "cus_1234",
+                      "setup_future_usage": "off_session"
                     },
                     "postal_code": "94122",
                     "transaction_id": "IP1234"
@@ -50414,7 +50431,7 @@
           },
           "error_code": {
             "type": "string",
-            "description": "Set when the operation did not succeed: the connector's decline code, or one of `INVALID_REQUEST`, `CUSTOMER_REQUIRED`, `PROFILE_NOT_FOUND`, `PAYMENT_NOT_COMPLETED`, `PAYMENT_PENDING`, `DUPLICATE_TRANSACTION`, `PROCESSING_ERROR`, `TOKENIZE_FAILED`, `BANK_ACCOUNT_UNSUPPORTED`. On `PAYMENT_PENDING` the funds may be held, so do not re-prompt for a card.",
+            "description": "Set when the operation did not succeed: the connector's decline code, or one of `INVALID_REQUEST`, `CUSTOMER_REQUIRED`, `ACCEPTANCE_REQUIRED`, `PROFILE_NOT_FOUND`, `PAYMENT_NOT_COMPLETED`, `PAYMENT_PENDING`, `DUPLICATE_TRANSACTION`, `PROCESSING_ERROR`, `TOKENIZE_FAILED`, `BANK_ACCOUNT_UNSUPPORTED`. On `PAYMENT_PENDING` the funds may be held, so do not re-prompt for a card.",
             "example": "PAYMENT_NOT_COMPLETED",
             "nullable": true
           },
