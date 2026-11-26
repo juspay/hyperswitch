@@ -18,6 +18,9 @@ use crate::{
         configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         payments::{
             decrypt_apple_pay_wallet_for_eligibility, decrypt_google_pay_wallet_for_eligibility,
+            helpers::{
+                is_applepay_predecrypted_flow_supported, is_googlepay_predecrypted_flow_supported,
+            },
             OperationSessionGetters,
         },
         routing::{helpers::get_merchant_default_config, PaymentsDslInput},
@@ -85,22 +88,6 @@ where
     enrich_wallet_issuer_country(state, processor, business_profile, &payment, &mut input).await;
     input.issuer_data.as_ref()?.country?;
 
-    let allowed_mca_ids = dimensions
-        .get_wallet_issuer_country_confirm_routing_mca_ids(
-            state.store.as_ref(),
-            state.superposition_service.as_ref(),
-            None,
-        )
-        .await;
-    let allowed_mca_ids: Vec<_> = allowed_mca_ids
-        .split(',')
-        .map(str::trim)
-        .filter(|id| !id.is_empty())
-        .collect();
-    if allowed_mca_ids.is_empty() {
-        return None;
-    }
-
     let profile_id = business_profile.get_id();
     let key_store = processor.get_key_store();
     let mut candidates = get_merchant_default_config(
@@ -115,11 +102,19 @@ where
         .ok()?;
     candidates.retain(|choice| {
         choice.merchant_connector_id.as_ref().is_some_and(|id| {
-            allowed_mca_ids.contains(&id.get_string_repr())
-                && accounts.iter().any(|account| {
-                    &account.merchant_connector_id == id
-                        && account.connector_name == choice.connector.to_string()
-                })
+            accounts.iter().any(|account| {
+                &account.merchant_connector_id == id
+                    && account.connector_name == choice.connector.to_string()
+                    && match wallet_type {
+                        PaymentMethodType::ApplePay => {
+                            is_applepay_predecrypted_flow_supported(account.get_metadata())
+                        }
+                        PaymentMethodType::GooglePay => {
+                            is_googlepay_predecrypted_flow_supported(account.get_metadata())
+                        }
+                        _ => false,
+                    }
+            })
         })
     });
     if candidates.is_empty() {
