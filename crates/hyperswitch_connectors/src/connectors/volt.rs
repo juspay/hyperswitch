@@ -49,11 +49,7 @@ use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface};
 use transformers as volt;
 
 use self::volt::{webhook_headers, VoltWebhookBodyEventType};
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils,
-};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 const X_VOLT_API_VERSION: &str = "X-Volt-Api-Version";
 const X_VOLT_INITIATION_CHANNEL: &str = "X-Volt-Initiation-Channel";

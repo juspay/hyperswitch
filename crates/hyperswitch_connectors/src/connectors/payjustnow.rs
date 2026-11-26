@@ -47,11 +47,7 @@ use hyperswitch_interfaces::{
 use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface, Secret};
 use transformers as payjustnow;
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils,
-};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct Payjustnow {

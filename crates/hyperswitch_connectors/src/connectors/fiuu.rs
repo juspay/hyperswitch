@@ -50,11 +50,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use transformers::{self as fiuu, ExtraParameters, FiuuWebhooksResponse};
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils,
-};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 pub fn parse_and_log_keys_in_url_encoded_response<T>(data: &[u8]) {
     match std::str::from_utf8(data) {

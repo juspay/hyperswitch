@@ -48,11 +48,7 @@ use hyperswitch_interfaces::{
 use hyperswitch_masking::{Mask, PeekInterface};
 use transformers as gocardless;
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils,
-};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct Gocardless {

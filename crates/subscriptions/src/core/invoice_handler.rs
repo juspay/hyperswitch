@@ -1,7 +1,5 @@
 use api_models::{
-    enums as api_enums,
-    mandates::RecurringDetails,
-    subscription::{self as subscription_types},
+    enums as api_enums, mandates::RecurringDetails, subscription as subscription_types,
 };
 use common_enums::connector_enums;
 use common_utils::{pii, types::MinorUnit};
