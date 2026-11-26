@@ -6931,16 +6931,10 @@ pub async fn get_pm_list_context(
                 .map(|token| PaymentTokenData::temporary_generic(token.clone())),
         }),
 
-        _ => Some(PaymentMethodListContext {
-            card_details: None,
-            #[cfg(feature = "payouts")]
-            bank_transfer_details: None,
-            #[cfg(feature = "payouts")]
-            wallet_details: None,
-            hyperswitch_token_data: is_payment_associated.then_some(
-                PaymentTokenData::temporary_generic(generate_id(consts::ID_LENGTH, "token")),
-            ),
-        }),
+        // No payment token can be resolved for any other saved payment method (pay later,
+        // voucher, gift card, ...): a temporary token would point to nothing in the vault, so
+        // confirming with it fails. Such payment methods are left out of the list instead.
+        _ => None,
     };
 
     Ok(payment_method_retrieval_context)
