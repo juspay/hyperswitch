@@ -986,21 +986,30 @@ where
     )
     .await?;
 
-    let wallet_routing = wallet_session_override.then_some(WalletConfirmRouting {
-        dimensions: &dimensions,
-        eligible_connectors: eligible_connectors.as_ref(),
-        customer: customer.as_ref(),
-    });
     let payment_method_token = get_decrypted_wallet_pm_token_and_set_pm_data(
         &operation,
         state,
         platform,
         &business_profile,
         &mut payment_data,
-        &mut connector,
-        wallet_routing,
+        connector.as_ref(),
     )
     .await?;
+
+    override_wallet_session_connector(
+        state,
+        platform.get_processor(),
+        &business_profile,
+        &mut payment_data,
+        &mut connector,
+        payment_method_token.as_ref(),
+        wallet_session_override.then_some(WalletConfirmRouting {
+            dimensions: &dimensions,
+            eligible_connectors: eligible_connectors.as_ref(),
+            customer: customer.as_ref(),
+        }),
+    )
+    .await;
 
     payment_method_token.map(|token| payment_data.set_payment_method_token(Some(token)));
 
@@ -6287,15 +6296,41 @@ struct WalletConfirmRouting<'a> {
 }
 
 #[cfg(feature = "v1")]
-fn apply_wallet_confirm_connector<F, D>(
+async fn override_wallet_session_connector<F, D>(
+    state: &SessionState,
+    processor: &domain::Processor,
+    business_profile: &domain::Profile,
     payment_data: &mut D,
     connector: &mut Option<ConnectorCallType>,
-    customer: Option<&domain::Customer>,
-    selected: api::ConnectorData,
+    token: Option<&PaymentMethodToken>,
+    routing: Option<WalletConfirmRouting<'_>>,
 ) where
-    D: OperationSessionSetters<F>,
+    F: Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Sync,
 {
-    let selected_customer_id = customer
+    let Some(routing) = routing else {
+        return;
+    };
+    let wallet_type = match token {
+        Some(PaymentMethodToken::ApplePayDecrypt(_)) => enums::PaymentMethodType::ApplePay,
+        Some(PaymentMethodToken::GooglePayDecrypt(_)) => enums::PaymentMethodType::GooglePay,
+        _ => return,
+    };
+    let Some(selected) = routing::wallet_issuer::route_wallet_confirmation(
+        state,
+        processor,
+        business_profile,
+        payment_data,
+        wallet_type,
+        routing.dimensions,
+        routing.eligible_connectors,
+    )
+    .await
+    else {
+        return;
+    };
+    let selected_customer_id = routing
+        .customer
         .zip(selected.merchant_connector_id.as_ref())
         .and_then(|(customer, mca_id)| customer.get_connector_customer_id(mca_id.get_string_repr()))
         .map(String::from);
@@ -6313,8 +6348,7 @@ async fn get_decrypted_wallet_pm_token_and_set_pm_data<F, Req, D>(
     platform: &domain::Platform,
     business_profile: &domain::Profile,
     payment_data: &mut D,
-    connector: &mut Option<ConnectorCallType>,
-    wallet_routing: Option<WalletConfirmRouting<'_>>,
+    connector: Option<&ConnectorCallType>,
 ) -> RouterResult<Option<PaymentMethodToken>>
 where
     F: Send + Clone + Sync,
@@ -6354,7 +6388,7 @@ where
                 state,
                 platform,
                 payment_data,
-                connector.as_ref(),
+                connector,
             )
             .await?;
         // Check if the wallet has already decrypted the token from the payment data and support_predecrypted_token is true.
@@ -6387,26 +6421,6 @@ where
 
                 set_decrypted_wallet_payment_method_data(&token, payment_data);
 
-                if let Some(routing) = wallet_routing {
-                    if let Some(selected) = routing::wallet_issuer::route_wallet_confirmation(
-                        state,
-                        platform.get_processor(),
-                        business_profile,
-                        payment_data,
-                        wallet_type,
-                        routing.dimensions,
-                        routing.eligible_connectors,
-                    )
-                    .await
-                    {
-                        apply_wallet_confirm_connector(
-                            payment_data,
-                            connector,
-                            routing.customer,
-                            selected,
-                        );
-                    }
-                }
                 Ok(Some(token))
             }
             None => Ok(None),

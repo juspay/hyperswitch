@@ -11270,6 +11270,21 @@ impl ApplePayCombinedWrapper {
     pub fn is_predecrypted_token_supported(&self) -> bool {
         self.support_predecrypted_token.unwrap_or(false)
     }
+
+    pub fn apple_pay_accepts_decrypted_token(&self) -> bool {
+        self.is_predecrypted_token_supported()
+            || match &self.data {
+                Some(ApplePayCombinedMetadata::Simplified { .. }) => true,
+                Some(ApplePayCombinedMetadata::Manual {
+                    session_token_data, ..
+                }) => matches!(
+                    session_token_data.payment_processing_details_at,
+                    Some(PaymentProcessingDetailsAt::Hyperswitch(_))
+                ),
+                None => false,
+            }
+    }
+
     pub fn get_combined_metadata_required(
         &self,
     ) -> Result<ApplePayCombinedMetadata, ValidationError> {
@@ -11458,6 +11473,19 @@ where
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct GooglePayWalletDetails {
     pub google_pay: GooglePayDetails,
+}
+
+impl GooglePayWalletDetails {
+    pub fn google_pay_accepts_decrypted_token(&self) -> bool {
+        let GooglePayProviderDetails::GooglePayMerchantDetails(details) =
+            &self.google_pay.provider_details;
+        let specification = &details.merchant_info.tokenization_specification;
+        match specification.tokenization_type {
+            GooglePayTokenizationType::InternalGateway => true,
+            GooglePayTokenizationType::Direct => specification.parameters.private_key.is_some(),
+            GooglePayTokenizationType::PaymentGateway => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
