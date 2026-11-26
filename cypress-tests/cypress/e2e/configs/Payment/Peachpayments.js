@@ -771,6 +771,7 @@ export const connectorDetails = {
             worldpayraft: null,
             checkout: null,
             stripe: null,
+            jpmorgan: null,
           },
         },
       },

@@ -10980,6 +10980,17 @@ pub struct ConnectorMetadata {
     pub checkout: Option<CheckoutData>,
     #[smithy(value_type = "Option<StripeConnectorMetadata>")]
     pub stripe: Option<StripeConnectorMetadata>,
+    #[smithy(value_type = "Option<JpmorganConnectorMetadata>")]
+    pub jpmorgan: Option<JpmorganConnectorMetadata>,
+}
+
+/// JPMorgan-specific metadata supplied with a payment request.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct JpmorganConnectorMetadata {
+    /// Request an SCA exemption for a subsequent MIT whose initial CIT completed 3D Secure.
+    #[smithy(value_type = "Option<bool>")]
+    pub request_sca_exemption: Option<bool>,
 }
 
 /// PayPal-specific metadata supplied with a payment request.
