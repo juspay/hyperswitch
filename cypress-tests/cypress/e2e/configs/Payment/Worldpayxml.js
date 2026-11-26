@@ -773,6 +773,7 @@ export const connectorDetails = {
               funding_transaction_type: "funds_transfer_me_to_me",
               payment_purpose: "family_support",
             },
+            worldpayraft: null,
             checkout: null,
             stripe: null,
             jpmorgan: null,

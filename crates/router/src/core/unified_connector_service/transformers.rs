@@ -351,6 +351,7 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
             peachpayments: _,
             santander: _,
             worldpayxml,
+            worldpayraft,
             stripe,
             jpmorgan,
             paypal: _,
@@ -389,9 +390,15 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
             error_on_requires_action: stripe
                 .as_ref()
                 .and_then(|data| data.error_on_requires_action),
-            user_data1: None,
-            user_data2: None,
-            user_data3: None,
+            user_data1: worldpayraft
+                .as_ref()
+                .and_then(|data| data.user_data1.clone()),
+            user_data2: worldpayraft
+                .as_ref()
+                .and_then(|data| data.user_data2.clone()),
+            user_data3: worldpayraft
+                .as_ref()
+                .and_then(|data| data.user_data3.clone()),
             ewallet: None,
         }
     }
@@ -5703,6 +5710,7 @@ impl transformers::ForeignTryFrom<payments_grpc::CardNetwork> for common_enums::
             payments_grpc::CardNetwork::EftposAustralia => Ok(Self::EftposAustralia),
             payments_grpc::CardNetwork::GeCapital => Ok(Self::GeCapital),
             payments_grpc::CardNetwork::Uatp => Ok(Self::Uatp),
+            // MyDebit is not yet represented in Hyperswitch's card network enum.
             payments_grpc::CardNetwork::Unspecified | payments_grpc::CardNetwork::Mydebit => {
                 Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)?
             }
