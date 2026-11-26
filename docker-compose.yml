@@ -61,7 +61,7 @@ services:
     pull_policy: always
     command: >
       bash -c "
-      apt-get update && apt-get install -y curl xz-utils &&
+      apt-get update && apt-get install -y curl xz-utils rustfmt &&
       curl --proto '=https' --tlsv1.2 -LsSf https://github.com/diesel-rs/diesel/releases/download/v2.3.5/diesel_cli-installer.sh | bash &&
       if ! command -v just >/dev/null 2>&1; then
         curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
@@ -83,6 +83,8 @@ services:
       - "8081:8080"
     networks:
       - router_net
+    profiles:
+      - superposition
     environment:
       - API_HOSTNAME=http://localhost:8081
       - REDIS_URL=redis://redis-standalone:6379
@@ -92,6 +94,8 @@ services:
 
   superposition-init:
     image: alpine:latest
+    profiles:
+      - superposition
     depends_on:
       superposition:
         condition: service_started
@@ -136,8 +140,6 @@ services:
       redis-standalone:
         condition: service_healthy
       migration_runner:
-        condition: service_completed_successfully
-      superposition-init:
         condition: service_completed_successfully
     labels:
       logs: "promtail"
