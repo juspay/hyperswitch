@@ -57,11 +57,11 @@
                     "headers": {
                         "Content-Type": "application/json",
                         "Api-Key": "api_key_example",
-                        "Client-Request-Id": "8a3c9f2e-1b4d-4e7a-9c6f-2d5e8b1a7c3f",
+                        "Client-Request-Id": "client_request_id_example",
                         "Timestamp": "1763900000000",
                         "Auth-Token-Type": "HMAC"
                     },
-                    "token": "pm_0196ea5a42a67583863d5b1253d62931",
+                    "token": "pm_example_payment_method_id",
                     "token_type": "payment_method_id",
                     "method": "POST",
                     "transformation": {
