@@ -259,3 +259,109 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
     }
   );
 });
+
+describe("Card - Mandates using processor payment token flow test", () => {
+  before(function () {
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        connector = globalState.get("connectorId");
+        if (
+          utils.shouldIncludeConnector(
+            connector,
+            utils.CONNECTOR_LISTS.INCLUDE.MANDATES_USING_PROCESSOR_PAYMENT_TOKEN
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
+  });
+
+  afterEach("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
+  const createProcessorTokenCit = () => {
+    const citData = getConnectorDetails(globalState.get("connectorId"))[
+      "card_pm"
+    ]["SaveCardUseNo3DSAutoCaptureOffSession"];
+
+    cy.createConfirmPaymentTest(
+      structuredClone(fixtures.createConfirmPaymentBody),
+      citData,
+      "no_three_ds",
+      "automatic",
+      globalState
+    );
+  };
+
+  context("Card - NoThreeDS automatic capture CIT and MIT payment flow", () => {
+    it("Create and Confirm No 3DS CIT -> Confirm No 3DS MIT with processor payment token", () => {
+      createProcessorTokenCit();
+
+      const mitData = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MITWithProcessorPaymentToken"];
+
+      cy.mitUsingProcessorPaymentToken(
+        structuredClone(fixtures.processorPaymentTokenConfirmBody),
+        mitData,
+        true,
+        "automatic",
+        globalState
+      );
+    });
+
+    it("Create and Confirm No 3DS CIT -> Confirm No 3DS MIT without network transaction ID", () => {
+      createProcessorTokenCit();
+
+      const mitData = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MITWithProcessorPaymentToken"];
+
+      cy.mitUsingProcessorPaymentToken(
+        structuredClone(fixtures.processorPaymentTokenConfirmBody),
+        mitData,
+        true,
+        "automatic",
+        globalState,
+        false
+      );
+    });
+  });
+
+  context("Card - NoThreeDS CIT and manual capture MIT payment flow", () => {
+    it("Create and Confirm No 3DS CIT -> Confirm No 3DS MIT with processor payment token -> Capture MIT", () => {
+      createProcessorTokenCit();
+
+      const mitData = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["MITManualCaptureWithProcessorPaymentToken"];
+
+      cy.mitUsingProcessorPaymentToken(
+        structuredClone(fixtures.processorPaymentTokenConfirmBody),
+        mitData,
+        true,
+        "manual",
+        globalState
+      );
+
+      const captureData = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["CaptureProcessorPaymentTokenMIT"];
+
+      cy.captureCallTest(
+        structuredClone(fixtures.captureBody),
+        captureData,
+        globalState
+      );
+    });
+  });
+});

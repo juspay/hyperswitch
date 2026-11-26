@@ -13,6 +13,7 @@ import createPayoutLinkBody from "./create-payout-link-body.json";
 import createPayoutBody from "./create-payout-confirm-body.json";
 import payoutRoutingConfigBody from "./payout-routing-config-body.json";
 import pmIdConfirmBody from "./create-pm-id-mit.json";
+import processorPaymentTokenConfirmBody from "./create-processor-payment-token-mit.json";
 import gsmBody from "./gsm-body.json";
 import listRefundCall from "./list-refund-call-body.json";
 import merchantCreateBody from "./merchant-create-body.json";
@@ -73,6 +74,7 @@ export {
   ntidConfirmBody,
   payoutRoutingConfigBody,
   pmIdConfirmBody,
+  processorPaymentTokenConfirmBody,
   refundBody,
   relayBody,
   routingConfigBody,

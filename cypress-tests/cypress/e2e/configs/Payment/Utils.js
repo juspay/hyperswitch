@@ -602,6 +602,7 @@ export const CONNECTOR_LISTS = {
     SPLIT_PAYMENTS: ["stripeconnect", "payloadconnect"],
     PROCESSING_METHOD_ID: ["payload"],
     MANDATES_USING_NTID_PROXY: ["cybersource", "checkout"],
+    MANDATES_USING_PROCESSOR_PAYMENT_TOKEN: ["worldpayvantiv"],
     // Card and mandate flows of 54-TsysTransitMandates. The mandates need a
     // profile with connector agnostic MIT enabled, which keeps them out of the
     // shared mandate specs, so the whole spec is scoped to this connector
