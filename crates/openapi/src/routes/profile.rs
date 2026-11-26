@@ -205,6 +205,28 @@ pub async fn profile_create() {}
 pub async fn profile_update() {}
 
 #[cfg(feature = "v2")]
+/// Profile - Delete
+///
+/// Delete a *profile*
+#[utoipa::path(
+    delete,
+    path = "/v2/profiles/{id}",
+    params(
+        ("id" = String, Path, description = "The unique identifier for the profile")
+    ),
+    responses(
+        (status = 200, description = "Profile Deleted", body = ProfileDeleteResponse),
+        (status = 404, description = "Profile not found"),
+        (status = 400, description = "Invalid request data"),
+        (status = 401, description = "Unauthorized request")
+    ),
+    tag = "Profile",
+    operation_id = "Delete a Profile",
+    security(("admin_api_key" = []))
+)]
+pub async fn profile_delete_v2() {}
+
+#[cfg(feature = "v2")]
 /// Profile - Activate routing algorithm
 ///
 /// Activates a routing algorithm under a profile

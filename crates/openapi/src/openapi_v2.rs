@@ -93,6 +93,7 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::profile::profile_create,
         routes::profile::profile_retrieve,
         routes::profile::profile_update,
+        routes::profile::profile_delete_v2,
         routes::profile::connector_list,
 
         // Routes for routing under profile
