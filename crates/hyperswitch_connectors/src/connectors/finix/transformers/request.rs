@@ -17,8 +17,21 @@ pub struct FinixPaymentsRequest {
     pub fraud_session_id: Option<String>,
     #[serde(rename = "3d_secure_authentication")]
     pub three_d_secure_authentication: Option<FinixThreeDSecure>,
+    /// Finix-hosted 3DS: the session from Authenticate/PostAuthenticate.
+    #[serde(rename = "3d_secure_session", skip_serializing_if = "Option::is_none")]
+    pub three_d_secure_session: Option<String>,
     pub idempotency_id: Option<String>,
     pub statement_descriptor: Option<String>,
+}
+
+/// `POST /3d_secure_sessions` (redirect flow, payment-instrument based).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct FinixThreeDSecureSessionRequest {
+    pub amount: MinorUnit,
+    pub currency: Currency,
+    pub merchant_id: Secret<String>,
+    pub payment_instrument_id: Secret<String>,
+    pub redirect_url: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
