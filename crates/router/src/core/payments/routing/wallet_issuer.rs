@@ -56,9 +56,15 @@ where
     F: Clone,
     D: OperationSessionGetters<F> + Sync,
 {
+    let wallet_type = match payment_data.get_payment_method_data()?.get_wallet_data()? {
+        WalletData::ApplePay(_) => PaymentMethodType::ApplePay,
+        WalletData::GooglePay(_) => PaymentMethodType::GooglePay,
+        _ => return None,
+    };
     if !state.conf.open_router.static_routing_enabled
         || !dimensions
-            .get_wallet_issuer_country_confirm_routing_enabled(
+            .with_payment_method_type(wallet_type)
+            .get_session_override(
                 state.store.as_ref(),
                 state.superposition_service.as_ref(),
                 None,
