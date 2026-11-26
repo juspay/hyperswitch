@@ -401,11 +401,11 @@ async fn get_retry_time(
         Ok(RetryTiming::At {
             retry_time,
             next_static_ladder_progress,
-            assigned_ab_algorithm: _,
+            assigned_ab_algorithm,
         }) => Ok(RetryTimeChoice {
             retry_time,
             next_ladder_progress: next_static_ladder_progress,
-            assigned_ab_algorithm: None,
+            assigned_ab_algorithm,
         }),
         Ok(RetryTiming::Decider) => {
             revenue_recovery_workflow::get_schedule_time_to_retry_mit_payments(
