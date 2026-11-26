@@ -57,7 +57,7 @@ use crate::{
     services,
     types::{
         api::{self, ConnectorCallType, PaymentIdTypeExt},
-        domain::{self},
+        domain,
         storage::{self, enums as storage_enums},
         transformers::{ForeignFrom, ForeignInto},
     },

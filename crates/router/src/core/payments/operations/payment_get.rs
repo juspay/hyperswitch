@@ -18,7 +18,7 @@ use crate::{
     routes::{app::ReqState, SessionState},
     types::{
         api::{self, ConnectorCallType},
-        domain::{self},
+        domain,
         storage::{self, enums as storage_enums},
     },
     utils::OptionExt,

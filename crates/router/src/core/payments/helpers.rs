@@ -12,8 +12,7 @@ use api_models::{
     customers::CustomerDocumentDetails,
     mandates::RecurringDetails,
     payments::{
-        additional_info::{self as payment_additional_types},
-        InstallmentRequest, RequestSurchargeDetails,
+        additional_info as payment_additional_types, InstallmentRequest, RequestSurchargeDetails,
     },
 };
 use base64::Engine;
@@ -24,8 +23,7 @@ use common_utils::id_type::GenerateId;
 use common_utils::{
     crypto::Encryptable,
     ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
-    fp_utils, generate_id,
-    id_type::{self},
+    fp_utils, generate_id, id_type,
     new_type::{MaskedIban, MaskedSortCode},
     pii, type_name,
     types::{
@@ -100,11 +98,7 @@ use crate::{
         configs::dimension_state,
         customers,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payment_methods::{
-            self,
-            cards::{self},
-            network_tokenization, vault,
-        },
+        payment_methods::{self, cards, network_tokenization, vault},
         payments,
         pm_auth::retrieve_payment_method_from_auth_service,
     },
