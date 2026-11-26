@@ -30,7 +30,7 @@ use crate::{
             operations, CustomerDetails, PaymentAddress, PaymentData,
             PaymentDataUpdateRequestFields,
         },
-        utils::{self as core_utils},
+        utils as core_utils,
     },
     events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},
