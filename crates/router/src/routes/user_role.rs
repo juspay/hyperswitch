@@ -9,11 +9,7 @@ use crate::{
         api_locking,
         user_role::{self as user_role_core, role as role_core},
     },
-    services::{
-        api,
-        authentication::{self as auth},
-        authorization::permissions::Permission,
-    },
+    services::{api, authentication as auth, authorization::permissions::Permission},
 };
 
 // TODO: To be deprecated
