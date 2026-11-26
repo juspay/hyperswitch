@@ -873,7 +873,7 @@ use common_utils::{
     encryption::Encryption,
     errors::ValidationError,
     type_name,
-    types::keymanager::{self},
+    types::keymanager,
 };
 use hyperswitch_domain_models::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 use hyperswitch_masking::Secret;

@@ -53,7 +53,7 @@ use transformers::{self as fiuu, ExtraParameters, FiuuWebhooksResponse};
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self},
+    utils,
 };
 
 pub fn parse_and_log_keys_in_url_encoded_response<T>(data: &[u8]) {

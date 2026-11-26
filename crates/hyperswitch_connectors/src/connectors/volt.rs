@@ -52,7 +52,7 @@ use self::volt::{webhook_headers, VoltWebhookBodyEventType};
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self},
+    utils,
 };
 
 const X_VOLT_API_VERSION: &str = "X-Volt-Api-Version";

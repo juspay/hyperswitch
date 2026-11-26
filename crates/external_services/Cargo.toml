@@ -77,8 +77,6 @@ time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
 tokio = { version = "1.48.0", features = ["net", "io-util", "time", "sync"] }
 tonic = "0.14"
 tonic-prost = { version = "0.14", optional = true }
-tonic-reflection = "0.14.0"
-tonic-types = "0.13.1"
 typed-builder = "0.21.2"
 hyper-util = { version = "0.1.12", optional = true }
 http-body-util = { version = "0.1.3", optional = true }

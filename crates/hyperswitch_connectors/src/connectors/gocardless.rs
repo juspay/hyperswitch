@@ -51,7 +51,7 @@ use transformers as gocardless;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self},
+    utils,
 };
 
 #[derive(Clone)]

@@ -50,7 +50,7 @@ use transformers as payjustnow;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{self},
+    utils,
 };
 
 #[derive(Clone)]

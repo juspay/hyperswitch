@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use api_models::{
     mandates as api_mandates,
-    payment_methods::{self},
+    payment_methods,
     payments::{
         additional_info as payment_additional_types, AdditionalNetworkTokenInfo, ExtendedCardInfo,
     },

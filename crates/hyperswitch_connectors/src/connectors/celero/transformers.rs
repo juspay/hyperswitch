@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     consts,
-    errors::{self},
+    errors,
 };
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
