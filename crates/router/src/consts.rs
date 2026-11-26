@@ -52,6 +52,8 @@ pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose = consts::BASE64_
 
 pub(crate) const API_KEY_LENGTH: usize = 64;
 
+pub(crate) const PAYMENT_RESPONSE_HASH_KEY_PREFIX_LEN: usize = 4;
+
 // OID (Object Identifier) for the merchant ID field extension.
 pub(crate) const MERCHANT_ID_FIELD_EXTENSION_ID: &str = "1.2.840.113635.100.6.32";
 
@@ -62,6 +64,7 @@ pub const LOCKER_REDIS_PREFIX: &str = "LOCKER_PM_TOKEN";
 pub const LOCKER_REDIS_EXPIRY_SECONDS: u32 = 60 * 15; // 15 minutes
 
 pub const JWT_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24 * 2; // 2 days
+pub const INTERNAL_JWT_HEADER_TYPE: &str = "internal+jwt";
 pub const JWT_EMBEDDED_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 3; // 3 hours
 
 // This should be one day, but it is causing issue while checking token in blacklist.
@@ -76,9 +79,6 @@ pub const ROLE_BLACKLIST_PREFIX: &str = "BR_";
 
 pub const USER_IDLE_SESSION_PREFIX: &str = "IS_";
 pub const MIN_IDLE_SESSION_TIMEOUT_IN_SECS: u32 = 60;
-
-#[cfg(feature = "email")]
-pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
 
 #[cfg(feature = "email")]
 pub const EMAIL_TOKEN_BLACKLIST_PREFIX: &str = "BET_";
@@ -310,6 +310,9 @@ pub(crate) const SENDER_ID: &[u8] = b"Google";
 /// recipient from configuration instead of taking it from the merchant.
 pub(crate) const GOOGLE_PAY_GATEWAY_RECIPIENT_PREFIX: &str = "gateway:";
 
+/// Recipient prefix for Google Pay DIRECT merchant tokens.
+pub(crate) const GOOGLE_PAY_MERCHANT_RECIPIENT_PREFIX: &str = "merchant:";
+
 /// Default value for the number of attempts to retry fetching forex rates
 pub const DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS: u64 = 3;
 
@@ -496,6 +499,10 @@ pub mod superposition {
     pub const RECOVERY_GRACE_PERIOD_DAYS: &str = "revenue_recovery.grace_period_days";
     /// Total retries an invoice is allowed across its whole recovery lifecycle
     pub const RECOVERY_MAX_RETRY_COUNT: &str = "revenue_recovery.max_retry_count";
+    /// Positions on the static ladder available to an invoice under the hybrid static + adaptive
+    /// scheme. Controlled internally rather than by merchants, for both trigger models
+    pub const RECOVERY_MAX_HYBRID_CASCADING_RETRY_COUNT: &str =
+        "revenue_recovery.max_hybrid_cascading_retry_count";
     /// Payment sync (psync) retry process tracker mapping key
     pub const PT_MAPPING_PAYMENT_SYNC: &str = "process_tracker.pt_mapping_payment_sync";
     /// Refund sync retry process tracker mapping key
@@ -509,6 +516,9 @@ pub mod superposition {
     /// MIT with limited card data configuration key
     pub const SHOULD_ENABLE_MIT_WITH_LIMITED_CARD_DATA: &str =
         "payments.should_enable_mit_with_limited_card_data";
+    /// Prefer the request's billing address over the billing stored on a saved payment method
+    pub const SHOULD_PREFER_REQUEST_BILLING_OVER_SAVED_PM_BILLING: &str =
+        "payments.should_prefer_request_billing_over_saved_pm_billing";
     /// Store eligibility check data for authentication configuration key
     pub const SHOULD_STORE_ELIGIBILITY_CHECK_DATA_FOR_AUTHENTICATION: &str =
         "payments.should_store_eligibility_check_data_for_authentication";
@@ -516,6 +526,12 @@ pub mod superposition {
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "payments.enable_extended_card_bin";
     /// Max auto payout retries configuration key
     pub const MAX_AUTO_PAYOUT_RETRIES: &str = "payouts.max_auto_payout_retries";
+    /// Allows payout creation, confirmation, update, cancellation, and fulfillment at OMP scope.
+    pub const SHOULD_ALLOW_PAYOUTS: &str = "payouts.should_allow_payouts";
+    /// Minimum allowed payout amount configuration key
+    pub const PAYOUT_MIN_AMOUNT: &str = "payouts.min_amount";
+    /// Maximum allowed payout amount configuration key
+    pub const PAYOUT_MAX_AMOUNT: &str = "payouts.max_amount";
     /// GSM payout call configuration key (scoped by merchant, profile, and payout retry type)
     pub const GSM_PAYOUT_CALL: &str = "payouts.gsm_payout_call";
     /// Disable vault tokenization configuration key
@@ -596,6 +612,12 @@ pub mod superposition {
         "webhooks.unverified_webhook_merchant_connector_account_rate_limit";
     /// save wallet decrypted data in locker
     pub const SAVE_WALLET_DECRYPTED_DATA: &str = "vaulting.save_wallet_decrypted_data";
+    /// UCS rollout configuration key (contains RolloutConfig with percentage, URLs, etc.)
+    pub const UCS_ROLLOUT_CONFIG: &str = "ucs.rollout_config";
+    /// Global request-failure threshold for the UCS shadow kill switch.
+    pub const UCS_SHADOW_KILL_SWITCH_THRESHOLD: &str = "ucs.shadow_kill_switch_threshold";
+    /// UCS enabled configuration key (controls UCS mode: disabled, enabled, shadow_disabled)
+    pub const UCS_ENABLED: &str = "ucs.enabled";
     /// checkout sdk configuration
     pub const CHECKOUT_SDK: &str = "checkout_sdk";
     /// Pre-FRM failure handling mode

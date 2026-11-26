@@ -94,17 +94,17 @@ where
         )
         .await?;
 
-    Res::generate_response(
+    Res::generate_response_with_callbacks(
+        &state,
         payment_data,
         customer,
-        &state.base_url,
         operation,
-        &state.conf.connector_request_reference_id_config,
         connector_http_status_code,
         external_latency,
         header_payload.x_hs_latency,
         &platform,
     )
+    .await
 }
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]

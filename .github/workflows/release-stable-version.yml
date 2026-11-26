@@ -11,6 +11,8 @@ on:
           - patch
           - minor
 
+permissions: {}
+
 jobs:
   create-semver-tag:
     name: Create a SemVer tag
@@ -19,25 +21,28 @@ jobs:
     steps:
       - name: Generate GitHub app token
         id: generate_app_token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@v3.4.0
         env:
           NODE_USE_ENV_PROXY: "1"
         with:
           client-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-members: read
 
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Check if the input is valid CalVer tag
         shell: bash
         run: |
-          if [[ ${{github.ref}} =~ ^refs/tags/[0-9]{4}\.[0-9]{2}\.[0-9]{2}(\.([0-9]+))?(-(.+))?$ ]]; then
-            echo "${{github.ref}} is a valid CalVer tag."
+          if [[ ${GITHUB_REF} =~ ^refs/tags/[0-9]{4}\.[0-9]{2}\.[0-9]{2}(\.([0-9]+))?(-(.+))?$ ]]; then
+            echo "${GITHUB_REF} is a valid CalVer tag."
           else
-            echo "::error::${{github.ref}} is not a valid CalVer tag."
+            echo "::error::${GITHUB_REF} is not a valid CalVer tag."
             exit 1
           fi
 
@@ -100,13 +105,13 @@ jobs:
           toolchain: stable
 
       - name: Install git-cliff
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: git-cliff
           checksum: true
 
       - name: Install cocogitto
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: cocogitto@6.3.0
           checksum: true
@@ -161,7 +166,7 @@ jobs:
             | sed "/## ${PREVIOUS_TAG}\$/,\$d" > release-notes.md
 
       - name: Upload changelog as build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: release-notes.md
           path: release-notes.md

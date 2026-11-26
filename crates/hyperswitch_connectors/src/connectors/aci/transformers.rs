@@ -126,7 +126,7 @@ pub struct AciPaymentsRequest {
     pub payment_method: PaymentDetails,
     #[serde(flatten)]
     pub instruction: Option<Instruction>,
-    pub shopper_result_url: Option<String>,
+    pub shopper_result_url: Option<Secret<String>>,
     #[serde(rename = "customParameters[3DS2_enrolled]")]
     pub three_ds_two_enrolled: Option<bool>,
     pub recurring_type: Option<AciRecurringType>,
@@ -1412,11 +1412,14 @@ where
             // If method is Get, parameters are appended to URL
             // If method is post, we http Post the method to URL
             RedirectForm::Form {
-                endpoint: data.url.to_string(),
+                endpoint: data.url.to_string().into(),
                 // Handles method for Bank redirects currently.
                 // 3DS response have method within preconditions. That would require replacing below line with a function.
                 method: data.method.unwrap_or(Method::Post),
-                form_fields,
+                form_fields: (form_fields)
+                    .into_iter()
+                    .map(|(key, value)| (key, value.into()))
+                    .collect(),
             }
         });
 

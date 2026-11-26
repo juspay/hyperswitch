@@ -846,6 +846,8 @@ Cypress.Commands.add(
 
     const merchantId = RequestBodyUtils.generateRandomString();
     RequestBodyUtils.setMerchantId(merchantCreateBody, merchantId);
+    merchantCreateBody.payment_response_hash_key =
+      RequestBodyUtils.getPaymentResponseHashKey();
 
     cy.request({
       method: "POST",
@@ -962,6 +964,9 @@ Cypress.Commands.add("merchantRetrieveCall", (globalState, options = {}) => {
         response.body.payment_response_hash_key,
         "payment_response_hash_key"
       ).to.not.be.null;
+      expect(
+        Array.from(response.body.payment_response_hash_key).length
+      ).to.be.at.most(4);
       expect(response.body.publishable_key, "publishable_key").to.not.be.null;
       expect(response.body.default_profile, "default_profile").to.not.be.null;
       expect(response.body.organization_id, "organization_id").to.not.be.null;
@@ -7959,26 +7964,10 @@ Cypress.Commands.add(
 );
 
 /**
- * Confirms a payout via POST /payouts/{payout_id}/confirm, supporting both
- * authentication modes of the payout confirm API. This is the payout-side
- * analogue of confirmCallTest (payments): it confirms an EXISTING payout on
- * its dedicated confirm endpoint. It cannot be replaced by
- * createConfirmPayoutTest, which always creates a NEW payout on
- * POST /payouts/create — a route with merchant-key-only auth where the
- * client-authenticated confirm flow is unreachable.
- * - client-authenticated (clientAuth=true): publishable key in the api-key
- *   header and the client_secret (stashed in globalState as
- *   payoutClientSecret by createConfirmPayoutTest) in the request body.
- *   Restricted fields (amount, auto_fulfill, currency, connector, routing)
- *   in the config Request exercise the client-auth field restrictions.
- *   A config Request may pin client_secret (e.g. null) to exercise the
- *   missing-client_secret error path.
- * - merchant-authenticated (clientAuth=false): merchant secret key in the
- *   api-key header and no client_secret in the request body.
- * @param {Object} payoutConfirmBody - Base request body (config Request fields are merged on top)
- * @param {Object} data - Connector config entry with Request/Response
- * @param {boolean} clientAuth - true for publishable-key auth, false for merchant secret-key auth
- * @param {Object} globalState - The global state object
+ * Confirms an existing payout. Set clientAuth=true to verify that publishable
+ * keys and client secrets are rejected; merchant API keys remain supported.
+ * Config Request fields are merged onto the body, including an explicit null
+ * client_secret when testing a request without a client secret.
  */
 Cypress.Commands.add(
   "confirmPayoutCallTest",
@@ -8017,6 +8006,8 @@ Cypress.Commands.add(
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
 
+        expect(response.status).to.equal(resData.status);
+
         if (response.status === 200) {
           if (resData.body) {
             for (const key in resData.body) {
@@ -8026,7 +8017,6 @@ Cypress.Commands.add(
             }
           }
         } else {
-          expect(response.status).to.equal(resData.status);
           defaultErrorHandler(response, resData);
         }
       });
@@ -9622,46 +9612,66 @@ Cypress.Commands.add(
   "ddcServerSideRaceConditionTest",
   (confirmData, globalState) => {
     const ddcConfig = confirmData.DDCConfig;
-    const paymentId = globalState.get("paymentID");
-    const merchantId = globalState.get("merchantId");
-    const completeUrl = `${Cypress.env("BASEURL")}/payments/${paymentId}/${merchantId}${ddcConfig.completeUrlPath}`;
+    const nextActionUrl = globalState.get("nextActionUrl");
+    expect(nextActionUrl, "router-issued DDC page URL").to.be.a("string").and
+      .not.be.empty;
 
     cy.request({
-      method: "GET",
-      url: completeUrl,
-      qs: {
-        [ddcConfig.collectionReferenceParam]: ddcConfig.firstSubmissionValue,
-      },
-      failOnStatusCode: false,
-    }).then((firstResponse) => {
-      if (
-        firstResponse.status === 400 &&
-        firstResponse.body?.error?.message?.includes("No eligible connector")
-      ) {
-        throw new Error(
-          `Connector configuration issue detected. Response: ${JSON.stringify(firstResponse.body)}`
-        );
-      }
-
-      expect(firstResponse.status).to.be.oneOf([200, 302]);
-      cy.log(`First request status: ${firstResponse.status}`);
+      url: nextActionUrl,
+      followRedirect: false,
+      retryOnNetworkFailure: false,
+      log: false,
+    }).then((page) => {
+      const document = new DOMParser().parseFromString(page.body, "text/html");
+      const completeUrl = document.body.getAttribute("data-callback-url");
+      expect(completeUrl, "router-issued DDC callback URL").to.be.a("string")
+        .and.not.be.empty;
 
       cy.request({
         method: "GET",
         url: completeUrl,
         qs: {
-          [ddcConfig.collectionReferenceParam]: ddcConfig.secondSubmissionValue,
+          [ddcConfig.collectionReferenceParam]: ddcConfig.firstSubmissionValue,
         },
         failOnStatusCode: false,
-      }).then((secondResponse) => {
-        cy.log(`Second request status: ${secondResponse.status}`);
+        followRedirect: false,
+        retryOnNetworkFailure: false,
+        log: false,
+      }).then((firstResponse) => {
+        if (
+          firstResponse.status === 400 &&
+          firstResponse.body?.error?.message?.includes("No eligible connector")
+        ) {
+          throw new Error(
+            `Connector configuration issue detected. Response: ${JSON.stringify(firstResponse.body)}`
+          );
+        }
 
-        expect(secondResponse.status).to.eq(ddcConfig.expectedError.status);
-        expect(secondResponse.body).to.deep.equal(ddcConfig.expectedError.body);
+        expect(firstResponse.status).to.be.oneOf([200, 302]);
+        cy.log(`First request status: ${firstResponse.status}`);
 
-        cy.log(
-          "✅ Server-side race condition protection verified - second submission properly rejected"
-        );
+        cy.request({
+          method: "GET",
+          url: completeUrl,
+          qs: {
+            [ddcConfig.collectionReferenceParam]:
+              ddcConfig.secondSubmissionValue,
+          },
+          failOnStatusCode: false,
+          followRedirect: false,
+          retryOnNetworkFailure: false,
+          log: false,
+        }).then((secondResponse) => {
+          cy.log(`Second request status: ${secondResponse.status}`);
+
+          expect(secondResponse.status, "DDC token cannot be reused").to.eq(
+            401
+          );
+
+          cy.log(
+            "✅ Server-side race condition protection verified - second submission properly rejected"
+          );
+        });
       });
     });
   }
@@ -9671,9 +9681,9 @@ Cypress.Commands.add(
   "ddcClientSideRaceConditionTest",
   (confirmData, globalState) => {
     const ddcConfig = confirmData.DDCConfig;
-    const paymentId = globalState.get("paymentID");
-    const merchantId = globalState.get("merchantId");
-    const nextActionUrl = `${Cypress.env("BASEURL")}${ddcConfig.redirectUrlPath}/${paymentId}/${merchantId}/${paymentId}_1`;
+    const nextActionUrl = globalState.get("nextActionUrl");
+    expect(nextActionUrl, "router-issued DDC page URL").to.be.a("string").and
+      .not.be.empty;
 
     cy.intercept("GET", nextActionUrl, (req) => {
       req.reply((res) => {
@@ -9686,7 +9696,9 @@ Cypress.Commands.add(
       });
     }).as("ddcPageWithRaceCondition");
 
-    cy.intercept("GET", "**/redirect/complete/**").as("ddcSubmission");
+    cy.intercept("GET", /\/redirect\/(?:token\/[^/]+\/)?complete\//).as(
+      "ddcSubmission"
+    );
     const delayBeforeSubmission = ddcConfig.delayBeforeSubmission || 2000;
 
     cy.visit(nextActionUrl);
@@ -12489,6 +12501,9 @@ Cypress.Commands.add("retrieveNonExistentPaymentLinkTest", (globalState) => {
 
 /**
  * Fetches merchant account config and stores payment response hash settings in globalState.
+ * Merchants are created with the key from getPaymentResponseHashKey (the test
+ * default, or CYPRESS_PAYMENT_RESPONSE_HASH_KEY); account responses expose only
+ * its first four characters.
  * Also skips the suite if enable_payment_response_hash is false/absent.
  *
  * The backend falls back to merchant-account-level settings when business profile
@@ -12521,7 +12536,8 @@ Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
 
     const enablePaymentResponseHash =
       response.body.enable_payment_response_hash;
-    const paymentResponseHashKey = response.body.payment_response_hash_key;
+    const paymentResponseHashKeyPrefix =
+      response.body.payment_response_hash_key;
 
     if (!enablePaymentResponseHash) {
       cy.task(
@@ -12534,16 +12550,13 @@ Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
       return;
     }
 
-    // Validate that the hash key is present and non-empty
-    // A null or empty key would cause cryptic Node crypto errors downstream
-    if (
-      typeof paymentResponseHashKey !== "string" ||
-      paymentResponseHashKey.length === 0
-    ) {
-      throw new Error(
-        "fetchPaymentResponseHashConfig: enable_payment_response_hash is true but payment_response_hash_key is null or empty"
-      );
-    }
+    // Signature verification requires the full configured key, not the API prefix.
+    const paymentResponseHashKey = RequestBodyUtils.getPaymentResponseHashKey();
+
+    expect(
+      paymentResponseHashKeyPrefix,
+      "payment_response_hash_key prefix"
+    ).to.equal(Array.from(paymentResponseHashKey).slice(0, 4).join(""));
 
     globalState.set("paymentResponseHashKey", paymentResponseHashKey);
     globalState.set("enablePaymentResponseHash", true);
@@ -12767,57 +12780,25 @@ Cypress.Commands.add("verifyWrongKeySignatureFails", (globalState) => {
 });
 
 Cypress.Commands.add("captureRedirectReturnUrl", (globalState) => {
-  const baseUrl = globalState.get("baseUrl");
+  globalState.set("redirectReturnUrl", null);
   const paymentId = globalState.get("paymentID");
-  const merchantId = globalState.get("merchantId");
-  const connectorId = getOriginalConnectorName(globalState.get("connectorId"));
-  const url = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/response/${connectorId}`;
-
-  /**
-   * Attempt to capture the redirect return URL with polling retry.
-   * The payment may not immediately be in redirect-ready state,
-   * so we retry up to MAX_RETRIES with DELAY_MS between attempts.
-   */
-  const MAX_RETRIES = 5;
-  const DELAY_MS = 2000;
-
-  function attemptCapture(remainingAttempts) {
-    return cy
-      .request({
-        method: "GET",
-        url,
-        followRedirect: false,
-        failOnStatusCode: false,
-      })
-      .then((response) => {
-        if (response.status === 302 && response.headers.location) {
-          globalState.set("redirectReturnUrl", response.headers.location);
-          cy.task(
-            "cli_log",
-            "captureRedirectReturnUrl: captured redirect return URL with signature"
-          );
-          return;
+  cy.intercept(
+    /\/redirect\/(?:token\/[^/]+\/)?(?:response|complete)\//,
+    (req) => {
+      // `includes`, not `startsWith`: the base URL can carry a prefix (e.g. /api)
+      if (!new URL(req.url).pathname.includes(`/payments/${paymentId}/`))
+        return;
+      req.on("response", (response) => {
+        const location = response.headers.location;
+        if (
+          typeof location === "string" &&
+          new URL(location, req.url).searchParams.has("signature")
+        ) {
+          globalState.set("redirectReturnUrl", new URL(location, req.url).href);
         }
-
-        if (remainingAttempts > 1) {
-          cy.task(
-            "cli_log",
-            `captureRedirectReturnUrl: got status ${response.status}, retrying in ${DELAY_MS}ms (${MAX_RETRIES - remainingAttempts + 1}/${MAX_RETRIES})`
-          );
-          return cy
-            .wait(DELAY_MS)
-            .then(() => attemptCapture(remainingAttempts - 1));
-        }
-
-        // Final attempt failed — throw so the test fails loudly
-        throw new Error(
-          `captureRedirectReturnUrl: expected 302 with Location header, got ${response.status}. ` +
-            `Headers: ${JSON.stringify(response.headers)}`
-        );
       });
-  }
-
-  attemptCapture(MAX_RETRIES);
+    }
+  );
 });
 
 // ============================================
@@ -13496,6 +13477,60 @@ Cypress.Commands.add(
 // ============================================
 // Superposition Config Commands
 // ============================================
+
+// Payout flows require explicit enablement even when the demo Superposition
+// service has no authentication configured. Keep this context separate from
+// profile-scoped feature overrides that individual specs create and remove.
+Cypress.Commands.add(
+  "enablePayouts",
+  (globalState, merchantId = globalState.get("merchantId")) => {
+    const superpositionBaseUrl = globalState.get("superpositionBaseUrl");
+    const superpositionSecret = globalState.get("superpositionSecret");
+    const superpositionAuthToken = globalState.get("superpositionAuthToken");
+
+    if (!superpositionBaseUrl) {
+      throw new Error(
+        "Payout tests require Superposition enablement. Set SUPERPOSITION_BASE_URL (or CYPRESS_SUPERPOSITION_BASE_URL), SUPERPOSITION_ORG_ID and SUPERPOSITION_WORKSPACE_ID for the router's Superposition workspace."
+      );
+    }
+    if (!merchantId) {
+      throw new Error("Create the test merchant before enabling payouts.");
+    }
+
+    return cy
+      .request({
+        method: "PUT",
+        url: `${superpositionBaseUrl}/context`,
+        headers: {
+          "User-Agent": "Mozilla/5.0",
+          "x-org-id": globalState.get("superpositionOrgId") || "hyperswitch",
+          "x-workspace":
+            globalState.get("superpositionWorkspaceId") || "hyperswitch",
+          "Content-Type": "application/json",
+          ...(superpositionSecret
+            ? { "X-Superposition-Secret": superpositionSecret }
+            : {}),
+          ...(superpositionAuthToken
+            ? { Authorization: `Bearer ${superpositionAuthToken}` }
+            : {}),
+        },
+        body: {
+          override: { "payouts.should_allow_payouts": true },
+          context: { processor_merchant_id: merchantId },
+          description: "Enable payouts for the Cypress test merchant",
+          change_reason: "Payout test setup",
+        },
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        expect(response.status, "payout allowlist setup status").to.equal(200);
+        // CI uses development.toml's five-minute polling interval. Allow a
+        // complete poll and a buffer without changing the router configuration.
+        // eslint-disable-next-line cypress/no-unnecessary-waiting
+        cy.wait(310000);
+      });
+  }
+);
 
 // Base command: PUT a superposition context carrying one or more overrides.
 // `overrides` is a plain object of config key to value; a single PUT is used so

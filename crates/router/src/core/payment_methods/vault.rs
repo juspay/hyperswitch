@@ -25,7 +25,7 @@ use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::PeekInterface;
 #[cfg(feature = "v2")]
 use payment_methods::controller::DeleteCardResp;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use scheduler::{types::process_data, utils as process_tracker_utils};
 
 #[cfg(feature = "payouts")]
@@ -717,6 +717,20 @@ impl Vaultable for api::WalletPayout {
                     (Some(dpan), Some(expiry_month), Some(expiry_year)) => {
                         Self::ApplePayDecrypt(api_models::payouts::ApplePayDecrypt {
                             dpan,
+                            expiry_month,
+                            expiry_year,
+                            card_holder_name: value1.card_holder_name,
+                            card_network: value2.card_network,
+                        })
+                    }
+                    _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
+                }
+            }
+            PaymentMethodType::GooglePay => {
+                match (value1.dpan, value1.expiry_month, value1.expiry_year) {
+                    (Some(dpan), Some(expiry_month), Some(expiry_year)) => {
+                        Self::GooglePayDecrypt(api_models::payouts::GooglePayDecrypt {
+                            application_primary_account_number: dpan,
                             expiry_month,
                             expiry_year,
                             card_holder_name: value1.card_holder_name,

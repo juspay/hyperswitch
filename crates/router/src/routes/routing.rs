@@ -8,10 +8,7 @@ use api_models::{
     enums,
     routing::{self as routing_types, RoutingRetrieveQuery},
 };
-use router_env::{
-    tracing::{self, instrument},
-    Flow,
-};
+use router_env::{tracing::instrument, Flow};
 
 use crate::{
     core::{api_locking, conditional_config, routing, surcharge_decision_config},

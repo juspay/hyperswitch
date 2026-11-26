@@ -3,7 +3,7 @@ use api_models::blocklist as api_blocklist;
 use common_utils::{date_time, id_type};
 use csv::WriterBuilder;
 use error_stack::ResultExt;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 use scheduler::utils as pt_utils;
 
 use super::batch;
@@ -82,7 +82,7 @@ pub async fn initiate_blocklist_export(
         None,
         platform.get_processor(),
         profile_id.as_ref(),
-        &*state.store,
+        state.accounts_store.as_ref(),
     )
     .await?
     .get_id()

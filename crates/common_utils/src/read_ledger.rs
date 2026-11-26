@@ -4,7 +4,8 @@
 //! statement including bind values, so different parameters stay distinct.
 
 use std::{
-    collections::HashSet,
+    collections::{BTreeMap, HashMap},
+    panic::Location,
     sync::{Arc, Mutex},
 };
 
@@ -30,6 +31,38 @@ impl ReadStore {
     }
 }
 
+/// Single reads are promoted into `duplicates` on their second occurrence.
+/// Both collections share a lock so concurrent reads and snapshots stay consistent.
+#[derive(Debug, Default)]
+struct ReadLedgerState {
+    single_reads: HashMap<String, Option<Location<'static>>>,
+    duplicates: BTreeMap<String, Vec<Option<Location<'static>>>>,
+}
+
+impl ReadLedgerState {
+    fn record_read(&mut self, statement: &str, location: Option<Location<'static>>) -> bool {
+        if let Some(locations) = self.duplicates.get_mut(statement) {
+            locations.push(location);
+            true
+        } else if let Some((statement, first_location)) = self.single_reads.remove_entry(statement)
+        {
+            self.duplicates
+                .insert(statement, vec![first_location, location]);
+            true
+        } else {
+            self.single_reads.insert(statement.to_owned(), location);
+            false
+        }
+    }
+
+    fn duplicate_reads(&self) -> Vec<(String, Vec<Option<Location<'static>>>)> {
+        self.duplicates
+            .iter()
+            .map(|(statement, locations)| (statement.clone(), locations.clone()))
+            .collect()
+    }
+}
+
 /// Statements already read in an API session, shared across its stores.
 #[derive(Debug, Clone)]
 pub struct ReadLedger {
@@ -37,7 +70,7 @@ pub struct ReadLedger {
     store: ReadStore,
     // Keep complete statements rather than fingerprints to avoid treating hash
     // collisions as duplicate reads. Bind values are never emitted as metrics.
-    reads: Arc<Mutex<HashSet<String>>>,
+    state: Arc<Mutex<ReadLedgerState>>,
 }
 
 impl ReadLedger {
@@ -46,7 +79,7 @@ impl ReadLedger {
         Self {
             flow,
             store: ReadStore::Main,
-            reads: Arc::new(Mutex::new(HashSet::new())),
+            state: Arc::new(Mutex::new(ReadLedgerState::default())),
         }
     }
 
@@ -68,112 +101,24 @@ impl ReadLedger {
         self.store
     }
 
-    /// Record a read, returning whether the session already read the same SQL
-    /// with the same bind values. Only the first read allocates a stored key.
-    pub fn record_read(&self, statement: &str) -> bool {
-        let mut reads = self
-            .reads
+    /// Record a read with its optional captured origin, returning whether the session
+    /// already read the same SQL with the same bind values. A second read promotes
+    /// the statement into the duplicate collection; later reads append their origins.
+    pub fn record_read(&self, statement: &str, location: Option<Location<'static>>) -> bool {
+        self.state
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if reads.contains(statement) {
-            true
-        } else {
-            reads.insert(statement.to_owned());
-            false
-        }
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .record_read(statement, location)
+    }
+
+    /// Snapshot duplicate statements in SQL order, with locations in recording order.
+    pub fn duplicate_reads(&self) -> Vec<(String, Vec<Option<Location<'static>>>)> {
+        self.state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .duplicate_reads()
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    const PI: &str = "SELECT .. FROM payment_intent WHERE payment_id = $1 -- binds: [pay_1]";
-    const OTHER: &str = "SELECT .. FROM payment_intent WHERE payment_id = $1 -- binds: [pay_2]";
-
-    #[test]
-    fn only_reads_after_the_first_are_duplicates() {
-        let ledger = ReadLedger::new("PaymentsConfirm".to_owned());
-        assert!(!ledger.record_read(PI));
-        for _ in 0..20 {
-            assert!(ledger.record_read(PI));
-        }
-    }
-
-    #[test]
-    fn different_binds_are_different_records() {
-        let ledger = ReadLedger::new("PaymentsConfirm".to_owned());
-        assert!(!ledger.record_read(PI));
-        assert!(!ledger.record_read(OTHER));
-        assert!(ledger.record_read(OTHER));
-        assert!(ledger.record_read(PI));
-    }
-
-    #[test]
-    fn sessions_do_not_share_reads() {
-        let first = ReadLedger::new("PaymentsConfirm".to_owned());
-        let second = ReadLedger::new("PaymentsConfirm".to_owned());
-        assert!(!first.record_read(PI));
-        assert!(!second.record_read(PI));
-    }
-
-    #[test]
-    fn store_labels_share_reads_and_preserve_the_session_flow() {
-        let main = ReadLedger::new("PaymentsConfirm".to_owned());
-        let accounts = main.for_store(ReadStore::Accounts);
-        let global = main.for_store(ReadStore::Global);
-
-        assert_eq!(main.store().as_str(), "main");
-        assert_eq!(accounts.store().as_str(), "accounts");
-        assert_eq!(global.store().as_str(), "global");
-        for ledger in [&main, &accounts, &global] {
-            assert_eq!(ledger.flow(), "PaymentsConfirm");
-        }
-
-        assert!(!main.record_read(PI));
-        assert!(accounts.record_read(PI));
-        assert!(global.record_read(PI));
-        assert!(!accounts.record_read(OTHER));
-        assert!(main.record_read(OTHER));
-    }
-
-    #[test]
-    fn different_statements_are_different_reads() {
-        let ledger = ReadLedger::new("PaymentsConfirm".to_owned());
-        assert!(!ledger.record_read("SELECT 1908"));
-        assert!(!ledger.record_read("SELECT 3600"));
-        assert!(ledger.record_read("SELECT 1908"));
-        assert!(ledger.record_read("SELECT 3600"));
-    }
-
-    #[test]
-    fn distinct_statements_are_all_tracked() {
-        let ledger = ReadLedger::new("PaymentsConfirm".to_owned());
-        for index in 0..5_000 {
-            assert!(!ledger.record_read(&format!("SELECT {index}")));
-        }
-        assert!(ledger.record_read("SELECT 0"));
-        assert!(ledger.record_read("SELECT 4999"));
-    }
-
-    #[test]
-    fn shared_ledger_counts_each_concurrent_repeat_once() {
-        let ledger = Arc::new(ReadLedger::new("PaymentsConfirm".to_owned()));
-        let barrier = Arc::new(std::sync::Barrier::new(8));
-        let threads = (0..8)
-            .map(|_| {
-                let ledger = Arc::clone(&ledger);
-                let barrier = Arc::clone(&barrier);
-                std::thread::spawn(move || {
-                    barrier.wait();
-                    ledger.record_read(PI)
-                })
-            })
-            .collect::<Vec<_>>();
-        let repeats = threads
-            .into_iter()
-            .map(|thread| usize::from(thread.join().expect("read thread")))
-            .sum::<usize>();
-        assert_eq!(repeats, 7);
-    }
-}
+mod test;

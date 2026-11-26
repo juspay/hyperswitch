@@ -14,6 +14,7 @@ use hyperswitch_masking::PeekInterface;
 
 use super::{
     gateway::context::RouterGatewayContext,
+    should_allow_payouts::ShouldAllowPayouts,
     validator::{self, invalid_payout_request, validate_payout_condition},
     PayoutData,
 };
@@ -211,6 +212,17 @@ impl ExternalVaultPayout<'_> {
         let platform = self.platform;
         let input =
             Box::pin(self.validate_proxy_create_request(req, profile, provider_profile)).await?;
+        ShouldAllowPayouts::ensure_payouts_enabled(
+            state,
+            platform,
+            Some(input.profile.get_id()),
+            ShouldAllowPayouts::get_resolved_payment_method_type(
+                None,
+                Some(&input.payment_method),
+                None,
+            ),
+        )
+        .await?;
         self.ensure_proxy_transport_available()?;
         let dimensions = dimension_state::Dimensions::new()
             .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
@@ -447,7 +459,7 @@ impl ExternalVaultPayout<'_> {
         )?;
         let provider = platform.get_provider();
         let external_vault_mca = state
-            .store
+            .accounts_store
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                 provider.get_account().get_id(),
                 &vault_connector_id,
@@ -556,8 +568,21 @@ impl ExternalVaultPayout<'_> {
         let platform = self.platform;
         let req = self.normalize_proxy_create_request(req)?;
         let payout_id = self.validate_proxy_create_identity(&req).await?;
-        let customer_id = req.get_customer_id().get_required_value("customer_id")?;
         let processor = platform.get_processor();
+        let payout_cap_dimensions = dimension_state::Dimensions::new()
+            .with_processor_merchant_id(processor.get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_organization_id(processor.get_account().get_org_id().to_owned())
+            .with_profile_id(profile.get_id().clone());
+        validator::validate_payout_amount_against_config(
+            state,
+            &payout_cap_dimensions,
+            profile.get_id(),
+            req.amount,
+            req.currency,
+        )
+        .await?;
+        let customer_id = req.get_customer_id().get_required_value("customer_id")?;
         let use_merchant_reference_id =
             helpers::should_use_merchant_reference_id_as_customer_id_for_provider(
                 state,
@@ -594,9 +619,9 @@ impl ExternalVaultPayout<'_> {
         let execution_context = self
             .resolve_external_vault_execution_context(&provider_profile, saved_source)
             .await?;
-        let dimensions = dimension_state::Dimensions::new()
-            .with_processor_merchant_id(processor.get_processor_merchant_id())
-            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+        let dimensions = payout_cap_dimensions
+            .without_profile_id()
+            .without_organization_id();
         validate_payout_condition(
             !core_utils::get_feature_config(state, platform, &dimensions)
                 .await
@@ -822,6 +847,7 @@ impl ExternalVaultPayout<'_> {
             &*state.store,
             &payout_id,
             merchant_id,
+            platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
         .await

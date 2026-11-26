@@ -61,6 +61,8 @@ pub struct MerchantAccount {
     pub offer_engine_config: Option<Encryption>,
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub google_pay_decryption_config: Option<serde_json::Value>,
+    pub google_pay_decryption_config_encrypted: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
@@ -99,6 +101,8 @@ pub struct MerchantAccountSetter {
     pub network_tokenization_credentials: Option<Encryption>,
     pub fingerprint_secret: Option<Secret<String>>,
     pub offer_engine_config: Option<Encryption>,
+    pub google_pay_decryption_config: Option<serde_json::Value>,
+    pub google_pay_decryption_config_encrypted: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
@@ -142,6 +146,8 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             offer_engine_config: item.offer_engine_config,
             apple_pay_certificates: None,
             apple_pay_certificates_encrypted: None,
+            google_pay_decryption_config: item.google_pay_decryption_config,
+            google_pay_decryption_config_encrypted: item.google_pay_decryption_config_encrypted,
         }
     }
 }
@@ -181,6 +187,8 @@ pub struct MerchantAccount {
     pub offer_engine_config: Option<Encryption>,
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub google_pay_decryption_config: Option<serde_json::Value>,
+    pub google_pay_decryption_config_encrypted: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -206,6 +214,8 @@ impl From<MerchantAccountSetter> for MerchantAccount {
             offer_engine_config: None,
             apple_pay_certificates: None,
             apple_pay_certificates_encrypted: None,
+            google_pay_decryption_config: item.google_pay_decryption_config,
+            google_pay_decryption_config_encrypted: item.google_pay_decryption_config_encrypted,
         }
     }
 }
@@ -227,6 +237,8 @@ pub struct MerchantAccountSetter {
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: common_enums::MerchantAccountType,
     pub fingerprint_secret: Option<Secret<String>>,
+    pub google_pay_decryption_config: Option<serde_json::Value>,
+    pub google_pay_decryption_config_encrypted: Option<Encryption>,
 }
 
 impl MerchantAccount {
@@ -281,6 +293,8 @@ pub struct MerchantAccountNew {
     pub network_tokenization_credentials: Option<Encryption>,
     pub fingerprint_secret: Option<Secret<String>>,
     pub offer_engine_config: Option<Encryption>,
+    pub google_pay_decryption_config: Option<serde_json::Value>,
+    pub google_pay_decryption_config_encrypted: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -302,6 +316,8 @@ pub struct MerchantAccountNew {
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: common_enums::MerchantAccountType,
     pub fingerprint_secret: Option<Secret<String>>,
+    pub google_pay_decryption_config: Option<serde_json::Value>,
+    pub google_pay_decryption_config_encrypted: Option<Encryption>,
 }
 
 #[cfg(feature = "v2")]
@@ -321,6 +337,8 @@ pub struct MerchantAccountUpdateInternal {
     pub product_type: Option<common_enums::MerchantProductType>,
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub google_pay_decryption_config: Option<serde_json::Value>,
+    pub google_pay_decryption_config_encrypted: Option<Encryption>,
 }
 
 #[cfg(feature = "v1")]
@@ -359,4 +377,6 @@ pub struct MerchantAccountUpdateInternal {
     pub offer_engine_config: Option<Encryption>,
     pub apple_pay_certificates: Option<serde_json::Value>,
     pub apple_pay_certificates_encrypted: Option<Encryption>,
+    pub google_pay_decryption_config: Option<serde_json::Value>,
+    pub google_pay_decryption_config_encrypted: Option<Encryption>,
 }

@@ -309,7 +309,7 @@ pub enum ThreeDSRequestChannel {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreeDSRequestChallenge {
-    pub return_url: String,
+    pub return_url: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preference: Option<ThreeDsPreference>,
 }

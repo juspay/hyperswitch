@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
 use futures::future::try_join_all;
-use router_env::{instrument, tracing};
+use router_env::instrument;
 
 use super::{MockDb, Store};
 use crate::{
@@ -18,6 +18,7 @@ use crate::{
     },
 };
 
+#[router_derive::track_async_interface]
 #[async_trait::async_trait]
 pub trait EventInterface
 where
@@ -1929,24 +1930,23 @@ mod tests {
 
         let aes_key = services::generate_aes256_key()?;
 
-        let merchant_key_store = state
-            .store
-            .insert_merchant_key_store(
-                domain::MerchantKeyStore {
-                    merchant_id: merchant_id.clone(),
-                    key: domain::types::crypto_operation(
-                        key_manager_state,
-                        type_name!(domain::MerchantKeyStore),
-                        domain::types::CryptoOperation::EncryptLocally(aes_key.to_vec().into()),
-                        Identifier::Merchant(merchant_id.to_owned()),
-                        master_key,
-                    )
-                    .await?
-                    .try_into_operation()?,
-                    created_at: datetime!(2023-02-01 0:00),
-                },
-                &master_key.to_vec().into(),
+        let merchant_key_store_to_insert = domain::MerchantKeyStore {
+            merchant_id: merchant_id.clone(),
+            key: domain::types::crypto_operation(
+                key_manager_state,
+                type_name!(domain::MerchantKeyStore),
+                domain::types::CryptoOperation::EncryptLocally(aes_key.to_vec().into()),
+                Identifier::Merchant(merchant_id.to_owned()),
+                master_key,
             )
+            .await?
+            .try_into_operation()?,
+            created_at: datetime!(2023-02-01 0:00),
+        };
+        let key_store_master_key = master_key.to_vec().into();
+        let merchant_key_store = state
+            .accounts_store
+            .insert_merchant_key_store(merchant_key_store_to_insert, &key_store_master_key)
             .await?;
 
         let merchant_account_to_insert = MerchantAccount::from(MerchantAccountSetter {
@@ -2003,9 +2003,11 @@ mod tests {
             offer_engine_config: None,
             apple_pay_certificates: None,
             apple_pay_certificates_encrypted: None,
+            google_pay_decryption_config: None,
+            google_pay_decryption_config_encrypted: None,
         });
         let merchant_account = state
-            .store
+            .accounts_store
             .insert_merchant(merchant_account_to_insert, &merchant_key_store)
             .await?;
 
@@ -2099,8 +2101,8 @@ mod tests {
         });
 
         let business_profile = state
-            .store
-            .insert_business_profile(&merchant_key_store.clone(), business_profile_to_insert)
+            .accounts_store
+            .insert_business_profile(&merchant_key_store, business_profile_to_insert)
             .await?;
 
         // Same inputs for all threads
@@ -2141,6 +2143,7 @@ mod tests {
             attempts: None,
             captures: None,
             mandate_data: None,
+            customer_acceptance: None,
             setup_future_usage: None,
             off_session: None,
             capture_on: None,
@@ -2227,6 +2230,7 @@ mod tests {
             billing_descriptor: None,
             is_account_funded_transaction: None,
             recipient_details: None,
+            sender_details: None,
             partner_merchant_identifier_details: None,
             payment_method_tokenization_details: None,
             error_details: None,

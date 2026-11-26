@@ -1057,6 +1057,7 @@ export const connectorDetails = {
             santander: null,
             paypal: null,
             worldpayxml: null,
+            worldpayraft: null,
             checkout: {
               purpose_of_payment: "wallet top-up",
             },

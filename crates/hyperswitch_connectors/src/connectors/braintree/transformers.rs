@@ -2722,7 +2722,7 @@ fn get_braintree_redirect_form(
     client_token_data: ClientTokenResponse,
     payment_method_token: PaymentMethodToken,
     card_details: PaymentMethodData,
-    complete_authorize_url: String,
+    complete_authorize_url: Secret<String>,
 ) -> Result<RedirectForm, error_stack::Report<errors::ConnectorError>> {
     Ok(RedirectForm::Braintree {
         client_token: client_token_data

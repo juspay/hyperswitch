@@ -17,10 +17,7 @@ use error_stack::{report, Report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
 use hyperswitch_interfaces::{consts, webhooks::WebhookResourceData};
 use hyperswitch_masking::{ExposeInterface, Mask, PeekInterface, Secret};
-use router_env::{
-    instrument,
-    tracing::{self, Instrument},
-};
+use router_env::{instrument, tracing::Instrument};
 
 use super::{types, utils, MERCHANT_CONNECTOR_ACCOUNT_ID, MERCHANT_ID};
 #[cfg(feature = "stripe")]
@@ -155,7 +152,7 @@ async fn get_surcharge_webhook_event(
     merchant_surcharge_connector_id: common_utils::id_type::MerchantConnectorAccountId,
 ) -> CustomResult<Option<types::WebhookPayload>, errors::ApiErrorResponse> {
     let merchant_surcharge_connector = state
-        .store
+        .accounts_store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             platform.get_provider().get_account().get_id(),
             &merchant_surcharge_connector_id,
@@ -675,7 +672,7 @@ async fn trigger_webhook_to_connector(
     };
 
     let mca_result = state
-        .store
+        .accounts_store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &provider_merchant_id,
             merchant_connector_id,
@@ -693,26 +690,50 @@ async fn trigger_webhook_to_connector(
 
     let connector_name = mca.connector_name.clone();
 
-    let (notify_request, connector_auth_metadata, notify_event_type) =
-        crate::core::unified_connector_service::build_notify_connector_request(
-            &event,
-            &provider_merchant_id,
-            MerchantConnectorAccountType::DbVal(Box::new(mca)),
-            connector_name,
-            notify_feature_data,
-        )
-        .change_context(errors::WebhooksFlowError::WebhookRequestConstructionFailed)?;
-
-    let response = crate::core::unified_connector_service::call_unified_connector_service_for_notify_connector(
+    // Partial surcharge refunds finalise via SurchargeRefundComplete; everything else takes the
+    // generic notify (`complete_from_webhook` returns `None`). Both yield NotifyConnectorResponseData
+    // so the handling below is shared — a failed Complete only reschedules the webhook, not the refund.
+    let surcharge_complete = if event.event_type == enums::EventType::SurchargeRefundSucceeded {
+        crate::core::refunds::surcharge::complete_from_webhook(
             &state,
-            &event,
-            connector_auth_metadata,
-            notify_request,
-            notify_event_type,
             &provider_merchant_id,
+            &merchant_key_store,
             business_profile.get_id(),
+            MerchantConnectorAccountType::DbVal(Box::new(mca.clone())),
+            &event.primary_object_id,
         )
-        .await;
+        .await
+        .transpose()
+    } else {
+        None
+    };
+
+    let response = match surcharge_complete {
+        Some(result) => result,
+        // Original-payment surcharge, or a full refund, send the legacy single notify.
+        None => {
+            let (notify_request, connector_auth_metadata, notify_event_type) =
+                crate::core::unified_connector_service::build_notify_connector_request(
+                    &event,
+                    &provider_merchant_id,
+                    MerchantConnectorAccountType::DbVal(Box::new(mca)),
+                    connector_name,
+                    notify_feature_data,
+                )
+                .change_context(errors::WebhooksFlowError::WebhookRequestConstructionFailed)?;
+
+            crate::core::unified_connector_service::call_unified_connector_service_for_notify_connector(
+                &state,
+                &event,
+                connector_auth_metadata,
+                notify_request,
+                notify_event_type,
+                &provider_merchant_id,
+                business_profile.get_id(),
+            )
+            .await
+        }
+    };
 
     metrics::WEBHOOK_OUTGOING_COUNT.add(
         1,
@@ -776,7 +797,7 @@ async fn update_payment_attempt_from_webhook_response(
 ) {
     if event.event_type == enums::EventType::SurchargePaymentSucceeded {
         let merchant_account = state
-            .store
+            .accounts_store
             .find_merchant_account_by_merchant_id(merchant_id, merchant_key_store)
             .await;
 
@@ -1428,9 +1449,11 @@ fn get_outgoing_webhook_event_content_from_event_metadata(
             content: serde_json::Value::Null,
         },
         diesel_models::EventMetadata::Mandate {
+            payment_id,
             payment_method_id,
             mandate_id,
         } => OutgoingWebhookEventContent::Mandate {
+            payment_id,
             payment_method_id,
             mandate_id,
             content: serde_json::Value::Null,
@@ -1471,6 +1494,7 @@ impl ForeignFrom<&api::OutgoingWebhookContent> for storage::EventMetadata {
                 dispute_id: dispute_response.dispute_id.clone(),
             },
             webhooks::OutgoingWebhookContent::MandateDetails(mandate_response) => Self::Mandate {
+                payment_id: mandate_response.payment_id.clone(),
                 payment_method_id: mandate_response.payment_method_id.clone(),
                 mandate_id: mandate_response.mandate_id.clone(),
             },

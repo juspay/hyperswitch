@@ -32,6 +32,17 @@ const billing = {
   },
 };
 
+const clientAuthRejection = {
+  status: 401,
+  body: {
+    error: {
+      type: "invalid_request",
+      message: "API key not provided or invalid API key used",
+      code: "IR_01",
+    },
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     Create: getCustomExchange({
@@ -305,14 +316,8 @@ export const connectorDetails = {
     }),
   },
   wallet_pm: {
-    // Cross-connector skeleton for wallet payouts. Wallet payouts are only
-    // supported by wallet-capable payout connectors, so the connector-driven
-    // success keys (Create / ConfirmMerchantAuth / ConfirmClientAuth /
-    // RetrieveAfterConfirm) default to the 501 not-implemented response —
-    // connectors override them with their real responses. The client-auth
-    // restricted-field validations are enforced by the router before the
-    // payout state is loaded or mutated, so their error envelopes are
-    // connector-agnostic and shared here as the default.
+    // Wallet connectors override create/merchant-confirm success responses.
+    // Publishable-key confirmation is rejected before payout processing.
     Create: getCustomExchange({
       Request: {
         payout_type: "wallet",
@@ -323,17 +328,7 @@ export const connectorDetails = {
         amount: 10000,
         payout_type: "wallet",
       },
-      Response: {
-        status: 422,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "The following fields cannot be provided for client-authenticated payout confirmation: amount",
-            code: "IR_06",
-          },
-        },
-      },
+      Response: clientAuthRejection,
     }),
     ConfirmClientAuthMultipleRestrictedFields: getCustomExchange({
       Request: {
@@ -342,17 +337,7 @@ export const connectorDetails = {
         auto_fulfill: false,
         payout_type: "wallet",
       },
-      Response: {
-        status: 422,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "The following fields cannot be provided for client-authenticated payout confirmation: amount, auto_fulfill, currency",
-            code: "IR_06",
-          },
-        },
-      },
+      Response: clientAuthRejection,
     }),
     ConfirmClientAuthMissingClientSecret: getCustomExchange({
       Request: {
@@ -360,16 +345,7 @@ export const connectorDetails = {
         amount: 10000,
         payout_type: "wallet",
       },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Missing required param: client_secret",
-            code: "IR_04",
-          },
-        },
-      },
+      Response: clientAuthRejection,
     }),
     ConfirmMerchantAuth: getCustomExchange({
       Request: {
@@ -381,6 +357,7 @@ export const connectorDetails = {
       Request: {
         payout_type: "wallet",
       },
+      Response: clientAuthRejection,
     }),
     RetrieveAfterClientAuthErrors: getCustomExchange({
       Response: {

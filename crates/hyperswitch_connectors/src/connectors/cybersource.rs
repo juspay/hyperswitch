@@ -33,7 +33,8 @@ use hyperswitch_domain_models::{
     },
     router_response_types::{
         ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, PaymentsResponseData,
-        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        RedirectCallback, RedirectForm, RefundsResponseData, SupportedPaymentMethods,
+        SupportedPaymentMethodsExt,
     },
     types::{
         MandateRevokeRouterData, PaymentsAuthenticateRouterData, PaymentsAuthorizeRouterData,
@@ -2366,6 +2367,22 @@ static CYBERSOURCE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 
 static CYBERSOURCE_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
 
+impl api::ConnectorRedirectResponse for Cybersource {
+    fn get_redirect_callback(&self, form: &RedirectForm) -> Option<RedirectCallback> {
+        matches!(form, RedirectForm::CybersourceAuthSetup { .. })
+            .then_some(RedirectCallback::Complete)
+    }
+
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        _json_payload: Option<serde_json::Value>,
+        _action: enums::PaymentAction,
+    ) -> CustomResult<enums::CallConnectorAction, errors::ConnectorError> {
+        Ok(enums::CallConnectorAction::Trigger)
+    }
+}
+
 impl ConnectorSpecifications for Cybersource {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&CYBERSOURCE_CONNECTOR_INFO)
@@ -2400,7 +2417,9 @@ impl ConnectorSpecifications for Cybersource {
             api::CurrentFlowInfo::SetupMandate { .. } => None,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => None,
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::Execute => None,
         }
     }
     fn get_alternate_flow_if_needed(
@@ -2424,7 +2443,9 @@ impl ConnectorSpecifications for Cybersource {
             api::CurrentFlowInfo::SetupMandate { .. } => None,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => None,
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::Execute => None,
         }
     }
     fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
@@ -2439,7 +2460,9 @@ impl ConnectorSpecifications for Cybersource {
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::Execute => false,
         }
     }
     /// Check if authentication flow is required
@@ -2463,7 +2486,9 @@ impl ConnectorSpecifications for Cybersource {
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::Execute => false,
         }
     }
     /// Check if post-authentication flow is required
@@ -2487,7 +2512,9 @@ impl ConnectorSpecifications for Cybersource {
             api::CurrentFlowInfo::SetupMandate { .. } => false,
             api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
-            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. } => false,
+            | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
+            | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
+            | api::CurrentFlowInfo::Execute => false,
         }
     }
 }

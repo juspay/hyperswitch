@@ -8,7 +8,8 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::{PeekInterface, Secret};
 use openssl::{
-    ec::{EcGroup, EcKey},
+    bn::BigNumContext,
+    ec::{EcGroup, EcKey, PointConversionForm},
     nid::Nid,
     pkey::PKey,
     x509::{X509NameBuilder, X509Req, X509},
@@ -16,8 +17,9 @@ use openssl::{
 use storage_impl::behaviour::ForeignInto;
 
 use crate::{
+    consts,
     core::errors::{self, RouterResponse, RouterResult, StorageErrorExt},
-    db::StorageInterface,
+    db::AccountsStorageInterface,
     routes::SessionState,
     services::api::ApplicationResponse,
     types::domain,
@@ -31,6 +33,7 @@ trait HierarchicalResourceHandler {
         state: &SessionState,
         processor: &domain::Processor,
         org_key_store: &domain::MerchantKeyStore,
+        request: &api_resources::GenerateHierarchicalResourceRequest,
     ) -> RouterResult<(
         domain::HierarchicalResource,
         api_resources::GenerateHierarchicalResourceResponse,
@@ -132,6 +135,7 @@ impl HierarchicalResourceHandler for ApplePayCertificateResource {
         state: &SessionState,
         processor: &domain::Processor,
         org_key_store: &domain::MerchantKeyStore,
+        _request: &api_resources::GenerateHierarchicalResourceRequest,
     ) -> RouterResult<(
         domain::HierarchicalResource,
         api_resources::GenerateHierarchicalResourceResponse,
@@ -243,8 +247,6 @@ impl HierarchicalResourceHandler for ApplePayCertificateResource {
         account: RequestorAccount,
         account_key_store: &domain::MerchantKeyStore,
     ) -> RouterResult<()> {
-        let db = state.store.as_ref();
-
         match resource.encrypted_data.as_ref() {
             Some(private_key) => {
                 let data = parse_apple_pay_certificate_data(&resource.data)?;
@@ -290,11 +292,301 @@ impl HierarchicalResourceHandler for ApplePayCertificateResource {
                     apple_pay_certificates: Some(Secret::new(plain_data)),
                     apple_pay_certificates_encrypted: Some(encrypted_cache.into()),
                 };
-                link_hierarchical_resource_data_to_scope(db, account_key_store, account, &update)
-                    .await
+                link_hierarchical_resource_data_to_scope(
+                    state.accounts_store.as_ref(),
+                    account_key_store,
+                    account,
+                    &update,
+                )
+                .await
             }
             None => Ok(()),
         }
+    }
+}
+
+#[derive(serde::Serialize)]
+struct GooglePayPublicKeyData<'a> {
+    public_key: &'a str,
+    protocol_version: &'a str,
+    recipient_id: &'a str,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct GooglePayDisplayData {
+    google_merchant_id: String,
+    public_key: String,
+    protocol_version: String,
+    recipient_id: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct GooglePayResourceData {
+    merchant_id: id_type::MerchantId,
+    google_merchant_id: String,
+    public_key: String,
+    protocol_version: String,
+    recipient_id: String,
+}
+
+impl GooglePayResourceData {
+    fn is_linkable(&self, resource: &domain::HierarchicalResource) -> bool {
+        resource.encrypted_data.is_some()
+            && self.protocol_version == consts::PROTOCOL
+            && !self.public_key.is_empty()
+    }
+}
+
+impl From<GooglePayResourceData> for GooglePayDisplayData {
+    fn from(data: GooglePayResourceData) -> Self {
+        Self {
+            google_merchant_id: data.google_merchant_id,
+            public_key: data.public_key,
+            protocol_version: data.protocol_version,
+            recipient_id: data.recipient_id,
+        }
+    }
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct GooglePayResourceKeyData {
+    google_pay_private_key: Secret<String>,
+}
+
+#[derive(serde::Serialize)]
+struct GooglePayResourceKeyWrapper {
+    data: GooglePayResourceKeyData,
+}
+
+#[derive(serde::Serialize)]
+struct GooglePayResourceCachePayload {
+    resource_id: id_type::ResourceId,
+    data: GooglePayDisplayData,
+}
+
+fn parse_google_pay_resource_data(
+    resource: &domain::HierarchicalResource,
+) -> RouterResult<GooglePayResourceData> {
+    serde_json::from_value(resource.data.peek().clone())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse Google Pay DIRECT resource data")
+}
+
+/// Google expects a base64 uncompressed P-256 public point and a PKCS#8 DER private key.
+fn generate_google_pay_direct_keypair(
+) -> Result<(Secret<String>, String), openssl::error::ErrorStack> {
+    let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1)?;
+    let key = EcKey::generate(&group)?;
+    let mut context = BigNumContext::new()?;
+    let public_key =
+        key.public_key()
+            .to_bytes(&group, PointConversionForm::UNCOMPRESSED, &mut context)?;
+    let private_key = PKey::from_ec_key(key)?.private_key_to_pkcs8()?;
+    Ok((
+        Secret::new(common_utils::consts::BASE64_ENGINE.encode(private_key)),
+        common_utils::consts::BASE64_ENGINE.encode(public_key),
+    ))
+}
+
+struct GooglePayResource;
+
+#[async_trait]
+impl HierarchicalResourceHandler for GooglePayResource {
+    async fn generate(
+        state: &SessionState,
+        processor: &domain::Processor,
+        org_key_store: &domain::MerchantKeyStore,
+        request: &api_resources::GenerateHierarchicalResourceRequest,
+    ) -> RouterResult<(
+        domain::HierarchicalResource,
+        api_resources::GenerateHierarchicalResourceResponse,
+    )> {
+        let configuration = request.google_pay.as_ref().ok_or_else(|| {
+            report!(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "google_pay".into(),
+            })
+        })?;
+        common_utils::fp_utils::when(
+            configuration.google_merchant_id.is_empty()
+                || configuration.google_merchant_id.trim() != configuration.google_merchant_id,
+            || {
+                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message:
+                        "google_merchant_id must be nonempty and contain no surrounding whitespace"
+                            .to_string(),
+                }))
+            },
+        )?;
+
+        let (private_key, public_key) = generate_google_pay_direct_keypair()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to generate Google Pay DIRECT P-256 keypair")?;
+        let key_manager_state: &KeyManagerState = &state.into();
+        let merchant_account = processor.get_account();
+        let organization_id = &merchant_account.organization_id;
+        let private_key_payload = serde_json::to_string(&GooglePayResourceKeyData {
+            google_pay_private_key: private_key,
+        })
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize Google Pay private key payload")?;
+        let identifier = km_types::Identifier::Merchant(
+            organization_id
+                .as_merchant_key_identifier()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to derive Google Pay organization key identifier")?,
+        );
+        let encrypted_private_key = domain::types::crypto_operation(
+            key_manager_state,
+            common_utils::type_name!(domain::HierarchicalResource),
+            domain::types::CryptoOperation::Encrypt(Secret::new(private_key_payload)),
+            identifier,
+            org_key_store.key.peek(),
+        )
+        .await
+        .and_then(|value| value.try_into_operation())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encrypt generated Google Pay private key")?;
+        let resource_data = GooglePayResourceData {
+            merchant_id: merchant_account.get_id().clone(),
+            google_merchant_id: configuration.google_merchant_id.clone(),
+            public_key,
+            protocol_version: consts::PROTOCOL.to_string(),
+            recipient_id: format!(
+                "{}{}",
+                consts::GOOGLE_PAY_MERCHANT_RECIPIENT_PREFIX,
+                configuration.google_merchant_id
+            ),
+        };
+        let public_key_data = serde_json::to_value(GooglePayPublicKeyData {
+            public_key: &resource_data.public_key,
+            protocol_version: &resource_data.protocol_version,
+            recipient_id: &resource_data.recipient_id,
+        })
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize Google Pay public key response data")?;
+        let response_data = serde_json::Map::from_iter([(
+            common_enums::ResourceType::GooglePay.to_string(),
+            public_key_data,
+        )]);
+        let resource_id = id_type::ResourceId::default();
+        let resource = domain::HierarchicalResource {
+            id: resource_id.clone(),
+            resource_type: common_enums::ResourceType::GooglePay.to_string(),
+            scope: RESOURCE_SCOPE_ORGANIZATION.to_string(),
+            scope_id: organization_id.get_string_repr().to_string(),
+            data: Secret::new(
+                serde_json::to_value(resource_data)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize Google Pay resource data")?,
+            ),
+            encrypted_data: Some(encrypted_private_key),
+            created_by: format!("merchant:{}", merchant_account.get_id().get_string_repr()),
+            created_at: date_time::now(),
+            modified_at: date_time::now(),
+        };
+        Ok((
+            resource,
+            api_resources::GenerateHierarchicalResourceResponse {
+                id: resource_id,
+                data: Secret::new(serde_json::Value::Object(response_data)),
+            },
+        ))
+    }
+
+    fn display_schema() -> Secret<serde_json::Value> {
+        Secret::new(serde_json::json!({
+            "google_merchant_id": "Google Merchant ID",
+            "public_key": "Public key",
+            "protocol_version": "Protocol version",
+            "recipient_id": "Recipient ID"
+        }))
+    }
+
+    fn display_data(
+        resource: &domain::HierarchicalResource,
+    ) -> RouterResult<Secret<serde_json::Value>> {
+        let data = parse_google_pay_resource_data(resource)?;
+        serde_json::to_value(GooglePayDisplayData::from(data))
+            .map(Secret::new)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to serialize Google Pay resource display data")
+    }
+
+    fn is_linkable(resource: &domain::HierarchicalResource) -> RouterResult<bool> {
+        let data = parse_google_pay_resource_data(resource)?;
+        Ok(data.is_linkable(resource))
+    }
+
+    async fn on_link(
+        state: &SessionState,
+        key_manager_state: &KeyManagerState,
+        resource: &domain::HierarchicalResource,
+        resource_id: &id_type::ResourceId,
+        account: RequestorAccount,
+        account_key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<()> {
+        common_utils::fp_utils::when(
+            matches!(&account, RequestorAccount::MerchantConnectorAccount(_)),
+            || {
+                Err(report!(errors::ApiErrorResponse::NotSupported {
+                    message: "Google Pay DIRECT resources can only be linked to a profile or merchant account"
+                        .to_string(),
+                }))
+            },
+        )?;
+        let data = parse_google_pay_resource_data(resource)?;
+        common_utils::fp_utils::when(data.merchant_id != account_key_store.merchant_id, || {
+            Err(report!(errors::ApiErrorResponse::GenericNotFoundError {
+                message: "resource not found".to_string(),
+            }))
+        })?;
+        common_utils::fp_utils::when(!data.is_linkable(resource), || {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Google Pay resource is not ready for linking".to_string(),
+            }))
+        })?;
+        let private_key = resource.encrypted_data.as_ref().ok_or_else(|| {
+            report!(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Google Pay resource has no encrypted private key")
+        })?;
+        let private_key_payload: GooglePayResourceKeyData =
+            serde_json::from_str(private_key.peek())
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse stored Google Pay private key payload")?;
+        let key_wrapper = serde_json::to_value(GooglePayResourceKeyWrapper {
+            data: private_key_payload,
+        })
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize Google Pay cache key wrapper")?;
+        let key_wrapper: Secret<serde_json::Value> = Secret::new(key_wrapper);
+        let encrypted_cache = domain::types::crypto_operation(
+            key_manager_state,
+            common_utils::type_name!(domain::HierarchicalResource),
+            domain::types::CryptoOperation::Encrypt(key_wrapper),
+            km_types::Identifier::Merchant(account_key_store.merchant_id.clone()),
+            account_key_store.key.peek(),
+        )
+        .await
+        .and_then(|value| value.try_into_operation())
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encrypt Google Pay decryption cache")?;
+        let public_cache = serde_json::to_value(GooglePayResourceCachePayload {
+            resource_id: resource_id.clone(),
+            data: data.into(),
+        })
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize Google Pay decryption configuration")?;
+        let update = GooglePayResourceUpdate {
+            google_pay_decryption_config: public_cache,
+            google_pay_decryption_config_encrypted: encrypted_cache.into(),
+        };
+        link_hierarchical_resource_data_to_scope(
+            state.accounts_store.as_ref(),
+            account_key_store,
+            account,
+            &update,
+        )
+        .await
     }
 }
 
@@ -305,8 +597,6 @@ impl ApplePayCertificateResource {
         org_key: &Secret<Vec<u8>>,
         req: api_resources::UploadCertificateRequest,
     ) -> RouterResult<api_resources::UploadCertificateResponse> {
-        let db = state.store.as_ref();
-
         let private_key_payload = resource
             .encrypted_data
             .as_ref()
@@ -328,11 +618,11 @@ impl ApplePayCertificateResource {
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "Failed to verify uploaded certificate".to_string(),
         })?;
-        if !keys_match {
-            return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+        common_utils::fp_utils::when(!keys_match, || {
+            Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Uploaded certificate does not match the generated key".to_string(),
-            }));
-        }
+            }))
+        })?;
 
         let apple_merchant_identifier = parse_apple_merchant_identifier(&certificate)
             .change_context(errors::ApiErrorResponse::InvalidRequestData {
@@ -345,20 +635,16 @@ impl ApplePayCertificateResource {
             payment_processing_certificate: Some(req.certificate),
         };
 
-        let updated = db
-            .update_linked_resource_data(
-                resource.id.clone(),
-                domain::HierarchicalResourceDataUpdate {
-                    data: Secret::new(
-                        serde_json::to_value(&data)
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(
-                                "Failed to serialize Apple Pay certificate resource data",
-                            )?,
-                    ),
-                },
-                org_key,
-            )
+        let resource_update = domain::HierarchicalResourceDataUpdate {
+            data: Secret::new(
+                serde_json::to_value(&data)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to serialize Apple Pay certificate resource data")?,
+            ),
+        };
+        let updated = state
+            .accounts_store
+            .update_linked_resource_data(resource.id.clone(), resource_update, org_key)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to persist uploaded Apple Pay certificate")?;
@@ -371,7 +657,9 @@ impl ApplePayCertificateResource {
 }
 
 trait RequestorHierarchicalResourceUpdate {
-    fn for_merchant_connector_account(&self) -> domain::MerchantConnectorAccountUpdate;
+    fn for_merchant_connector_account(
+        &self,
+    ) -> RouterResult<domain::MerchantConnectorAccountUpdate>;
     fn for_profile(&self) -> domain::ProfileUpdate;
     fn for_merchant_account(&self) -> domain::MerchantAccountUpdate;
 }
@@ -390,11 +678,15 @@ impl ApplePayCertificateResourceUpdate {
 }
 
 impl RequestorHierarchicalResourceUpdate for ApplePayCertificateResourceUpdate {
-    fn for_merchant_connector_account(&self) -> domain::MerchantConnectorAccountUpdate {
-        domain::MerchantConnectorAccountUpdate::ApplePayCertificateCacheUpdate {
-            apple_pay_certificates: self.apple_pay_certificates(),
-            apple_pay_certificates_encrypted: self.apple_pay_certificates_encrypted.clone(),
-        }
+    fn for_merchant_connector_account(
+        &self,
+    ) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
+        Ok(
+            domain::MerchantConnectorAccountUpdate::ApplePayCertificateCacheUpdate {
+                apple_pay_certificates: self.apple_pay_certificates(),
+                apple_pay_certificates_encrypted: self.apple_pay_certificates_encrypted.clone(),
+            },
+        )
     }
 
     fn for_profile(&self) -> domain::ProfileUpdate {
@@ -408,6 +700,63 @@ impl RequestorHierarchicalResourceUpdate for ApplePayCertificateResourceUpdate {
         domain::MerchantAccountUpdate::ApplePayCertificateCacheUpdate {
             apple_pay_certificates: self.apple_pay_certificates(),
             apple_pay_certificates_encrypted: self.apple_pay_certificates_encrypted.clone(),
+        }
+    }
+}
+
+struct GooglePayResourceUpdate {
+    google_pay_decryption_config: serde_json::Value,
+    google_pay_decryption_config_encrypted: common_utils::encryption::Encryption,
+}
+
+impl RequestorHierarchicalResourceUpdate for GooglePayResourceUpdate {
+    fn for_merchant_connector_account(
+        &self,
+    ) -> RouterResult<domain::MerchantConnectorAccountUpdate> {
+        Err(errors::ApiErrorResponse::NotSupported {
+            message:
+                "Google Pay DIRECT resources can only be linked to a profile or merchant account"
+                    .to_string(),
+        }
+        .into())
+    }
+
+    fn for_profile(&self) -> domain::ProfileUpdate {
+        domain::ProfileUpdate::GooglePayDecryptionConfigUpdate {
+            google_pay_decryption_config: Some(self.google_pay_decryption_config.clone()),
+            google_pay_decryption_config_encrypted: Some(
+                self.google_pay_decryption_config_encrypted.clone(),
+            ),
+        }
+    }
+
+    fn for_merchant_account(&self) -> domain::MerchantAccountUpdate {
+        domain::MerchantAccountUpdate::GooglePayDecryptionConfigUpdate {
+            google_pay_decryption_config: Some(self.google_pay_decryption_config.clone()),
+            google_pay_decryption_config_encrypted: Some(
+                self.google_pay_decryption_config_encrypted.clone(),
+            ),
+        }
+    }
+}
+
+fn resolve_google_pay_resource_data(
+    processor: &domain::Processor,
+    account: &RequestorAccount,
+) -> RouterResult<Option<serde_json::Value>> {
+    match account {
+        RequestorAccount::Profile(profile) => Ok(profile
+            .google_pay_decryption_config
+            .clone()
+            .or_else(|| processor.get_account().google_pay_decryption_config.clone())),
+        RequestorAccount::MerchantAccount(merchant) => {
+            Ok(merchant.google_pay_decryption_config.clone())
+        }
+        RequestorAccount::MerchantConnectorAccount(_) => {
+            Err(errors::ApiErrorResponse::NotSupported {
+                message: "Google Pay DIRECT resource linking does not use an MCA".to_string(),
+            }
+            .into())
         }
     }
 }
@@ -437,7 +786,7 @@ where
 /// check is needed since the fetch can never return an entity belonging to a different merchant.
 #[cfg(feature = "v1")]
 async fn fetch_requestor_account(
-    db: &dyn StorageInterface,
+    db: &dyn AccountsStorageInterface,
     processor: &domain::Processor,
     requestor_type: common_enums::ResourceRequestorType,
     requestor_id: &str,
@@ -475,9 +824,9 @@ async fn fetch_requestor_account(
         }
         common_enums::ResourceRequestorType::MerchantAccount => {
             let merchant_id = parse_requestor_id::<id_type::MerchantId>(requestor_id)?;
-            if &merchant_id != processor.get_account().get_id() {
-                return Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound));
-            }
+            common_utils::fp_utils::when(&merchant_id != processor.get_account().get_id(), || {
+                Err(report!(errors::ApiErrorResponse::MerchantAccountNotFound))
+            })?;
             Ok(RequestorAccount::MerchantAccount(Box::new(
                 processor.get_account().clone(),
             )))
@@ -487,7 +836,7 @@ async fn fetch_requestor_account(
 
 #[cfg(feature = "v2")]
 async fn fetch_requestor_account(
-    _db: &dyn StorageInterface,
+    _db: &dyn AccountsStorageInterface,
     _processor: &domain::Processor,
     _requestor_type: common_enums::ResourceRequestorType,
     _requestor_id: &str,
@@ -503,7 +852,7 @@ async fn fetch_requestor_account(
 /// already scoped to `processor`'s merchant, not caller-supplied ids.
 #[cfg(feature = "v1")]
 async fn resolve_apple_pay_certificate_data(
-    db: &dyn StorageInterface,
+    db: &dyn AccountsStorageInterface,
     processor: &domain::Processor,
     account: &RequestorAccount,
 ) -> Option<serde_json::Value> {
@@ -537,7 +886,7 @@ async fn resolve_apple_pay_certificate_data(
 
 #[cfg(feature = "v2")]
 async fn resolve_apple_pay_certificate_data(
-    _db: &dyn StorageInterface,
+    _db: &dyn AccountsStorageInterface,
     _processor: &domain::Processor,
     _account: &RequestorAccount,
 ) -> Option<serde_json::Value> {
@@ -545,7 +894,7 @@ async fn resolve_apple_pay_certificate_data(
 }
 
 async fn link_hierarchical_resource_data_to_scope(
-    db: &dyn StorageInterface,
+    db: &dyn AccountsStorageInterface,
     key_store: &domain::MerchantKeyStore,
     account: RequestorAccount,
     update: &impl RequestorHierarchicalResourceUpdate,
@@ -554,7 +903,7 @@ async fn link_hierarchical_resource_data_to_scope(
         RequestorAccount::MerchantConnectorAccount(mca) => {
             db.update_merchant_connector_account(
                 *mca,
-                update.for_merchant_connector_account().foreign_into(),
+                update.for_merchant_connector_account()?.foreign_into(),
                 key_store,
             )
             .await
@@ -583,20 +932,30 @@ pub async fn generate_hierarchical_resource(
     processor: domain::Processor,
     req: api_resources::GenerateHierarchicalResourceRequest,
 ) -> RouterResponse<api_resources::GenerateHierarchicalResourceResponse> {
-    let db = state.store.as_ref();
     let key_manager_state: &KeyManagerState = &(&state).into();
     let organization_id = processor.get_account().organization_id.clone();
 
     let org_key_store =
-        ensure_organization_key_store(db, key_manager_state, &organization_id).await?;
+        ensure_organization_key_store(&state, key_manager_state, &organization_id).await?;
 
     let (resource, response) = match req.resource_type {
         common_enums::ResourceType::ApplePayCertificate => {
-            ApplePayCertificateResource::generate(&state, &processor, &org_key_store).await?
+            common_utils::fp_utils::when(req.google_pay.is_some(), || {
+                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "google_pay configuration is only valid for google_pay resources"
+                        .to_string(),
+                }))
+            })?;
+            ApplePayCertificateResource::generate(&state, &processor, &org_key_store, &req).await?
+        }
+        common_enums::ResourceType::GooglePay => {
+            GooglePayResource::generate(&state, &processor, &org_key_store, &req).await?
         }
     };
 
-    db.insert_linked_resource(resource, &org_key_store.key)
+    state
+        .accounts_store
+        .insert_linked_resource(resource, &org_key_store.key)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to persist generated resource")?;
@@ -635,11 +994,11 @@ pub async fn upload_hierarchical_resource(
     resource_id: id_type::ResourceId,
     req: api_resources::UploadCertificateRequest,
 ) -> RouterResponse<api_resources::UploadCertificateResponse> {
-    let db = state.store.as_ref();
     let key_manager_state: &KeyManagerState = &(&state).into();
     let organization_id = processor.get_account().organization_id.clone();
 
-    let scope_id = db
+    let scope_id = state
+        .accounts_store
         .find_resource_scope_id(resource_id.clone())
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
@@ -648,9 +1007,10 @@ pub async fn upload_hierarchical_resource(
     authorize_scope_id_belongs_to_org(&scope_id, &organization_id)?;
 
     let org_key_store =
-        ensure_organization_key_store(db, key_manager_state, &organization_id).await?;
+        ensure_organization_key_store(&state, key_manager_state, &organization_id).await?;
 
-    let resource = db
+    let resource = state
+        .accounts_store
         .find_linked_resource_by_id(resource_id.clone(), &org_key_store.key)
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
@@ -663,6 +1023,9 @@ pub async fn upload_hierarchical_resource(
         common_enums::ResourceType::ApplePayCertificate => {
             ApplePayCertificateResource::upload(&state, resource, &org_key_store.key, req).await?
         }
+        common_enums::ResourceType::GooglePay => Err(errors::ApiErrorResponse::NotSupported {
+            message: "Google Pay DIRECT resources do not accept certificate uploads".to_string(),
+        })?,
     };
 
     Ok(ApplicationResponse::Json(response))
@@ -684,7 +1047,7 @@ fn parse_resource_type(
 }
 
 fn parse_certificate_from_base64_der(certificate_base64: &str) -> RouterResult<X509> {
-    let der_bytes = crate::consts::BASE64_ENGINE
+    let der_bytes = consts::BASE64_ENGINE
         .decode(certificate_base64)
         .change_context(errors::ApiErrorResponse::InvalidRequestData {
             message: "certificate is not valid base64".to_string(),
@@ -731,14 +1094,14 @@ pub async fn list_hierarchical_resources(
     processor: domain::Processor,
     req: api_resources::ListHierarchicalResourcesRequest,
 ) -> RouterResponse<api_resources::ListHierarchicalResourcesResponse> {
-    let db = state.store.as_ref();
     let key_manager_state: &KeyManagerState = &(&state).into();
     let organization_id = processor.get_account().organization_id.clone();
 
     let org_key_store =
-        ensure_organization_key_store(db, key_manager_state, &organization_id).await?;
+        ensure_organization_key_store(&state, key_manager_state, &organization_id).await?;
 
-    let resources = db
+    let resources = state
+        .accounts_store
         .list_linked_resources_by_scope_id_and_resource_type(
             organization_id.get_string_repr().to_string(),
             req.resource_type.to_string(),
@@ -750,8 +1113,27 @@ pub async fn list_hierarchical_resources(
 
     let effective_resource_id = match (req.scope_type, req.scope_id) {
         (Some(scope_type), Some(scope_id)) => {
-            let account = fetch_requestor_account(db, &processor, scope_type, &scope_id).await?;
-            match resolve_apple_pay_certificate_data(db, &processor, &account).await {
+            let account = fetch_requestor_account(
+                state.accounts_store.as_ref(),
+                &processor,
+                scope_type,
+                &scope_id,
+            )
+            .await?;
+            let linked_data = match req.resource_type {
+                common_enums::ResourceType::ApplePayCertificate => {
+                    resolve_apple_pay_certificate_data(
+                        state.accounts_store.as_ref(),
+                        &processor,
+                        &account,
+                    )
+                    .await
+                }
+                common_enums::ResourceType::GooglePay => {
+                    resolve_google_pay_resource_data(&processor, &account)?
+                }
+            };
+            match linked_data {
                 Some(data) => data
                     .get("resource_id")
                     .and_then(|value| value.as_str())
@@ -765,9 +1147,28 @@ pub async fn list_hierarchical_resources(
 
     let resources = resources
         .iter()
-        .filter(|resource| hierarchical_resource_is_linkable(resource).unwrap_or(false))
-        .map(|resource| hierarchical_resource_summary(resource, effective_resource_id.as_ref()))
-        .collect::<RouterResult<Vec<_>>>()?;
+        .filter(|resource| {
+            req.resource_type != common_enums::ResourceType::GooglePay
+                || resource.created_by.strip_prefix("merchant:")
+                    == Some(processor.get_account().get_id().get_string_repr())
+        })
+        .try_fold(Vec::new(), |mut summaries, resource| {
+            let is_linkable = match req.resource_type {
+                common_enums::ResourceType::ApplePayCertificate => {
+                    hierarchical_resource_is_linkable(resource).unwrap_or(false)
+                }
+                common_enums::ResourceType::GooglePay => {
+                    hierarchical_resource_is_linkable(resource)?
+                }
+            };
+            if is_linkable {
+                summaries.push(hierarchical_resource_summary(
+                    resource,
+                    effective_resource_id.as_ref(),
+                )?);
+            }
+            Ok::<_, error_stack::Report<errors::ApiErrorResponse>>(summaries)
+        })?;
 
     Ok(ApplicationResponse::Json(
         api_resources::ListHierarchicalResourcesResponse { resources },
@@ -783,6 +1184,7 @@ fn hierarchical_resource_is_linkable(
         common_enums::ResourceType::ApplePayCertificate => {
             ApplePayCertificateResource::is_linkable(resource)
         }
+        common_enums::ResourceType::GooglePay => GooglePayResource::is_linkable(resource),
     }
 }
 
@@ -796,6 +1198,10 @@ fn hierarchical_resource_summary(
         common_enums::ResourceType::ApplePayCertificate => (
             ApplePayCertificateResource::display_schema(),
             ApplePayCertificateResource::display_data(resource)?,
+        ),
+        common_enums::ResourceType::GooglePay => (
+            GooglePayResource::display_schema(),
+            GooglePayResource::display_data(resource)?,
         ),
     };
 
@@ -814,12 +1220,12 @@ pub async fn link_hierarchical_resource(
     resource_id: id_type::ResourceId,
     req: api_resources::LinkHierarchicalResourceRequest,
 ) -> RouterResponse<api_resources::LinkHierarchicalResourceResponse> {
-    let db = state.store.as_ref();
     let key_manager_state: &KeyManagerState = &(&state).into();
     let merchant_account = processor.get_account();
     let organization_id = merchant_account.organization_id.clone();
 
-    let scope_id = db
+    let scope_id = state
+        .accounts_store
         .find_resource_scope_id(resource_id.clone())
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
@@ -827,13 +1233,19 @@ pub async fn link_hierarchical_resource(
         })?;
     authorize_scope_id_belongs_to_org(&scope_id, &organization_id)?;
 
-    let account =
-        fetch_requestor_account(db, &processor, req.requestor_type, &req.requestor_id).await?;
+    let account = fetch_requestor_account(
+        state.accounts_store.as_ref(),
+        &processor,
+        req.requestor_type,
+        &req.requestor_id,
+    )
+    .await?;
 
     let org_key_store =
-        ensure_organization_key_store(db, key_manager_state, &organization_id).await?;
+        ensure_organization_key_store(&state, key_manager_state, &organization_id).await?;
 
-    let resource = db
+    let resource = state
+        .accounts_store
         .find_linked_resource_by_id(resource_id.clone(), &org_key_store.key)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -844,6 +1256,17 @@ pub async fn link_hierarchical_resource(
     match resource_type {
         common_enums::ResourceType::ApplePayCertificate => {
             ApplePayCertificateResource::on_link(
+                &state,
+                key_manager_state,
+                &resource,
+                &resource_id,
+                account,
+                processor.get_key_store(),
+            )
+            .await?;
+        }
+        common_enums::ResourceType::GooglePay => {
+            GooglePayResource::on_link(
                 &state,
                 key_manager_state,
                 &resource,
@@ -864,16 +1287,15 @@ fn authorize_scope_id_belongs_to_org(
     scope_id: &str,
     organization_id: &id_type::OrganizationId,
 ) -> RouterResult<()> {
-    if scope_id != organization_id.get_string_repr() {
-        return Err(report!(errors::ApiErrorResponse::AccessForbidden {
+    common_utils::fp_utils::when(scope_id != organization_id.get_string_repr(), || {
+        Err(report!(errors::ApiErrorResponse::AccessForbidden {
             resource: "resource".to_string(),
-        }));
-    }
-    Ok(())
+        }))
+    })
 }
 
 pub(crate) async fn ensure_organization_key_store(
-    db: &dyn StorageInterface,
+    state: &SessionState,
     key_manager_state: &KeyManagerState,
     organization_id: &id_type::OrganizationId,
 ) -> RouterResult<domain::MerchantKeyStore> {
@@ -882,23 +1304,30 @@ pub(crate) async fn ensure_organization_key_store(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to derive organization key identifier")?;
 
-    let master_key = db.get_master_key();
+    let master_key = state.store.get_master_key();
 
-    match db
-        .get_merchant_key_store_by_merchant_id(&org_key_identifier, &master_key.to_vec().into())
+    let key_store_master_key = master_key.to_vec().into();
+    match state
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&org_key_identifier, &key_store_master_key)
         .await
     {
         Ok(key_store) => Ok(key_store),
         Err(error) if error.current_context().is_db_not_found() => {
-            create_organization_key_store(db, key_manager_state, &org_key_identifier, master_key)
-                .await
+            create_organization_key_store(
+                state.accounts_store.as_ref(),
+                key_manager_state,
+                &org_key_identifier,
+                master_key,
+            )
+            .await
         }
         Err(error) => Err(error).change_context(errors::ApiErrorResponse::InternalServerError),
     }
 }
 
 async fn create_organization_key_store(
-    db: &dyn StorageInterface,
+    db: &dyn AccountsStorageInterface,
     key_manager_state: &KeyManagerState,
     org_key_identifier: &id_type::MerchantId,
     master_key: &[u8],
@@ -913,7 +1342,7 @@ async fn create_organization_key_store(
         key_manager_state,
         EncryptionTransferRequest {
             identifier: identifier.clone(),
-            key: hyperswitch_masking::StrongSecret::new(crate::consts::BASE64_ENGINE.encode(key)),
+            key: hyperswitch_masking::StrongSecret::new(consts::BASE64_ENGINE.encode(key)),
         },
     )
     .await
@@ -936,10 +1365,41 @@ async fn create_organization_key_store(
         created_at: date_time::now(),
     };
 
-    db.insert_merchant_key_store(key_store.clone(), &master_key.to_vec().into())
+    let key_store_master_key = master_key.to_vec().into();
+    db.insert_merchant_key_store(key_store.clone(), &key_store_master_key)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert organization key store")?;
 
     Ok(key_store)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn google_pay_direct_keys_use_matching_pkcs8_and_uncompressed_p256_encodings(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let (private_key, public_key) = generate_google_pay_direct_keypair()?;
+        let private_der = common_utils::consts::BASE64_ENGINE.decode(private_key.peek())?;
+        let public_point = common_utils::consts::BASE64_ENGINE.decode(public_key)?;
+        let private_key = PKey::private_key_from_pkcs8(&private_der)?;
+        let ec_key = private_key.ec_key()?;
+        let mut context = BigNumContext::new()?;
+        let derived_public = ec_key.public_key().to_bytes(
+            ec_key.group(),
+            PointConversionForm::UNCOMPRESSED,
+            &mut context,
+        )?;
+
+        if ec_key.group().curve_name() != Some(Nid::X9_62_PRIME256V1)
+            || public_point.first() != Some(&4)
+            || public_point != derived_public
+        {
+            Err("Google Pay public point must match the retained P-256 PKCS#8 private key".into())
+        } else {
+            Ok(())
+        }
+    }
 }

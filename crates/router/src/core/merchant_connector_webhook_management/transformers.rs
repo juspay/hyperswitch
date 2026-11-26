@@ -12,8 +12,10 @@ use hyperswitch_domain_models::{
     router_request_types::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
+#[cfg(feature = "v1")]
+use hyperswitch_masking::PeekInterface;
 use hyperswitch_masking::{ExposeInterface, Secret};
-use router_env::tracing::{self, instrument};
+use router_env::tracing::instrument;
 
 use crate::{
     consts,
@@ -59,8 +61,8 @@ pub async fn construct_webhook_register_router_data(
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-pub async fn construct_webhook_register_router_data<'a>(
-    state: &'a SessionState,
+pub async fn construct_webhook_register_router_data(
+    state: &SessionState,
     merchant_connector_account: &domain::MerchantConnectorAccount,
     webhook_register_request: ConnectorWebhookRegisterRequest,
 ) -> RouterResult<ConnectorWebhookRegisterRouterData> {
@@ -144,8 +146,8 @@ pub async fn construct_webhook_register_router_data<'a>(
 
 #[cfg(feature = "v1")]
 #[instrument(skip_all)]
-pub async fn construct_generate_secret_router_data<'a>(
-    state: &'a SessionState,
+pub async fn construct_generate_secret_router_data(
+    state: &SessionState,
     merchant_connector_account: &domain::MerchantConnectorAccount,
     connector_webhook_id: String,
 ) -> RouterResult<ConnectorWebhookGenerateSecretRouterData> {
@@ -375,6 +377,10 @@ fn build_connector_webhook_details_with_secret(
     merchant_connector_account: &domain::MerchantConnectorAccount,
     secret: Secret<String>,
 ) -> RouterResult<common_utils::pii::SecretSerdeValue> {
+    common_utils::fp_utils::when(secret.peek().trim().is_empty(), || {
+        Err(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Connector generated an empty or whitespace-only webhook secret")
+    })?;
     let existing_additional_secret = merchant_connector_account
         .connector_webhook_details
         .as_ref()

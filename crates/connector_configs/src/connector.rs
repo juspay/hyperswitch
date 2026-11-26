@@ -150,6 +150,13 @@ pub enum MerchantIdConfig {
     ByCurrency(HashMap<api_models::enums::Currency, InputData>),
 }
 
+/// Rapid Connect: Merchant ID and Datawire ID inputs for a payment channel
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct PaymentChannelMerchantDetailsConfig {
+    pub merchant_id: InputData,
+    pub datawire_id: InputData,
+}
+
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ConfigMetadata {
@@ -172,8 +179,13 @@ pub struct ConfigMetadata {
     pub boleto: Option<Vec<InputData>>,
     pub client_id: Option<InputData>,
     pub client_secret: Option<InputData>,
+    pub connector_client_id: Option<InputData>,
+    pub connector_currency_account_id: Option<InputData>,
     pub workspace_id: Option<InputData>,
     pub merchant_id: Option<MerchantIdConfig>,
+    /// Rapid Connect: Merchant ID and Datawire ID keyed by payment channel
+    pub merchant_details:
+        Option<HashMap<api_models::enums::PaymentChannel, PaymentChannelMerchantDetailsConfig>>,
     pub endpoint_prefix: Option<InputData>,
     pub mcc: Option<InputData>,
     pub merchant_country_code: Option<InputData>,
@@ -244,6 +256,19 @@ pub struct ConnectorWebhookRegisterDetailsConfig {
     pub event_types: Option<Vec<String>>,
 }
 
+/// Determines which Hyperswitch webhook endpoint a connector should use.
+/// Dashboard uses this to show the mTLS callback URL only for connectors that
+/// verify incoming webhook requests with mTLS.
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum WebhookUrlType {
+    /// Standard webhook endpoint.
+    #[default]
+    NonMtls,
+    /// mTLS-enabled webhook endpoint.
+    Mtls,
+}
+
 /// Wallet flow, based on who decrypts the wallet token
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -269,6 +294,8 @@ pub struct PayViaSingleUseTokenInputData {
 pub struct ConnectorTomlConfig {
     pub connector_auth: Option<ConnectorAuthType>,
     pub connector_webhook_details: Option<api_models::admin::MerchantConnectorWebhookDetails>,
+    #[serde(default)]
+    pub webhook_url_type: WebhookUrlType,
     pub metadata: Option<Box<ConfigMetadata>>,
     pub connector_wallets_details: Option<Box<ConnectorWalletDetailsConfig>>,
     pub connector_webhook_register_details: Option<ConnectorWebhookRegisterDetailsConfig>,
@@ -330,6 +357,8 @@ pub struct ConnectorConfig {
     pub custombilling: Option<ConnectorTomlConfig>,
     pub checkbook: Option<ConnectorTomlConfig>,
     pub checkout: Option<ConnectorTomlConfig>,
+    #[cfg(feature = "payouts")]
+    pub checkout_payout: Option<ConnectorTomlConfig>,
     pub coinbase: Option<ConnectorTomlConfig>,
     pub coingate: Option<ConnectorTomlConfig>,
     pub cryptopay: Option<ConnectorTomlConfig>,
@@ -418,6 +447,7 @@ pub struct ConnectorConfig {
     pub nuvei: Option<ConnectorTomlConfig>,
     pub paybox: Option<ConnectorTomlConfig>,
     pub paydotcom: Option<ConnectorTomlConfig>,
+    pub payhound: Option<ConnectorTomlConfig>,
     pub payload: Option<ConnectorTomlConfig>,
     pub payme: Option<ConnectorTomlConfig>,
     pub paynearme: Option<ConnectorTomlConfig>,
@@ -438,6 +468,7 @@ pub struct ConnectorConfig {
     pub plaid: Option<ConnectorTomlConfig>,
     pub powertranz: Option<ConnectorTomlConfig>,
     pub prophetpay: Option<ConnectorTomlConfig>,
+    pub rapidconnect: Option<ConnectorTomlConfig>,
     pub razorpay: Option<ConnectorTomlConfig>,
     pub recurly: Option<ConnectorTomlConfig>,
     pub riskified: Option<ConnectorTomlConfig>,
@@ -527,6 +558,7 @@ impl ConnectorConfig {
         match connector {
             PayoutConnectors::Adyen => Ok(connector_data.adyen_payout),
             PayoutConnectors::Adyenplatform => Ok(connector_data.adyenplatform_payout),
+            PayoutConnectors::Checkout => Ok(connector_data.checkout_payout),
             PayoutConnectors::Cybersource => Ok(connector_data.cybersource_payout),
             PayoutConnectors::Deutschebank => Ok(connector_data.deutschebank_payout),
             PayoutConnectors::Ebanx => Ok(connector_data.ebanx_payout),
@@ -707,6 +739,7 @@ impl ConnectorConfig {
             Connector::Nuvei => Ok(connector_data.nuvei),
             Connector::Paybox => Ok(connector_data.paybox),
             Connector::Paydotcom => Ok(connector_data.paydotcom),
+            Connector::Payhound => Ok(connector_data.payhound),
             Connector::Payload => Ok(connector_data.payload),
             Connector::Payme => Ok(connector_data.payme),
             Connector::Paynearme => Ok(connector_data.paynearme),

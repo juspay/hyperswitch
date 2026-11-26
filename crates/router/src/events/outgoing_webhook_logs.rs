@@ -69,6 +69,7 @@ pub enum OutgoingWebhookEventContent {
         content: Value,
     },
     Mandate {
+        payment_id: Option<common_utils::id_type::PaymentId>,
         payment_method_id: String,
         mandate_id: String,
         content: Value,
@@ -83,6 +84,11 @@ pub enum OutgoingWebhookEventContent {
     Surcharge {
         payment_id: common_utils::id_type::PaymentId,
         attempt_id: String,
+    },
+    #[cfg(feature = "v2")]
+    RevenueRecovery {
+        payment_id: common_utils::id_type::GlobalPaymentId,
+        content: Value,
     },
 }
 pub trait OutgoingWebhookEventMetric {
@@ -112,6 +118,7 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
                     .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
             }),
             Self::MandateDetails(mandate_payload) => Some(OutgoingWebhookEventContent::Mandate {
+                payment_id: mandate_payload.payment_id.clone(),
                 payment_method_id: mandate_payload.payment_method_id.clone(),
                 mandate_id: mandate_payload.mandate_id.clone(),
                 content: hyperswitch_masking::masked_serialize(&mandate_payload)
@@ -156,6 +163,7 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
                 todo!()
             }
             Self::MandateDetails(mandate_payload) => Some(OutgoingWebhookEventContent::Mandate {
+                payment_id: mandate_payload.payment_id.clone(),
                 payment_method_id: mandate_payload.payment_method_id.clone(),
                 mandate_id: mandate_payload.mandate_id.clone(),
                 content: hyperswitch_masking::masked_serialize(&mandate_payload)
@@ -167,6 +175,13 @@ impl OutgoingWebhookEventMetric for OutgoingWebhookContent {
                 content: hyperswitch_masking::masked_serialize(&payout_payload)
                     .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
             }),
+            Self::RecoveryRetryDetails(retry_payload) => {
+                Some(OutgoingWebhookEventContent::RevenueRecovery {
+                    payment_id: retry_payload.id.clone(),
+                    content: hyperswitch_masking::masked_serialize(&retry_payload)
+                        .unwrap_or(serde_json::json!({"error":"failed to serialize"})),
+                })
+            }
         }
     }
 }

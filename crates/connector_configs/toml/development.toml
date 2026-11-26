@@ -2036,6 +2036,37 @@ label="Acquirer Country Code"
 placeholder="Enter Acquirer Country Code"
 required=false
 type="Text"
+[checkout.metadata.connector_client_id]
+name="connector_client_id"
+label="Checkout Client ID (API Domain Prefix)"
+placeholder="Enter Checkout Client ID (cli_...)"
+required=false
+type="Text"
+
+[checkout_payout]
+[[checkout_payout.wallet]]
+payment_method_type = "apple_pay"
+[[checkout_payout.wallet]]
+payment_method_type = "google_pay"
+[checkout_payout.connector_auth.SignatureKey]
+api_key = "Checkout Public Key"
+key1 = "Processing Channel ID"
+api_secret = "Checkout API Secret Key"
+[checkout_payout.connector_webhook_details]
+merchant_secret = "Source verification key"
+[checkout_payout.metadata.connector_currency_account_id]
+name = "connector_currency_account_id"
+label = "Checkout Currency Account ID"
+placeholder = "Enter Checkout Currency Account ID (ca_...)"
+required = true
+type = "Text"
+[checkout_payout.metadata.connector_client_id]
+name = "connector_client_id"
+label = "Checkout Client ID"
+placeholder = "Enter Checkout Client ID (cli_...)"
+required = false
+type = "Text"
+
 
 [coinbase]
 [[coinbase.crypto]]
@@ -6436,6 +6467,7 @@ key1="Client Id"
 api_key="Client Secret"
 
 [santander_payout]
+webhook_url_type="mtls"
 [[santander_payout.bank_transfer]]
   payment_method_type = "pix"
 [[santander_payout.bank_transfer]]
@@ -7680,6 +7712,7 @@ type = "Text"
   type="Text"
 
 [worldpayxml]
+webhook_url_type="mtls"
 [[worldpayxml.credit]]
   payment_method_type = "Mastercard"
 [[worldpayxml.credit]]
@@ -7868,6 +7901,7 @@ api_key="API Username"
 key1="API Password"
 
 [worldpayxml_payout]
+webhook_url_type="mtls"
 [[worldpayxml_payout.wallet]]
   payment_method_type = "apple_pay"
 [[worldpayxml_payout.wallet]]
@@ -7944,6 +7978,7 @@ type="Select"
 options=[]
 
 [santander]
+webhook_url_type="mtls"
 [[santander.bank_transfer]]
 payment_method_type = "pix_qr"
 [[santander.bank_transfer]]
@@ -9164,6 +9199,12 @@ key1 = "Username"
 [[envoy_payout.bank_transfer]]
   payment_method_type = "ach"
 
+[hyperswitch_vault]
+[hyperswitch_vault.connector_auth.SignatureKey]
+  api_key="API Key"
+  key1="Publishable Key"
+  api_secret="Profile ID"
+
 [vgs]
 [vgs.connector_auth.SignatureKey]
   api_key="Client Id"
@@ -10166,3 +10207,60 @@ key1 = "API Password"
 [betterpayment.connector_webhook_details]
 merchant_secret = "Webhook Secret"
 additional_secret = "Incoming Webhook Key"
+
+[payhound]
+[[payhound.crypto]]
+  payment_method_type = "crypto_currency"
+[payhound.connector_auth.BodyKey]
+api_key="API Key"
+key1="API Secret"
+[payhound.connector_webhook_details]
+merchant_secret="Source verification key"
+
+[rapidconnect]
+[rapidconnect.connector_auth.SignatureKey]
+api_key = "Group ID"
+key1 = "Terminal ID"
+api_secret = "TPP ID"
+
+[rapidconnect.metadata.merchant_details.ecommerce.merchant_id]
+name = "merchant_id"
+label = "Ecommerce Merchant ID"
+placeholder = "Enter the Rapid Connect Merchant ID for Ecommerce payments"
+required = true
+type = "Text"
+
+[rapidconnect.metadata.merchant_details.ecommerce.datawire_id]
+name = "datawire_id"
+label = "Ecommerce Datawire ID"
+placeholder = "Enter the Rapid Connect Datawire ID for Ecommerce payments"
+required = true
+type = "Text"
+
+[rapidconnect.metadata.merchant_details.mail_order.merchant_id]
+name = "merchant_id"
+label = "Mail Order Merchant ID"
+placeholder = "Enter the Rapid Connect Merchant ID for Mail Order payments"
+required = false
+type = "Text"
+
+[rapidconnect.metadata.merchant_details.mail_order.datawire_id]
+name = "datawire_id"
+label = "Mail Order Datawire ID"
+placeholder = "Enter the Rapid Connect Datawire ID for Mail Order payments"
+required = false
+type = "Text"
+
+[rapidconnect.metadata.merchant_details.telephone_order.merchant_id]
+name = "merchant_id"
+label = "Telephone Order Merchant ID"
+placeholder = "Enter the Rapid Connect Merchant ID for Telephone Order payments"
+required = false
+type = "Text"
+
+[rapidconnect.metadata.merchant_details.telephone_order.datawire_id]
+name = "datawire_id"
+label = "Telephone Order Datawire ID"
+placeholder = "Enter the Rapid Connect Datawire ID for Telephone Order payments"
+required = false
+type = "Text"

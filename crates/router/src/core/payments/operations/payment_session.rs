@@ -6,7 +6,7 @@ use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates;
 use router_derive::PaymentOperation;
-use router_env::{instrument, logger, tracing};
+use router_env::{instrument, logger};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
@@ -172,7 +172,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsSessionR
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("'profile_id' not set in payment intent")?;
 
-        let business_profile = db
+        let business_profile = state
+            .accounts_store
             .find_business_profile_by_profile_id(
                 platform.get_processor().get_key_store(),
                 profile_id,
@@ -410,8 +411,6 @@ where
         request: &api::PaymentsSessionRequest,
         payment_intent: &storage::PaymentIntent,
     ) -> RouterResult<api::ConnectorChoice> {
-        let db = &state.store;
-
         let profile_id = payment_intent
             .profile_id
             .clone()
@@ -419,7 +418,8 @@ where
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("profile_id is not set in payment_intent")?;
 
-        let all_connector_accounts = db
+        let all_connector_accounts = state
+            .accounts_store
             .list_enabled_merchant_connector_accounts_without_encrypted_by_merchant_id_profile_id(
                 processor.get_account().get_id(),
                 &profile_id,

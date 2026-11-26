@@ -6,8 +6,6 @@ use api_models::payment_methods::PaymentMethodIntentConfirm;
 #[cfg(feature = "v1")]
 use api_models::payment_methods::{PaymentMethodCreate, PaymentMethodListRequest};
 use api_models::payments;
-#[cfg(feature = "payouts")]
-use api_models::payouts;
 use async_trait::async_trait;
 use base64::Engine;
 use common_enums::{MerchantAccountType, TokenPurpose};
@@ -337,7 +335,7 @@ impl AuthToken {
     pub async fn new_token(
         user_id: String,
         merchant_id: id_type::MerchantId,
-        role_id: String,
+        role_info: &authorization::roles::RoleInfo,
         settings: &Settings,
         org_id: id_type::OrganizationId,
         profile_id: id_type::ProfileId,
@@ -348,13 +346,17 @@ impl AuthToken {
         let token_payload = Self {
             user_id,
             merchant_id,
-            role_id,
+            role_id: role_info.get_role_id().to_string(),
             exp,
             org_id,
             profile_id,
             tenant_id,
         };
-        jwt::generate_jwt(&token_payload, settings).await
+        if role_info.is_internal() {
+            jwt::generate_internal_jwt(&token_payload, settings).await
+        } else {
+            jwt::generate_jwt(&token_payload, settings).await
+        }
     }
 }
 
@@ -648,24 +650,25 @@ where
                 .attach_printable("API key has expired");
         }
 
-        let key_store = state
-            .store()
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
             .get_merchant_key_store_by_merchant_id(
                 &stored_api_key.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
+                &key_store_master_key,
             )
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let initiator_merchant = state
-            .store()
+        let initiator_merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&stored_api_key.merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_profile_id(&key_store, &profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
@@ -753,11 +756,12 @@ where
                 .attach_printable("API key has expired");
         }
 
-        let key_store = state
-            .store()
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
             .get_merchant_key_store_by_merchant_id(
                 &stored_api_key.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
+                &key_store_master_key,
             )
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)
@@ -772,8 +776,8 @@ where
                 })
                 .change_context(errors::ApiErrorResponse::Unauthorized)?;
 
-        let initiator_merchant = state
-            .store()
+        let initiator_merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&stored_api_key.merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
@@ -804,8 +808,8 @@ where
 
         let profile = match profile_id {
             Some(profile_id) => {
-                let profile = state
-                    .store()
+                let profile = (state.session_state())
+                    .accounts_store
                     .find_business_profile_by_profile_id(
                         platform.get_processor().get_key_store(),
                         &profile_id,
@@ -999,18 +1003,19 @@ where
                 .attach_printable("API key has expired");
         }
 
-        let key_store = state
-            .store()
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
             .get_merchant_key_store_by_merchant_id(
                 &stored_api_key.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
+                &key_store_master_key,
             )
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let merchant_account = state
-            .store()
+        let merchant_account = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&stored_api_key.merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
@@ -1084,18 +1089,19 @@ where
                 .attach_printable("API key has expired");
         }
 
-        let key_store = state
-            .store()
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
             .get_merchant_key_store_by_merchant_id(
                 &stored_api_key.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
+                &key_store_master_key,
             )
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let initiator_merchant_account = state
-            .store()
+        let initiator_merchant_account = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&stored_api_key.merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
@@ -1158,17 +1164,15 @@ impl PlatformOrgAdminAuthWithMerchantIdFromRoute {
         merchant_id: &id_type::MerchantId,
         state: &A,
     ) -> RouterResult<(domain::MerchantKeyStore, domain::MerchantAccount)> {
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
@@ -1439,8 +1443,8 @@ where
         let profile_id = HeaderMapStruct::new(request_headers)
             .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)?;
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_profile_id(
                 auth_data.platform.get_processor().get_key_store(),
                 &profile_id,
@@ -1469,18 +1473,16 @@ async fn construct_authentication_data<A>(
 where
     A: SessionStateInfo + Sync,
 {
-    let key_store = state
-        .store()
-        .get_merchant_key_store_by_merchant_id(
-            merchant_id,
-            &state.store().get_master_key().to_vec().into(),
-        )
+    let key_store_master_key = state.store().get_master_key().to_vec().into();
+    let key_store = (state.session_state())
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
         .await
         .change_context(errors::ApiErrorResponse::Unauthorized)
         .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-    let initiator_merchant = state
-        .store()
+    let initiator_merchant = (state.session_state())
+        .accounts_store
         .find_merchant_account_by_merchant_id(merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
@@ -1511,8 +1513,8 @@ where
 
     let profile = match profile_id {
         Some(profile_id) => {
-            let profile = state
-                .store()
+            let profile = (state.session_state())
+                .accounts_store
                 .find_business_profile_by_profile_id(
                     platform.get_processor().get_key_store(),
                     &profile_id,
@@ -1788,17 +1790,15 @@ where
 
         let merchant_id = self.0.clone();
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
@@ -1849,21 +1849,19 @@ where
         let profile_id =
             get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
                 .get_required_value(headers::X_PROFILE_ID)?;
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, &profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
@@ -1912,17 +1910,15 @@ where
 
         let merchant_id = self.0.clone();
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
@@ -1996,18 +1992,19 @@ where
                 .attach_printable("API key has expired");
         }
 
-        let key_store = state
-            .store()
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
             .get_merchant_key_store_by_merchant_id(
                 &stored_api_key.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
+                &key_store_master_key,
             )
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&stored_api_key.merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
@@ -2053,17 +2050,15 @@ impl AdminApiAuthWithApiKeyFallbackAndMerchantIdFromRoute {
         merchant_id: &id_type::MerchantId,
         state: &A,
     ) -> RouterResult<(domain::MerchantKeyStore, domain::MerchantAccount)> {
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
@@ -2319,17 +2314,15 @@ where
         let merchant_id = HeaderMapStruct::new(request_headers)
             .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
@@ -2381,21 +2374,19 @@ where
             get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
                 .get_required_value(headers::X_PROFILE_ID)?;
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, &profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
@@ -2445,17 +2436,15 @@ where
         let merchant_id = HeaderMapStruct::new(request_headers)
             .get_id_type_from_header::<id_type::MerchantId>(headers::X_MERCHANT_ID)?;
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
@@ -2490,17 +2479,15 @@ where
             throw_error_if_platform_merchant_authentication_required(request_headers)?;
         }
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &self.0,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&self.0, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&self.0, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
@@ -2593,22 +2580,20 @@ where
         let profile_id =
             get_id_type_by_key_from_headers(headers::X_PROFILE_ID.to_string(), request_headers)?
                 .get_required_value(headers::X_PROFILE_ID)?;
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(&key_store, &merchant_id, &profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
@@ -2687,17 +2672,15 @@ impl<F> InternalMerchantIdProfileIdAuth<F> {
                     .attach_printable("Internal API key authentication failed");
             }
 
-            let key_store = state
-                .store()
-                .get_merchant_key_store_by_merchant_id(
-                    &merchant_id,
-                    &state.store().get_master_key().to_vec().into(),
-                )
+            let key_store_master_key = state.store().get_master_key().to_vec().into();
+            let key_store = (state.session_state())
+                .accounts_store
+                .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-            let profile = state
-                .store()
+            let profile = (state.session_state())
+                .accounts_store
                 .find_business_profile_by_merchant_id_profile_id(
                     &key_store,
                     &merchant_id,
@@ -2706,8 +2689,8 @@ impl<F> InternalMerchantIdProfileIdAuth<F> {
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-            let initiator_merchant = state
-                .store()
+            let initiator_merchant = (state.session_state())
+                .accounts_store
                 .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
@@ -2862,17 +2845,15 @@ where
             throw_error_if_platform_merchant_authentication_required(request_headers)?;
         }
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &self.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&self.merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 &key_store,
                 &self.merchant_id,
@@ -2880,8 +2861,8 @@ where
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&self.merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
@@ -2932,8 +2913,8 @@ where
         _request_headers: &HeaderMap,
         state: &A,
     ) -> RouterResult<(AuthenticationData, AuthenticationType)> {
-        let (merchant_account, key_store) = state
-            .store()
+        let (merchant_account, key_store) = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_publishable_key(self.publishable_key.as_str())
             .await
             .map_err(|e| {
@@ -2944,8 +2925,8 @@ where
                 }
             })?;
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_profile_id(&key_store, &self.profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
@@ -3041,18 +3022,19 @@ where
                 .attach_printable("API key has expired");
         }
 
-        let key_store = state
-            .store()
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
             .get_merchant_key_store_by_merchant_id(
                 &stored_api_key.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
+                &key_store_master_key,
             )
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let initiator_merchant = state
-            .store()
+        let initiator_merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&stored_api_key.merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
@@ -3081,8 +3063,8 @@ where
         )
         .await?;
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 platform.get_processor().get_key_store(),
                 platform.get_processor().get_account().get_id(),
@@ -3187,8 +3169,8 @@ where
             }
         }
 
-        let (initiator_merchant, key_store) = state
-            .store()
+        let (initiator_merchant, key_store) = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_publishable_key(publishable_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
@@ -3213,8 +3195,8 @@ where
             return Err(errors::ApiErrorResponse::Unauthorized.into());
         }
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 &key_store,
                 platform.get_processor().get_account().get_id(),
@@ -3350,8 +3332,8 @@ where
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
 
         // Find initiator merchant and key store
-        let (initiator_merchant, key_store) = state
-            .store()
+        let (initiator_merchant, key_store) = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_publishable_key(publishable_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
@@ -3413,8 +3395,8 @@ where
                 .get_required_value(headers::X_PROFILE_ID)?;
 
         // Find initiator merchant and key store
-        let (initiator_merchant, key_store) = state
-            .store()
+        let (initiator_merchant, key_store) = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_publishable_key(publishable_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
@@ -3444,8 +3426,8 @@ where
         .await?;
 
         // Find and validate profile after merchant resolution
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 platform.get_processor().get_key_store(),
                 platform.get_processor().get_account().get_id(),
@@ -3512,8 +3494,8 @@ where
             .platform_publishable_key
         {
             Some(ref platform_pub_key) => {
-                let (platform_merchant, platform_key_store) = state
-                    .store()
+                let (platform_merchant, platform_key_store) = (state.session_state())
+                    .accounts_store
                     .find_merchant_account_by_publishable_key(platform_pub_key)
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
@@ -3522,8 +3504,8 @@ where
                 (platform_merchant, platform_key_store)
             }
             None => {
-                let (processor_merchant, processor_key_store) = state
-                    .store()
+                let (processor_merchant, processor_key_store) = (state.session_state())
+                    .accounts_store
                     .find_merchant_account_by_publishable_key(&sdk_auth.publishable_key)
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
@@ -3619,8 +3601,8 @@ where
             logger::info!("Client session validation is disabled");
         }
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 platform.get_processor().get_key_store(),
                 platform.get_processor().get_account().get_id(),
@@ -3664,8 +3646,8 @@ where
                 })?;
 
                 // Look up processor by publishable key from SDK authorization
-                let (processor_merchant, processor_key_store) = state
-                    .store()
+                let (processor_merchant, processor_key_store) = (state.session_state())
+                    .accounts_store
                     .find_merchant_account_by_publishable_key(&sdk_auth.publishable_key)
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
@@ -3858,8 +3840,8 @@ where
             .platform_publishable_key
         {
             Some(ref platform_pub_key) => {
-                let (platform_merchant, platform_key_store) = state
-                    .store()
+                let (platform_merchant, platform_key_store) = (state.session_state())
+                    .accounts_store
                     .find_merchant_account_by_publishable_key(platform_pub_key)
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
@@ -3868,8 +3850,8 @@ where
                 (platform_merchant, platform_key_store)
             }
             None => {
-                let (processor_merchant, processor_key_store) = state
-                    .store()
+                let (processor_merchant, processor_key_store) = (state.session_state())
+                    .accounts_store
                     .find_merchant_account_by_publishable_key(&sdk_auth.publishable_key)
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::Unauthorized)
@@ -3926,8 +3908,8 @@ where
             }
         }
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 platform.get_processor().get_key_store(),
                 platform.get_processor().get_account().get_id(),
@@ -4013,18 +3995,16 @@ where
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(self.permission, &role_info)?;
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &payload.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&payload.merchant_id, &key_store_master_key)
             .await
             .change_context(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
             .await
             .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
@@ -4206,25 +4186,23 @@ where
             return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
         }
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &payload.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&payload.merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 &key_store,
                 &payload.merchant_id,
@@ -4343,18 +4321,16 @@ where
             return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
         }
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &payload.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&payload.merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 &key_store,
                 &payload.merchant_id,
@@ -4362,8 +4338,8 @@ where
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
@@ -4432,18 +4408,16 @@ where
             return Err(report!(errors::ApiErrorResponse::InvalidJwtToken));
         }
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &payload.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&payload.merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
@@ -4527,25 +4501,23 @@ where
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(self.required_permission, &role_info)?;
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &payload.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&payload.merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 &key_store,
                 &payload.merchant_id,
@@ -4615,17 +4587,15 @@ where
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(self.required_permission, &role_info)?;
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &payload.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&payload.merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 &key_store,
                 &payload.merchant_id,
@@ -4633,8 +4603,8 @@ where
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
@@ -4699,18 +4669,16 @@ where
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(self.required_permission, &role_info)?;
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &payload.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&payload.merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
@@ -4769,25 +4737,23 @@ where
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(self.required_permission, &role_info)?;
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &payload.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&payload.merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 &key_store,
                 &payload.merchant_id,
@@ -4862,18 +4828,16 @@ where
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(self.required_permission, &role_info)?;
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &payload.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&payload.merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
@@ -4889,8 +4853,8 @@ where
                 .attach_printable("Profile id in JWT does not match profile id in route")
         })?;
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 &key_store,
                 &payload.merchant_id,
@@ -4966,18 +4930,16 @@ where
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(self.required_permission, &role_info)?;
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &payload.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&payload.merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 &key_store,
                 &payload.merchant_id,
@@ -4985,8 +4947,8 @@ where
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
@@ -5079,18 +5041,16 @@ where
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(self.permission, &role_info)?;
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &payload.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&payload.merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
@@ -5101,8 +5061,8 @@ where
                 .attach_printable("JWT merchant does not belong to JWT organization")
         })?;
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 &key_store,
                 &payload.merchant_id,
@@ -5172,18 +5132,16 @@ where
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(self.permission, &role_info)?;
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &payload.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&payload.merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 &key_store,
                 &payload.merchant_id,
@@ -5192,8 +5150,8 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
@@ -5287,24 +5245,22 @@ where
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(self.permission, &role_info)?;
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &payload.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&payload.merchant_id, &key_store_master_key)
             .await
             .change_context(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
             .await
             .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 &key_store,
                 &payload.merchant_id,
@@ -5370,24 +5326,22 @@ where
         let role_info = authorization::get_role_info(state, &payload).await?;
         authorization::check_permission(self.permission, &role_info)?;
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &payload.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&payload.merchant_id, &key_store_master_key)
             .await
             .change_context(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
             .await
             .change_context(errors::ApiErrorResponse::InvalidJwtToken)?;
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 &key_store,
                 &payload.merchant_id,
@@ -5533,24 +5487,22 @@ where
             &state.session_state().tenant.tenant_id,
         )?;
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &payload.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&payload.merchant_id, &key_store_master_key)
             .await
             .change_context(errors::ApiErrorResponse::Unauthorized)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 &key_store,
                 &payload.merchant_id,
@@ -5629,25 +5581,23 @@ where
             &state.session_state().tenant.tenant_id,
         )?;
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                payload.get_merchant_id(),
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(payload.get_merchant_id(), &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(payload.get_merchant_id(), &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant account for the merchant id")?;
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 &key_store,
                 payload.get_merchant_id(),
@@ -5749,18 +5699,16 @@ where
             }
         };
 
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                payload.get_merchant_id(),
-                &state.store().get_master_key().to_vec().into(),
-            )
+        let key_store_master_key = state.store().get_master_key().to_vec().into();
+        let key_store = (state.session_state())
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(payload.get_merchant_id(), &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
             .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-        let profile = state
-            .store()
+        let profile = (state.session_state())
+            .accounts_store
             .find_business_profile_by_merchant_id_profile_id(
                 &key_store,
                 payload.get_merchant_id(),
@@ -5769,8 +5717,8 @@ where
             .await
             .to_not_found_response(errors::ApiErrorResponse::Unauthorized)?;
 
-        let merchant = state
-            .store()
+        let merchant = (state.session_state())
+            .accounts_store
             .find_merchant_account_by_merchant_id(payload.get_merchant_id(), &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
@@ -5833,13 +5781,6 @@ where
 pub trait ClientSecretFetch {
     fn get_client_secret(&self) -> Option<&String>;
 }
-#[cfg(feature = "payouts")]
-impl ClientSecretFetch for payouts::PayoutCreateRequest {
-    fn get_client_secret(&self) -> Option<&String> {
-        self.client_secret.as_ref()
-    }
-}
-
 #[cfg(feature = "v1")]
 impl ClientSecretFetch for payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
@@ -6683,18 +6624,16 @@ async fn get_connected_account_and_key_store<A>(
 where
     A: SessionStateInfo + Sync,
 {
-    let key_store = state
-        .store()
-        .get_merchant_key_store_by_merchant_id(
-            &connected_merchant_id,
-            &state.store().get_master_key().to_vec().into(),
-        )
+    let key_store_master_key = state.store().get_master_key().to_vec().into();
+    let key_store = (state.session_state())
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&connected_merchant_id, &key_store_master_key)
         .await
         .to_not_found_response(errors::ApiErrorResponse::InvalidPlatformOperation)
         .attach_printable("Failed to fetch merchant key store for the merchant id")?;
 
-    let connected_merchant_account = state
-        .store()
+    let connected_merchant_account = (state.session_state())
+        .accounts_store
         .find_merchant_account_by_merchant_id(&connected_merchant_id, &key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::InvalidPlatformOperation)
@@ -6839,8 +6778,8 @@ pub(crate) async fn get_platform_account_and_key_store<A>(
 where
     A: SessionStateInfo + Sync,
 {
-    let organization = state
-        .session_state()
+    let session_state = state.session_state();
+    let organization = session_state
         .accounts_store
         .find_organization_by_org_id(merchant_account.get_org_id())
         .await
@@ -6852,18 +6791,16 @@ where
             .attach_printable("Connected merchant missing platform merchant id")
     })?;
 
-    let platform_key_store = state
-        .store()
-        .get_merchant_key_store_by_merchant_id(
-            &platform_merchant_id,
-            &state.store().get_master_key().to_vec().into(),
-        )
+    let key_store_master_key = state.store().get_master_key().to_vec().into();
+    let platform_key_store = (state.session_state())
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&platform_merchant_id, &key_store_master_key)
         .await
         .change_context(errors::ApiErrorResponse::InvalidPlatformOperation)
         .attach_printable("Failed to fetch key store for platform merchant")?;
 
-    let platform_account = state
-        .store()
+    let platform_account = session_state
+        .accounts_store
         .find_merchant_account_by_merchant_id(&platform_merchant_id, &platform_key_store)
         .await
         .to_not_found_response(errors::ApiErrorResponse::InvalidPlatformOperation)?;

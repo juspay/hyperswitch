@@ -103,13 +103,12 @@ should be introduced, checking it agrees with the actual structure -->
 │   ├── router_env                     : Environment of payment router: logger, basic config, its environment awareness
 │   ├── scheduler                      : Scheduling and executing deferred tasks like mail scheduling
 │   ├── storage_impl                   : Storage backend implementations for data structures & objects
-│   └── test_utils                     : Utilities to run Postman and connector UI tests
+│   └── test_utils                     : Utilities for connector UI (selenium) tests and connector auth
 ├── docs                               : hand-written documentation
 ├── loadtest                           : performance benchmarking setup
 ├── migrations                         : diesel DB setup
 ├── monitoring                         : Grafana & Loki monitoring related configuration files
 ├── openapi                            : automatically generated OpenAPI spec
-├── postman                            : postman scenarios API
 └── scripts                            : automation, testing, and other utility scripts
 ```
 
@@ -202,6 +201,14 @@ documentation) are greatly appreciated.
 Before making a large change, it is usually a good idea to first open an issue
 describing the change to solicit feedback and guidance.
 This will increase the likelihood of the PR getting merged.
+
+### Deja ART replay
+
+When the pull request's final commit is ready, add the `deja-art` label to
+request a replay. The gate checks for a replay result on that commit, not for
+the label itself; any completed verdict counts, including a divergence. The
+label is removed after the request so adding it again retries the replay.
+A later push needs a new replay result on the new commit.
 
 ### Cargo Commands
 

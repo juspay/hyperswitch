@@ -30,7 +30,7 @@ env:
   MOCK_PAYMENTS_CONNECTORS_BATCH_2: "cybersource braintree nmi calida adyen peachpayments"
   MOCK_PAYMENTS_CONNECTORS_BATCH_3: "novalnet checkout authorizedotnet cashtocode nexixpay"
   MOCK_PAYMENTS_CONNECTORS_BATCH_4: "finix"
-  MOCK_PAYOUTS_CONNECTORS: "adyenplatform wise"
+  MOCK_PAYOUTS_CONNECTORS: "adyenplatform"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
@@ -46,28 +46,32 @@ jobs:
       - name: Generate a token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
         id: generate_token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@v3.4.0
         env:
           # v3 refuses to run behind hypersage-runners' proxy without this.
           NODE_USE_ENV_PROXY: "1"
         with:
           client-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
 
       - name: Checkout repository with token
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ steps.generate_token.outputs.token }}
+          persist-credentials: false
 
       - name: Checkout repository for fork
         if: ${{ github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.5.0
         with:
           node-version: "24"
 
@@ -85,6 +89,8 @@ jobs:
       - name: Check formatting
         if: ${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
         shell: bash
+        env:
+          PUSH_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
           npm run format --prefix cypress-tests
           npm run lint --prefix cypress-tests -- --fix
@@ -97,7 +103,7 @@ jobs:
 
             git add cypress-tests
             git commit --message 'chore(cypress): run formatter and address lints'
-            git push
+            git push "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD
           fi
 
   check-cypress-prerequisites:
@@ -110,6 +116,8 @@ jobs:
         id: check
         env:
           GH_TOKEN: ${{ github.token }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
         shell: bash
         run: |
           # Merge queue, run checks
@@ -118,8 +126,6 @@ jobs:
             exit 0
           fi
 
-          HEAD_REPO="${{ github.event.pull_request.head.repo.full_name }}"
-          BASE_REPO="${{ github.event.pull_request.base.repo.full_name }}"
           # Repository is a fork.
           # `RUN_TESTS` based checks successfully skip the checks anyway,
           # no point gating it behind a label in that case.
@@ -165,7 +171,9 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install mold linker
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -182,7 +190,7 @@ jobs:
 
       - name: Install Protoc
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -192,7 +200,7 @@ jobs:
 
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: sccache
           checksum: true
@@ -279,10 +287,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-mandatory-matrix.outputs['mandatory-matrix']) }}
-    env:
-      # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
-
     services:
       redis:
         image: "public.ecr.aws/docker/library/redis:alpine"
@@ -322,7 +326,9 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install Rust
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -353,7 +359,7 @@ jobs:
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
           CONNECTOR_CREDS_S3_BUCKET_URI: ${{ secrets.CONNECTOR_CREDS_S3_BUCKET_URI}}
           DESTINATION_FILE_NAME: "creds.json.gpg"
-          S3_SOURCE_FILE_NAME: "b06ec672-ca83-405a-a834-856c3fe18dad.json.gpg"
+          S3_SOURCE_FILE_NAME: "80a40cc1-b605-438f-a679-85fc91863c41.json.gpg"
         shell: bash
         run: |
           mkdir -p ".github/secrets" ".github/test"
@@ -378,20 +384,20 @@ jobs:
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
-          tool: diesel_cli
+          tool: diesel_cli@2.3.14
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: just
           checksum: true
 
       - name: Install Node.js
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.5.0
         with:
           node-version: "24"
 
@@ -406,6 +412,11 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
+
+      - name: Configure enforced payment callbacks
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -439,7 +450,7 @@ jobs:
         run: |
           # Start the server in the background
 
-          target/debug/router >> "${{ env.SERVER_LOG_PATH }}" 2>&1 &
+          target/debug/router >> "${SERVER_LOG_PATH}" 2>&1 &
           SERVER_PID=$!
           echo "PID=${SERVER_PID}" >> $GITHUB_ENV
 
@@ -460,18 +471,22 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
+          CYPRESS_SUPERPOSITION_BASE_URL: "http://localhost:8081"
+          CYPRESS_SUPERPOSITION_ORG_ID: "localorg"
+          CYPRESS_SUPERPOSITION_WORKSPACE_ID: "dev"
           ROUTER__SERVER__WORKERS: 4
           PAYMENTS_CONNECTORS: "${{ matrix.batch.connectors }}"
           PLATFORM_CONNECTORS: "${{ matrix.batch.platform_connectors }}"
+          PARALLEL_JOBS: ${{ matrix.batch.parallel }}
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
+          scripts/execute_cypress.sh --parallel ${PARALLEL_JOBS}
 
-          kill "${{ env.PID }}"
+          kill "${PID}"
 
       - name: Upload server logs on failure
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
           path: ${{ env.SERVER_LOG_PATH }}
@@ -480,7 +495,7 @@ jobs:
 
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.report_artifact_name }}
           path: |
@@ -501,12 +516,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           RESULT="${{ needs.mandatory-cypress-tests.result }}"
-          RUN_TESTS_VAL="${{ env.RUN_TESTS }}"
 
           echo "mandatory-cypress-tests result: $RESULT"
-          echo "Run tests env: $RUN_TESTS_VAL"
+          echo "Run tests env: ${RUN_TESTS}"
 
-          if [ "$RUN_TESTS_VAL" == "false" ]; then
+          if [ "${RUN_TESTS}" == "false" ]; then
             echo "Tests were skipped (Fork PR). Marking as success."
             exit 0
           fi
@@ -575,10 +589,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-extended-matrix.outputs['extended-matrix']) }}
-    env:
-      # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
-
     services:
       redis:
         image: "public.ecr.aws/docker/library/redis:alpine"
@@ -605,7 +615,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -654,18 +664,18 @@ jobs:
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Diesel CLI
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
-          tool: diesel_cli
+          tool: diesel_cli@2.3.14
 
       - name: Install Just
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: just
           checksum: true
 
       - name: Install Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.5.0
         with:
           node-version: "24"
 
@@ -678,6 +688,10 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
+
+      - name: Configure enforced payment callbacks
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         run: |
@@ -699,7 +713,7 @@ jobs:
         run: |
           # Start the server in the background
 
-          target/debug/router >> "${{ env.SERVER_LOG_PATH }}" 2>&1 &
+          target/debug/router >> "${SERVER_LOG_PATH}" 2>&1 &
           SERVER_PID=$!
           echo "PID=${SERVER_PID}" >> $GITHUB_ENV
 
@@ -726,11 +740,11 @@ jobs:
         run: |
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
 
-          kill "${{ env.PID }}"
+          kill "${PID}"
 
       - name: Upload server logs on failure
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
           path: ${{ env.SERVER_LOG_PATH }}
@@ -739,7 +753,7 @@ jobs:
 
       - name: Upload Cypress test results
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.report_artifact_name }}
           path: |
@@ -840,9 +854,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-mock-matrix.outputs['mock-matrix']) }}
-    env:
-      RUSTC_WRAPPER: sccache
-
     services:
       redis:
         image: "public.ecr.aws/docker/library/redis:alpine"
@@ -882,7 +893,9 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install Rust
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -937,20 +950,20 @@ jobs:
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
-          tool: diesel_cli
+          tool: diesel_cli@2.3.14
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: just
           checksum: true
 
       - name: Install Node.js
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.5.0
         with:
           node-version: "24"
 
@@ -965,6 +978,11 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
+
+      - name: Configure enforced payment callbacks
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -993,6 +1011,9 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.CONNECTOR_CREDS_AWS_SECRET_ACCESS_KEY }}
           CONNECTOR_MOCK_DATA_S3_BUCKET_URI: ${{ secrets.CONNECTOR_MOCK_DATA_S3_BUCKET_URI }}
           CONNECTOR_AUTH_PASSPHRASE: ${{ secrets.CONNECTOR_AUTH_PASSPHRASE }}
+          PLATFORM_CONNECTORS: ${{ matrix.batch.platform_connectors }}
+          PAYMENTS_CONNECTORS: ${{ matrix.batch.payments_connectors }}
+          PAYOUTS_CONNECTORS: ${{ matrix.batch.payouts_connectors }}
         shell: bash
         run: |
           # S3 layout: {bucket}/{connector}/{type}.tar.gz.gpg
@@ -1048,17 +1069,17 @@ jobs:
             fi
           }
 
-          for connector in ${{ matrix.batch.platform_connectors }}; do
+          for connector in ${PLATFORM_CONNECTORS}; do
             [ -z "${connector}" ] && continue
             fetch_cassettes "${connector}" "platform"
           done
 
-          for connector in ${{ matrix.batch.payments_connectors }}; do
+          for connector in ${PAYMENTS_CONNECTORS}; do
             [ -z "${connector}" ] && continue
             fetch_cassettes "${connector}" "payment"
           done
 
-          for connector in ${{ matrix.batch.payouts_connectors }}; do
+          for connector in ${PAYOUTS_CONNECTORS}; do
             [ -z "${connector}" ] && continue
             fetch_cassettes "${connector}" "payout"
           done
@@ -1157,6 +1178,9 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
+          CYPRESS_SUPERPOSITION_BASE_URL: "http://localhost:8081"
+          CYPRESS_SUPERPOSITION_ORG_ID: "localorg"
+          CYPRESS_SUPERPOSITION_WORKSPACE_ID: "dev"
           PAYMENTS_CONNECTORS: "${{ matrix.batch.payments_connectors }}"
           PAYOUTS_CONNECTORS: "${{ matrix.batch.payouts_connectors }}"
           PLATFORM_CONNECTORS: "${{ matrix.batch.platform_connectors }}"
@@ -1166,16 +1190,17 @@ jobs:
           # in the replay log alongside cassette hits/misses (logging only).
           CYPRESS_PROXY_ADMIN_URL: "http://127.0.0.1:8001"
           CYPRESS_CAPTURE_DIR: "${{ github.workspace }}/cypress-tests/mitm-proxy/captures"
+          PARALLEL_JOBS: ${{ matrix.batch.parallel }}
         shell: bash -leuo pipefail {0}
         run: |
-          scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
+          scripts/execute_cypress.sh --parallel ${PARALLEL_JOBS}
 
-          kill "${{ env.PID }}"
-          kill "${{ env.MITM_PID }}" 2>/dev/null || true
+          kill "${PID}"
+          kill "${MITM_PID}" 2>/dev/null || true
 
       - name: Upload MITM replay logs on failure
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.server_logs_artifact }}-mitm-replay
           path: ${{ github.workspace }}/mitm-replay.log
@@ -1184,7 +1209,7 @@ jobs:
 
       - name: Upload server logs on failure
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
           path: ${{ env.SERVER_LOG_PATH }}
@@ -1193,7 +1218,7 @@ jobs:
 
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.report_artifact_name }}
           path: |
@@ -1214,12 +1239,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           RESULT="${{ needs.mitm-cassette-replay-cypress-tests.result }}"
-          RUN_TESTS_VAL="${{ env.RUN_TESTS }}"
 
           echo "mitm-cassette-replay-cypress-tests result: $RESULT"
-          echo "Run tests env: $RUN_TESTS_VAL"
+          echo "Run tests env: ${RUN_TESTS}"
 
-          if [ "$RUN_TESTS_VAL" == "false" ]; then
+          if [ "${RUN_TESTS}" == "false" ]; then
             echo "Tests were skipped (Fork PR). Marking as success."
             exit 0
           fi
@@ -1278,10 +1302,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare-optional-matrix.outputs.matrix) }}
-    env:
-      # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
-
     services:
       redis:
         image: "public.ecr.aws/docker/library/redis:alpine"
@@ -1315,7 +1335,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -1364,18 +1384,18 @@ jobs:
           echo "CYPRESS_ADMINAPIKEY=${LOCAL_ADMIN_API_KEY}" >> $GITHUB_ENV
 
       - name: Install Diesel CLI
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
-          tool: diesel_cli
+          tool: diesel_cli@2.3.14
 
       - name: Install Just
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: just
           checksum: true
 
       - name: Install Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.5.0
         with:
           node-version: "24"
 
@@ -1388,6 +1408,10 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
+
+      - name: Configure enforced payment callbacks
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         run: |
@@ -1414,10 +1438,10 @@ jobs:
           # Apply seeded Superposition config quickly in CI (default is 300s).
           ROUTER__SUPERPOSITION__POLLING_INTERVAL: 10
         run: |
-          touch "${{ env.SERVER_LOG_PATH }}"
+          touch "${SERVER_LOG_PATH}"
           # Start the server in the background
 
-          target/debug/router >> "${{ env.SERVER_LOG_PATH }}" 2>&1 &
+          target/debug/router >> "${SERVER_LOG_PATH}" 2>&1 &
           SERVER_PID=$!
           echo "PID=${SERVER_PID}" >> $GITHUB_ENV
 
@@ -1443,11 +1467,11 @@ jobs:
         run: |
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
 
-          kill "${{ env.PID }}"
+          kill "${PID}"
 
       - name: Upload server logs on failure
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
           path: ${{ env.SERVER_LOG_PATH }}
@@ -1456,7 +1480,7 @@ jobs:
 
       - name: Upload Cypress test results
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.report_artifact_name }}
           path: |
@@ -1468,9 +1492,6 @@ jobs:
     needs: build-hyperswitch
     if: false
     runs-on: hyperswitch-runners
-    env:
-      # Use `sccache` for caching compilation artifacts
-      RUSTC_WRAPPER: sccache
     services:
       redis:
         image: "public.ecr.aws/docker/library/redis:alpine"
@@ -1510,7 +1531,7 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
 
       - name: Mask S3 cache location in job logs
         shell: bash
@@ -1548,20 +1569,20 @@ jobs:
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
-          tool: diesel_cli
+          tool: diesel_cli@2.3.14
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: just
           checksum: true
 
       - name: Install Node.js
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.5.0
         with:
           node-version: "24"
 
@@ -1576,6 +1597,11 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate run --locked-schema
+
+      - name: Configure enforced payment callbacks
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1669,12 +1695,12 @@ jobs:
           scripts/execute_cypress.sh
 
           # Cleanup
-          kill "${{ env.PID }}"
-          kill "${{ env.MOCK_PID }}"
+          kill "${PID}"
+          kill "${MOCK_PID}"
 
       - name: Upload Cypress test results for Alpha Connectors
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: cypress-test-results-alpha
           path: |
@@ -1738,7 +1764,9 @@ jobs:
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Download Encrypted TOML from S3 and Decrypt
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1786,7 +1814,7 @@ jobs:
 
       - name: Install Protoc
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: arduino/setup-protoc@v3
+        uses: arduino/setup-protoc@v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -1796,7 +1824,7 @@ jobs:
 
       - name: Install sccache
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: sccache
           checksum: true
@@ -1809,27 +1837,27 @@ jobs:
 
       - name: Install Diesel CLI
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
-          tool: diesel_cli
+          tool: diesel_cli@2.3.14
 
       - name: Install grcov
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: grcov
           checksum: true
 
       - name: Install Just
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: just
           checksum: true
 
       - name: Install Node.js
         if: ${{ env.RUN_TESTS == 'true' }}
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v6.5.0
         with:
           node-version: "24"
 
@@ -1844,6 +1872,11 @@ jobs:
         env:
           DATABASE_URL: postgres://db_user:db_pass@localhost:5432/hyperswitch_db
         run: just migrate_v2 run --locked-schema
+
+      - name: Configure enforced payment callbacks
+        if: ${{ env.RUN_TESTS == 'true' }}
+        run: |
+          PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --set=ON_ERROR_STOP=1 --file=.github/data/payment_callback_config.sql
 
       - name: Insert card info into the database
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -1924,11 +1957,11 @@ jobs:
       - name: Stop running server
         if: ${{ env.RUN_TESTS == 'true' && (success() || failure()) }}
         run: |
-          kill "${{ env.PID }}"
+          kill "${PID}"
 
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: cypress-v2-test-results
           path: |
@@ -1945,7 +1978,7 @@ jobs:
         run: grcov . --source-dir . --output-types lcov --output-path ${{ env.CODECOV_FILE }} --binary-path ./target/debug --keep-only "crates/*"
 
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v6.0.2
         if: ${{ env.RUN_TESTS == 'true' && github.event_name != 'merge_group' && (success() || failure()) }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

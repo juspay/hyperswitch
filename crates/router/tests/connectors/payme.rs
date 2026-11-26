@@ -103,7 +103,7 @@ fn payment_method_details() -> Option<types::PaymentsAuthorizeData> {
             discount_percentage: None,
             discount_type: None,
         }]),
-        router_return_url: Some("https://hyperswitch.io".to_string()),
+        router_return_url: Some("https://hyperswitch.io".to_string().into()),
         webhook_url: Some("https://hyperswitch.io".to_string()),
         email: Some(Email::from_str("test@gmail.com").unwrap()),
         payment_method_data: domain::PaymentMethodData::Card(domain::Card {
@@ -416,7 +416,7 @@ async fn should_fail_payment_for_incorrect_cvc() {
                     discount_percentage: None,
                     discount_type: None,
                 }]),
-                router_return_url: Some("https://hyperswitch.io".to_string()),
+                router_return_url: Some("https://hyperswitch.io".to_string().into()),
                 webhook_url: Some("https://hyperswitch.io".to_string()),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 ..PaymentAuthorizeType::default().0
@@ -468,7 +468,7 @@ async fn should_fail_payment_for_invalid_exp_month() {
                     discount_percentage: None,
                     discount_type: None,
                 }]),
-                router_return_url: Some("https://hyperswitch.io".to_string()),
+                router_return_url: Some("https://hyperswitch.io".to_string().into()),
                 webhook_url: Some("https://hyperswitch.io".to_string()),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 ..PaymentAuthorizeType::default().0
@@ -520,7 +520,7 @@ async fn should_fail_payment_for_incorrect_expiry_year() {
                     discount_percentage: None,
                     discount_type: None,
                 }]),
-                router_return_url: Some("https://hyperswitch.io".to_string()),
+                router_return_url: Some("https://hyperswitch.io".to_string().into()),
                 webhook_url: Some("https://hyperswitch.io".to_string()),
                 email: Some(Email::from_str("test@gmail.com").unwrap()),
                 ..PaymentAuthorizeType::default().0
