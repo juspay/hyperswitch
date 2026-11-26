@@ -209,6 +209,7 @@ pub async fn record_internal_attempt_api(
     revenue_recovery_metadata: &payments_api::PaymentRevenueRecoveryMetadata,
     card_info: payments_api::AdditionalCardInfo,
     payment_processor_token: &str,
+    retry_algorithm: Option<common_enums::RevenueRecoveryABAlgorithm>,
 ) -> RouterResult<payments_api::PaymentAttemptRecordResponse> {
     let revenue_recovery_attempt_data =
         recovery_incoming::RevenueRecoveryAttempt::get_revenue_recovery_attempt(
@@ -232,6 +233,7 @@ pub async fn record_internal_attempt_api(
             None,
             None,
             None,
+            retry_algorithm,
         )
         .await
         .change_context(errors::ApiErrorResponse::GenericNotFoundError {
