@@ -364,6 +364,7 @@ impl From<&payments::payment_attempt::PaymentAttempt> for RecoveryPaymentAttempt
                                 customer_present: recovery.customer_present,
                                 setup_future_usage: recovery.setup_future_usage,
                                 recovery_request_id: recovery.recovery_request_id,
+                                retry_algorithm: recovery.retry_algorithm,
                             }
                         }),
                     },
