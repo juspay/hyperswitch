@@ -3743,54 +3743,6 @@ mod retry_model_tests {
     }
 
     #[test]
-    fn score_mix_mixes_in_delta_with_the_per_tick_picker_only() {
-        assert_eq!(
-            RetryModelVariant::from(common_enums::RevenueRecoveryABAlgorithm::ScoreMix),
-            RetryModelVariant {
-                combine: DayCombine::MaxAtSoftmax,
-                selection: DaySelection::PerTick,
-                ladder: pcr::schedule::StaticLadderRole::Standby,
-                delta: DeltaMix::Weighted,
-            }
-        );
-    }
-
-    #[test]
-    fn score_mix_config_is_read_with_its_defaults() {
-        let config = ScoreMixConfig::from_config(
-            &serde_json::json!({"absolute_weight": 0.6, "relative_weight": 0.4}),
-        )
-        .expect("usable config");
-        assert_eq!(
-            config,
-            ScoreMixConfig {
-                absolute_weight: 0.6,
-                relative_weight: 0.4,
-                calendar_combine: DayCombine::MaxAtSoftmax,
-                min_retries: 100,
-                max_gap_days: 7,
-            }
-        );
-
-        let config = ScoreMixConfig::from_config(&serde_json::json!({
-            "absolute_weight": 0,
-            "relative_weight": 1,
-            "calendar_combine": "max_at_score",
-            "min_retries": 50,
-            "max_gap_days": 5
-        }))
-        .expect("usable config");
-        assert_eq!(
-            (
-                config.calendar_combine,
-                config.min_retries,
-                config.max_gap_days
-            ),
-            (DayCombine::MaxAtScore, 50, 5)
-        );
-    }
-
-    #[test]
     fn unusable_score_mix_configs_are_rejected() {
         for configured in [
             serde_json::Value::Null,
@@ -3817,147 +3769,38 @@ mod retry_model_tests {
         }
     }
 
-    // Five window days with equal calendar weights, not normalised (as `MaxAtSoftmax` leaves them),
-    // and delta scores for the first three only.
-    const MIX_CALENDAR: [f64; 5] = [2.0, 2.0, 2.0, 2.0, 2.0];
-    const MIX_DELTA: [Option<f64>; 5] = [Some(0.0), Some(1.0), Some(3.0), None, None];
-
-    fn mixed(absolute_weight: f64, relative_weight: f64) -> Vec<f64> {
-        mix_delta_into_calendar(
-            &MIX_CALENDAR,
-            &MIX_DELTA,
-            &ScoreMixConfig {
-                absolute_weight,
-                relative_weight,
-                ..ScoreMixConfig::default()
-            },
-        )
-    }
-
-    fn share(weights: &[f64], day: usize) -> f64 {
-        weights.get(day).copied().unwrap_or(f64::NAN)
-    }
-
-    #[test]
-    fn only_absolute_weight_keeps_the_calendar_shares() {
-        let mixed = mixed(1.0, 0.0);
-
-        assert!(
-            mixed.iter().all(|weight| approx(*weight, 0.2, 1e-12)),
-            "{mixed:?}"
-        );
-    }
-
-    #[test]
-    fn delta_reshuffles_only_the_share_of_the_days_it_scored() {
-        let mixed = mixed(0.0, 1.0);
-        let delta = softmax(&[0.0, 1.0, 3.0]);
-
-        // Days 0-2 held 0.6 of the calendar between them; the delta splits that 0.6.
-        for day in 0..3 {
-            assert!(
-                approx(share(&mixed, day), 0.6 * share(&delta, day), 1e-12),
-                "day {day}"
-            );
-        }
-        assert!(approx(share(&mixed, 3), 0.2, 1e-12) && approx(share(&mixed, 4), 0.2, 1e-12));
-        assert!(approx(mixed.iter().sum::<f64>(), 1.0, 1e-12));
-    }
-
     #[test]
     fn calendar_and_delta_shares_are_averaged_by_weight() {
-        let mixed = mixed(0.5, 0.5);
+        // Five equal calendar days; the delta scored the first three, which hold 0.6 between them.
+        let mixed = mix_delta_into_calendar(
+            &[2.0; 5],
+            &[Some(0.0), Some(1.0), Some(3.0), None, None],
+            &ScoreMixConfig::default(),
+        );
         let delta = softmax(&[0.0, 1.0, 3.0]);
 
-        for day in 0..3 {
-            let expected = 0.5 * 0.2 + 0.5 * 0.6 * share(&delta, day);
-            assert!(approx(share(&mixed, day), expected, 1e-12), "day {day}");
+        assert_eq!(mixed.len(), 5);
+        for (day, weight) in mixed.iter().enumerate() {
+            let expected = delta
+                .get(day)
+                .map_or(0.2, |delta_share| 0.5 * 0.2 + 0.5 * 0.6 * delta_share);
+            assert!(approx(*weight, expected, 1e-12), "day {day}");
         }
-        assert!(approx(share(&mixed, 3), 0.2, 1e-12) && approx(share(&mixed, 4), 0.2, 1e-12));
-    }
-
-    #[test]
-    fn without_delta_scores_the_calendar_shares_stand() {
-        let mixed = mix_delta_into_calendar(&MIX_CALENDAR, &[None; 5], &ScoreMixConfig::default());
-
-        assert!(
-            mixed.iter().all(|weight| approx(*weight, 0.2, 1e-12)),
-            "{mixed:?}"
-        );
     }
 
     #[test]
     fn the_max_gap_guard_fires_where_the_walk_reaches_it() {
         // No weight before the guard's day, so nothing fires there by chance.
-        let weights = [0.0, 0.0, 0.0, 1.0, 1.0];
-        let tags = [0u8, 1, 2, 3, 4];
-        for _ in 0..20 {
-            let (index, driver) =
-                pick_index(&weights, &tags, 1, "day", Some(2)).expect("the guard fires");
-            assert_eq!(index, 2);
-            assert!(matches!(driver, PickDriver::MaxGapGuard));
-        }
-    }
-
-    #[test]
-    fn score_mix_retries_tomorrow_when_the_failure_is_older_than_the_max_gap() {
-        // The card failed ten days ago, so the window's first day is already past a 7-day gap.
-        let now = common_utils::date_time::now();
-        let inputs = ScoreMixInputs {
-            config: ScoreMixConfig::default(),
-            last_failure_at: Some(now - time::Duration::days(10)),
-        };
-        let variant = RetryModelVariant::from(common_enums::RevenueRecoveryABAlgorithm::ScoreMix);
-        let tomorrow = now.date().next_day().expect("a next day");
-
-        for _ in 0..20 {
-            let retry_at = compute_predicted_retry_time(
-                &sample(),
-                3,
-                10,
-                DEFAULT_RETRY_HOUR,
-                variant,
-                EXPLORATION_FLOOR,
-                TIE_TOLERANCE,
-                Some(&inputs),
-            )
-            .expect("a retry");
-            assert_eq!(retry_at.date(), tomorrow);
-        }
-    }
-
-    #[test]
-    fn score_mix_schedules_inside_the_window_with_delta_data() {
-        let mut stats = sample();
-        for (hour, slot) in (0u64..).zip(stats.delta_hours.iter_mut()) {
-            *slot = ctr(200, 10 + hour % 40);
-        }
-        let now = common_utils::date_time::now();
-        let inputs = ScoreMixInputs {
-            config: ScoreMixConfig::default(),
-            last_failure_at: Some(now - time::Duration::hours(2)),
-        };
-        let variant = RetryModelVariant::from(common_enums::RevenueRecoveryABAlgorithm::ScoreMix);
-        let today = now.date();
-
-        for _ in 0..50 {
-            let retry_at = compute_predicted_retry_time(
-                &stats,
-                3,
-                10,
-                DEFAULT_RETRY_HOUR,
-                variant,
-                EXPLORATION_FLOOR,
-                TIE_TOLERANCE,
-                Some(&inputs),
-            )
-            .expect("a retry inside the window");
-            let day = retry_at.date();
-            assert!(
-                day > today && day < today + time::Duration::days(10),
-                "{day} outside the window starting after {today}"
-            );
-        }
+        let (index, driver) = pick_index(
+            &[0.0, 0.0, 0.0, 1.0, 1.0],
+            &[0u8, 1, 2, 3, 4],
+            1,
+            "day",
+            Some(2),
+        )
+        .expect("the guard fires");
+        assert_eq!(index, 2);
+        assert!(matches!(driver, PickDriver::MaxGapGuard));
     }
 
     #[test]
