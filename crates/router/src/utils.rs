@@ -16,11 +16,7 @@ pub mod verify_connector;
 use std::fmt::Debug;
 
 use analytics::{enums::AuthInfo, errors::AnalyticsError};
-use api_models::{
-    enums,
-    payments::{self},
-    subscription as subscription_types, webhooks,
-};
+use api_models::{enums, payments, subscription as subscription_types, webhooks};
 pub use common_utils::{
     crypto::{self, Encryptable},
     ext_traits::{ByteSliceExt, BytesExt, Encode, StringExt, ValueExt},

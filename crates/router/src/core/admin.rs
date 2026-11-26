@@ -1,8 +1,7 @@
 use std::str::FromStr;
 
 use api_models::{
-    admin::{self as admin_types},
-    enums as api_enums, organization as org_types, routing as routing_types,
+    admin as admin_types, enums as api_enums, organization as org_types, routing as routing_types,
 };
 use common_enums::{MerchantAccountType, OrganizationType};
 use common_utils::{
@@ -39,18 +38,14 @@ use crate::{
         encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payment_methods::{cards, transformers, vault},
-        payments::helpers::{self},
+        payments::helpers,
         pm_auth::helpers::PaymentAuthConnectorDataExt,
         routing, utils as core_utils,
     },
     db::AccountsStorageInterface,
     logger,
     routes::{app::SessionStateInfo, metrics, SessionState},
-    services::{
-        self,
-        api::{self as service_api},
-        authentication, pm_auth as payment_initiation_service,
-    },
+    services::{self, api as service_api, authentication, pm_auth as payment_initiation_service},
     types::{
         self,
         api::{self, admin},
