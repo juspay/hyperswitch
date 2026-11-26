@@ -37,8 +37,7 @@ use crate::{
     routes::{app::SessionStateInfo, SessionState},
     services,
     types::{
-        api,
-        domain::{self},
+        api, domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignTryFrom},
     },
