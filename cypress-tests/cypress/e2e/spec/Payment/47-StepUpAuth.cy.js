@@ -44,6 +44,8 @@ describe("Step-Up Auth payment flow test", () => {
     }
   });
 
+  utils.useThreeDSConnectorProfile(() => globalState);
+
   context(
     "Step-Up Auth setup - create auth processor and update profile",
     () => {

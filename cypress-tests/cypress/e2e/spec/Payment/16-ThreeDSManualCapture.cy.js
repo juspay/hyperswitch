@@ -15,6 +15,8 @@ describe("Card - ThreeDS Manual payment flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
+  utils.useThreeDSConnectorProfile(() => globalState);
+
   context(
     "Card - ThreeDS Manual Full Capture payment flow test - Create and Confirm",
     () => {

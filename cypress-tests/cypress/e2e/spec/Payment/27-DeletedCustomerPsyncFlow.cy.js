@@ -115,6 +115,8 @@ describe("Card - Customer Deletion and Psync", () => {
         cy.task("setGlobalState", globalState.data);
       });
 
+      utils.useThreeDSConnectorProfile(() => globalState);
+
       it("Create Customer -> Create Payment Intent -> Confirm Payment -> Handle redirection -> Retrieve Payment -> Delete Customer -> Retrieve Payment", () => {
         let shouldContinue = true;
 
@@ -327,6 +329,8 @@ describe("Card - Customer Deletion and Psync", () => {
       afterEach("flush global state", () => {
         cy.task("setGlobalState", globalState.data);
       });
+
+      utils.useThreeDSConnectorProfile(() => globalState);
 
       it("Create Customer -> Create Payment Intent -> Confirm Payment -> Handle redirection -> Retrieve Payment -> Capture Payment -> Retrieve Payment -> Delete Customer -> Retrieve Payment", () => {
         let shouldContinue = true;

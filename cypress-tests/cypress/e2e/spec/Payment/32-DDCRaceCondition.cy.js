@@ -86,6 +86,8 @@ describe("[Payment] DDC Race Condition", () => {
   });
 
   context("[Payment] DDC Race Condition Tests", () => {
+    utils.useThreeDSConnectorProfile(() => globalState);
+
     let shouldContinue = true;
 
     beforeEach(function () {

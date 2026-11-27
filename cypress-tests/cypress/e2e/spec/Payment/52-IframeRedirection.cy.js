@@ -26,6 +26,8 @@ describeIfSupported("Iframe Redirection Payment Flow Tests", () => {
   });
 
   context("Happy Path - Create Payment with Iframe Redirection Enabled", () => {
+    utils.useThreeDSConnectorProfile(() => globalState);
+
     it("Create Payment Intent with is_iframe_redirection_enabled -> Confirm Payment -> Verify Redirect Response -> Retrieve Payment", function () {
       let shouldContinue = true;
 
@@ -100,6 +102,8 @@ describeIfSupported("Iframe Redirection Payment Flow Tests", () => {
   });
 
   context("Edge Case - Iframe Redirection Not Explicitly Enabled", () => {
+    utils.useThreeDSConnectorProfile(() => globalState);
+
     it("Create Payment Intent without iframe flag -> Confirm Payment -> Verify redirect goes to external URL (not inside popup)", function () {
       let shouldContinue = true;
 

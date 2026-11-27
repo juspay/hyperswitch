@@ -29,6 +29,8 @@ describe("Poll Config - Payment status polling", () => {
   });
 
   context("3DS payment confirm triggers polling state", () => {
+    utils.useThreeDSConnectorProfile(() => globalState);
+
     it("create payment intent -> confirm 3DS payment -> verify polling state", () => {
       let shouldContinue = true;
 
@@ -81,6 +83,8 @@ describe("Poll Config - Payment status polling", () => {
   context(
     "Poll endpoint with constructed poll_id returns 404 when poll_id not in Redis",
     () => {
+      utils.useThreeDSConnectorProfile(() => globalState);
+
       it("create payment intent -> confirm 3DS -> poll with constructed poll_id -> verify 404", () => {
         let shouldContinue = true;
 
@@ -190,6 +194,8 @@ describe("Poll Config - Payment status polling", () => {
   });
 
   context("Force sync retrieves 3DS payment status", () => {
+    utils.useThreeDSConnectorProfile(() => globalState);
+
     it("create payment intent -> confirm 3DS -> force sync -> verify status", () => {
       let shouldContinue = true;
 
