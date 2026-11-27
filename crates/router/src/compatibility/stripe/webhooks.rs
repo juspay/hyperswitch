@@ -2,7 +2,7 @@
 use api_models::payouts as payout_models;
 use api_models::{
     enums::{Currency, DisputeStatus, MandateStatus},
-    webhooks::{self as api},
+    webhooks as api,
 };
 use common_utils::{crypto::SignMessage, date_time, ext_traits::Encode};
 #[cfg(feature = "payouts")]
@@ -160,6 +160,7 @@ impl From<common_enums::PayoutStatus> for StripePayoutStatus {
             | common_enums::PayoutStatus::Ineligible
             | common_enums::PayoutStatus::RequiresCreation
             | common_enums::PayoutStatus::RequiresFulfillment
+            | common_enums::PayoutStatus::RequiresReview
             | common_enums::PayoutStatus::RequiresPayoutMethodData
             | common_enums::PayoutStatus::RequiresVendorAccountCreation
             | common_enums::PayoutStatus::RequiresConfirmation => Self::PayoutProcessing,
@@ -311,6 +312,7 @@ fn get_stripe_event_type(event_type: api_models::enums::EventType) -> &'static s
         // Stripe has no distinct "not permitted" payout event; a terminal refusal is
         // reported to stripe-compat consumers as a failure.
         api_models::enums::EventType::PayoutNotPermitted => "payout.failed",
+        api_models::enums::EventType::PayoutReviewRequired => "payout.review_required",
         api_models::enums::EventType::InvoicePaid => "invoice.paid",
     }
 }

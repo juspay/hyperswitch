@@ -4,6 +4,14 @@ openapi: post /payouts/create
 
 Create a payout with `payout_method_data` (including raw card details) or a saved `payout_method_id`.
 
+## Customer creation
+
+Create the customer with `POST /customers`, then pass its ID as `customer.id` or `customer_id`. A customer ID is required for every payout create request. Unknown IDs return `CustomerNotFound` (HTTP 404). Inline customer attributes are ignored.
+
+The customer association is fixed at creation. Update and confirm use the stored ID and reject `customer_id` or `customer.id` in the request. Supplied customer contact details are ignored.
+
+Payout links require the top-level `customer_id`.
+
 ## External-vault card payouts
 
 Use a card saved during a payment. Provide a unique `payout_id`, the saved `payout_method_id`, and the card owner's `customer_id` or `customer.id`.

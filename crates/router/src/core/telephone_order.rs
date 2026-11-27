@@ -35,7 +35,7 @@ pub mod error_codes {
     pub const PAYMENT_PENDING: &str = "PAYMENT_PENDING";
 }
 
-pub type Parameters = HashMap<String, String>;
+pub use api_models::telephone_order::TelephoneOrderParameters as Parameters;
 
 /// Why a charge failed, in terms the provider can read back to the caller.
 #[derive(Debug)]
@@ -92,16 +92,22 @@ pub struct Context {
     /// instead of charging again. Settled by [`TelephoneOrderAdapter::resolve_payment_id`].
     pub payment_id: Option<common_utils::id_type::PaymentId>,
     pub customer_id: Option<common_utils::id_type::CustomerId>,
+    /// `None` auto-captures. `Manual` leaves the capture to the merchant.
+    pub capture_method: Option<common_enums::CaptureMethod>,
     pub metadata: Option<serde_json::Value>,
 }
 
 impl Context {
     /// The shared fields, for an adapter to fill the rest in with `..context.payments_request()`.
-    /// Confirmed, auto-captured, flagged a telephone order, never 3DS — a caller has no browser.
+    /// Confirmed, flagged a telephone order, never 3DS — a caller has no browser. Auto-captured
+    /// unless the IVR asked otherwise.
     pub fn payments_request(self) -> api_models::payments::PaymentsRequest {
         api_models::payments::PaymentsRequest {
             confirm: Some(true),
-            capture_method: Some(common_enums::CaptureMethod::Automatic),
+            capture_method: Some(
+                self.capture_method
+                    .unwrap_or(common_enums::CaptureMethod::Automatic),
+            ),
             authentication_type: Some(common_enums::AuthenticationType::NoThreeDs),
             payment_channel: Some(common_enums::PaymentChannel::TelephoneOrder),
             profile_id: self.profile_id,
@@ -148,8 +154,8 @@ pub trait TelephoneOrderAdapter {
     /// from it, so a retry collides instead of charging again. `None` means no such protection.
     fn idempotency_reference(request: &Self::Request) -> Option<&str>;
 
-    /// Where the provider carries the IVR's [`Parameters`]. A reference, so a provider holding
-    /// those ids as typed fields would need a `Cow` or a typed getter instead.
+    /// Where the provider carries the IVR's [`Parameters`]. A reference: the ids read out of it
+    /// are cloned by the few callers that need them owned.
     fn parameters(request: &Self::Request) -> Option<&Parameters>;
 
     /// Maps the provider's own fields — amount, payment method, descriptors — onto the payment.
@@ -173,21 +179,17 @@ pub trait TelephoneOrderAdapter {
     ) -> Box<dyn AuthenticateAndFetch<AuthenticationData, SessionState>> {
         Box::new(ApiKeyBasicAuthWithMerchantIdFromRoute {
             merchant_id,
-            profile_id: extract_id(Self::parameters(request), "profile_id")
-                // An unusable id is rejected with `INVALID_REQUEST` in `charge`.
-                .ok()
-                .flatten(),
+            profile_id: Self::parameters(request)
+                .and_then(|parameters| parameters.profile_id.clone()),
         })
     }
 
     /// The payment id this request becomes, settled in one place because the route locks on it and
     /// the core puts it on the payment. `parameters.payment_id` wins; else [`derive_payment_id`].
-    fn resolve_payment_id(
-        request: &Self::Request,
-    ) -> Result<Option<common_utils::id_type::PaymentId>, Failure> {
-        extract_id(Self::parameters(request), "payment_id").map(|supplied| {
-            supplied.or_else(|| Self::idempotency_reference(request).and_then(derive_payment_id))
-        })
+    fn resolve_payment_id(request: &Self::Request) -> Option<common_utils::id_type::PaymentId> {
+        Self::parameters(request)
+            .and_then(|parameters| parameters.payment_id.clone())
+            .or_else(|| Self::idempotency_reference(request).and_then(derive_payment_id))
     }
 
     /// Answers the provider with a failure, leaving a log line behind to explain it.
@@ -214,10 +216,14 @@ pub trait TelephoneOrderAdapter {
     ) -> RouterResponse<Self::Response> {
         let transaction_reference = Self::transaction_reference(&request);
 
-        let payments_request = Self::resolve_payment_id(&request)
-            .and_then(|payment_id| build_context(&auth, Self::parameters(&request), payment_id))
-            .and_then(|context| Self::build_payments_request(&request, context))
-            .and_then(finalize_payments_request);
+        let context = build_context(
+            &auth,
+            Self::parameters(&request),
+            Self::resolve_payment_id(&request),
+        );
+
+        let payments_request =
+            Self::build_payments_request(&request, context).and_then(finalize_payments_request);
 
         let outcome = match payments_request {
             Err(failure) => Err(failure),
@@ -331,69 +337,41 @@ where
     })
 }
 
-/// Reads the ids the IVR passed through. The profile was resolved by authentication, the payment
-/// id by [`TelephoneOrderAdapter::resolve_payment_id`] — which the route needed first, to lock on.
+/// Reads the parameters the IVR passed through. Nothing is parsed here: [`Parameters`] holds these
+/// as their own types, so an unusable one failed the request's deserialization at the route. The
+/// profile was resolved by authentication, the payment id by
+/// [`TelephoneOrderAdapter::resolve_payment_id`] — which the route needed first, to lock on.
 fn build_context(
     auth: &AuthenticationData,
     parameters: Option<&Parameters>,
     payment_id: Option<common_utils::id_type::PaymentId>,
-) -> Result<Context, Failure> {
-    Ok(Context {
-        profile_id: resolve_profile_id(auth, parameters)?,
+) -> Context {
+    Context {
+        // The profile authentication settled, which is the one the IVR named when it named one:
+        // `parameters.profile_id` reaches auth through the adapter's `authenticator`.
+        profile_id: auth
+            .profile
+            .as_ref()
+            .map(|profile| profile.get_id().clone()),
         payment_id,
-        // A convenience: an unusable one is dropped rather than failing the charge.
-        customer_id: extract_id(parameters, "customer_id")
-            .inspect_err(|failure| {
-                logger::warn!(
-                    "Ignoring unusable customer_id from telephone order parameters: {}",
-                    failure.message
-                )
-            })
-            .ok()
-            .flatten(),
+        customer_id: parameters.and_then(|parameters| parameters.customer_id.clone()),
+        capture_method: parameters
+            .and_then(|parameters| parameters.capture_method)
+            .map(common_enums::CaptureMethod::from),
         metadata: build_metadata(parameters),
-    })
+    }
 }
 
-/// The profile the IVR named, as authentication resolved it. Parsed again here so a mangled id is
-/// rejected rather than dropped by the route and replaced by the default profile.
-fn resolve_profile_id(
-    auth: &AuthenticationData,
-    parameters: Option<&Parameters>,
-) -> Result<Option<common_utils::id_type::ProfileId>, Failure> {
-    extract_id::<common_utils::id_type::ProfileId>(parameters, "profile_id")?;
-
-    Ok(auth
-        .profile
-        .as_ref()
-        .map(|profile| profile.get_id().clone()))
-}
-
-/// Reads one Hyperswitch id out of the parameters. An unusable value is rejected, not ignored.
-fn extract_id<I>(parameters: Option<&Parameters>, key: &str) -> Result<Option<I>, Failure>
-where
-    I: TryFrom<std::borrow::Cow<'static, str>>,
-    <I as TryFrom<std::borrow::Cow<'static, str>>>::Error: std::fmt::Display,
-{
-    parameters
-        .and_then(|parameters| parameters.get(key))
-        .map(|value| {
-            I::try_from(std::borrow::Cow::Owned(value.clone())).map_err(|error| {
-                Failure::new(
-                    error_codes::INVALID_REQUEST,
-                    format!("parameters.{key} is not a valid {key}: {error}"),
-                )
-            })
-        })
-        .transpose()
-}
-
-/// Carries the IVR's parameters through to the payment, for reconciliation. Lands in
-/// `payment_intent.metadata` unmasked — returned by payments retrieve, sent in webhooks.
+/// Carries the merchant's own parameters through to the payment, for reconciliation. Lands in
+/// `payment_intent.metadata` unmasked — returned by payments retrieve, sent in webhooks. The four
+/// Hyperswitch reads are left out: the payment carries those itself, as its `payment_id`,
+/// `profile_id`, `customer_id` and `capture_method`.
 fn build_metadata(parameters: Option<&Parameters>) -> Option<serde_json::Value> {
-    let parameters = parameters.filter(|parameters| !parameters.is_empty())?;
+    let extra = parameters
+        .map(|parameters| &parameters.extra)
+        .filter(|extra| !extra.is_empty())?;
 
-    serde_json::to_value(parameters)
+    serde_json::to_value(extra)
         .inspect_err(|error| {
             logger::warn!("Could not serialize telephone order parameters into metadata: {error:?}")
         })

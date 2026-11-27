@@ -16,7 +16,7 @@
             "Charge a card collected over the phone" = (
                 value = json!({
                     "method": "charge",
-                    "transaction_id": "IPe16430-39ba-4820-bedc-7aad0762a487",
+                    "transaction_id": "IP1234",
                     "cardnumber": "4242424242424242",
                     "cvv": "123",
                     "expiry_month": "12",
@@ -26,8 +26,8 @@
                     "postal_code": "94122",
                     "description": "Order placed over the phone",
                     "parameters": {
-                        "payment_id": "pay_8320b449b06630271e378214dab80ce5",
-                        "profile_id": "pro_GUMsmmzTU7oadT00pJeo"
+                        "payment_id": "pay_1234",
+                        "profile_id": "pro_1234"
                     }
                 })
             )
@@ -38,17 +38,17 @@
             examples(
                 ("01. The card was charged" = (
                     value = json!({
-                        "charge_id": "pay_8320b449b06630271e378214dab80ce5",
+                        "charge_id": "pay_1234",
                         "error_code": null,
                         "error_message": null,
                         "parameters": {
-                            "payment_id": "pay_8320b449b06630271e378214dab80ce5",
+                            "payment_id": "pay_1234",
                             "status": "succeeded",
                             "amount_capturable": "0",
                             "amount_received": "100",
                             "connector": "stripe",
-                            "connector_transaction_id": "pi_3URyI8D5R7gDAGff17RhZpfW",
-                            "merchant_order_reference_id": "IPe16430-39ba-4820-bedc-7aad0762a487"
+                            "connector_transaction_id": "pi_1234",
+                            "merchant_order_reference_id": "IP1234"
                         }
                     })
                 )),
@@ -58,11 +58,11 @@
                         "error_code": "card_declined",
                         "error_message": "Your card was declined.",
                         "parameters": {
-                            "payment_id": "pay_8320b449b06630271e378214dab80ce5",
+                            "payment_id": "pay_1234",
                             "status": "failed",
                             "connector": "stripe",
                             "unified_code": "UE_9000",
-                            "merchant_order_reference_id": "IPe16430-39ba-4820-bedc-7aad0762a487"
+                            "merchant_order_reference_id": "IP1234"
                         }
                     })
                 )),
@@ -72,10 +72,10 @@
                         "error_code": "PAYMENT_PENDING",
                         "error_message": "Payment is not yet complete",
                         "parameters": {
-                            "payment_id": "pay_8320b449b06630271e378214dab80ce5",
+                            "payment_id": "pay_1234",
                             "status": "processing",
                             "connector": "stripe",
-                            "merchant_order_reference_id": "IPe16430-39ba-4820-bedc-7aad0762a487"
+                            "merchant_order_reference_id": "IP1234"
                         }
                     })
                 ))

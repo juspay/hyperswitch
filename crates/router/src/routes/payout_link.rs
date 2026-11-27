@@ -4,10 +4,7 @@ use router_env::Flow;
 
 use crate::{
     core::{api_locking, payout_link::*},
-    services::{
-        api,
-        authentication::{self as auth},
-    },
+    services::{api, authentication as auth},
     AppState,
 };
 #[cfg(feature = "v1")]

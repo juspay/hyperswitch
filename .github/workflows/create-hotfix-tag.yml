@@ -3,6 +3,8 @@ name: Create tag on hotfix branch
 on:
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
   create_tag:
     runs-on: ubuntu-latest
@@ -10,21 +12,23 @@ jobs:
     steps:
       - name: Generate a token
         id: generate_token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@v3.4.0
         env:
           NODE_USE_ENV_PROXY: "1"
         with:
           client-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
+          permission-contents: write
 
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           token: ${{ steps.generate_token.outputs.token }}
+          persist-credentials: false
 
       - name: Install git-cliff
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: git-cliff
           checksum: true
@@ -32,10 +36,10 @@ jobs:
       - name: Check if the input is valid hotfix branch
         shell: bash
         run: |
-          if [[ ${{github.ref}} =~ ^refs/heads/hotfix-[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]+$ ]]; then
-            echo "::notice::${{github.ref}} is a valid hotfix branch."
+          if [[ ${GITHUB_REF} =~ ^refs/heads/hotfix-[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]+$ ]]; then
+            echo "::notice::${GITHUB_REF} is a valid hotfix branch."
           else
-            echo "::error::${{github.ref}} is not a valid hotfix branch."
+            echo "::error::${GITHUB_REF} is not a valid hotfix branch."
             exit 1
           fi
 
@@ -106,10 +110,13 @@ jobs:
 
       - name: Push created commit and tag
         shell: bash
+        env:
+          PUSH_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
           # Stage, commit and tag the changelog
           git add CHANGELOG.md
           git commit --message "chore(version): ${NEXT_TAG}"
           git tag --message "$(git show --no-patch --format=%s HEAD)" "${NEXT_TAG}" HEAD
-          git push
-          git push --tags
+          PUSH_URL="https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push "$PUSH_URL"
+          git push "$PUSH_URL" --tags

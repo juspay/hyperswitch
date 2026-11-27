@@ -3,7 +3,7 @@ use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
     ext_traits::{OptionExt, ValueExt},
-    pii::{self},
+    pii,
     request::Method,
 };
 use error_stack::ResultExt;

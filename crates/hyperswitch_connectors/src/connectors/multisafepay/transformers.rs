@@ -15,7 +15,7 @@ use hyperswitch_domain_models::{
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
     },
-    types::{self},
+    types,
 };
 use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
