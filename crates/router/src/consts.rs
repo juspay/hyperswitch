@@ -528,6 +528,8 @@ pub mod superposition {
     pub const MAX_AUTO_PAYOUT_RETRIES: &str = "payouts.max_auto_payout_retries";
     /// Allows payout creation, confirmation, update, cancellation, and fulfillment at OMP scope.
     pub const SHOULD_ALLOW_PAYOUTS: &str = "payouts.should_allow_payouts";
+    /// Allow payout accept and reject operations for their available OMP dimensions.
+    pub const SHOULD_ALLOW_REVIEW_FLOW: &str = "should_allow_review_flow";
     /// Minimum allowed payout amount configuration key
     pub const PAYOUT_MIN_AMOUNT: &str = "payouts.min_amount";
     /// Maximum allowed payout amount configuration key
@@ -635,6 +637,8 @@ pub mod superposition {
     /// Payment method types eligible for preferred-connectors routing (comma-separated)
     pub const PREFERRED_CONNECTORS_ENABLED_PAYMENT_METHOD_TYPES: &str =
         "routing.preferred_connectors_enabled_payment_method_types";
+    /// Opt-in by profile and wallet type for overriding the session route at confirmation.
+    pub const SESSION_OVERRIDE: &str = "routing.session_override";
     /// Payout blocklist guard configuration key
     pub const PAYOUT_BLOCKLIST_GUARD: &str = "payouts.payout_blocklist_guard";
     /// Accept connector payment amount mismatch configuration key (scoped by processor merchant

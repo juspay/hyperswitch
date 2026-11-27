@@ -217,6 +217,8 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::payouts::payouts_update,
         routes::payouts::payouts_cancel,
         routes::payouts::payouts_fulfill,
+        routes::payouts::payouts_accept,
+        routes::payouts::payouts_reject,
         routes::payouts::payouts_list,
         routes::payouts::payouts_confirm,
         routes::payouts::payouts_list_filters,

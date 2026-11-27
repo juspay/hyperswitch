@@ -55,6 +55,14 @@ describe("OMP Scoping - Analytics", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
+  // Every test in this file is JWT-only (Analytics has no api-key auth
+  // path) - no dashboard JWT exists for M1 on this environment
+  // (magic-link-only signin, see 00-Setup.cy.js), so the whole file
+  // skips rather than sending "Bearer undefined" throughout.
+  beforeEach(function () {
+    if (!jwtPA) this.skip();
+  });
+
   it("M1 queries payments metrics with M2's merchant_id spoofed into the filter body", () => {
     // M1's dashboard user is org_admin (signup_with_merchant_id grants
     // ROLE_ID_ORGANIZATION_ADMIN, core/user.rs:96-103) - but org_admin
@@ -93,6 +101,36 @@ describe("OMP Scoping - Analytics", () => {
       globalState
     ).then((res) => {
       expect(res.status).to.eq(200);
+    });
+  });
+
+  // FLAG (2026-11-18 selector-mapping pass): validate_analytics_scope
+  // (analytics_validator.rs:11-35) checks filters.merchant_id as a subset
+  // at MerchantLevel auth, but filters.profile_id passes through UNCHECKED
+  // at that same tier - it's only validated at OrgLevel/ProfileLevel. This
+  // is distinct from the merchant_id leak test above (which IS correctly
+  // denied) - never independently exercised before this test.
+  it("M1's MerchantLevel JWT with a profile_id filter from a DIFFERENT merchant - unverified leak surface", () => {
+    cy.ompQueryPaymentMetrics(
+      { type: "jwt", token: jwtPA },
+      metricsRequest({
+        merchant_id: [merchantIdM1],
+        profile_id: [globalState.get("profileIdM2Default")],
+      }),
+      globalState
+    ).then((res) => {
+      // Documenting current behavior: validate_analytics_scope's own code
+      // doesn't reject this filter combination at MerchantLevel. A 200
+      // here would mean the response must be checked for whether it
+      // actually returns data under M2's profile_id (the real leak) or
+      // whether a downstream query independently ANDs merchant_id and
+      // just returns empty - this assertion pins down the status, the
+      // data-leak question needs a follow-up once a profile under M2 has
+      // real payment data to query against.
+      expect(
+        res.status,
+        "cross-merchant profile_id filter at MerchantLevel auth"
+      ).to.not.eq(401);
     });
   });
 

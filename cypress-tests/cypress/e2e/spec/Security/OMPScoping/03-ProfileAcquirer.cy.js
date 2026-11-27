@@ -30,7 +30,8 @@ describe("OMP Scoping - Profile Acquirer", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  it("create with matching PA body profile succeeds (positive)", () => {
+  it("create with matching PA body profile succeeds (positive)", function () {
+    if (!jwtPA) this.skip();
     cy.ompCreateProfileAcquirer(
       { type: "jwt", token: jwtPA, profileId: profileIdPA },
       acquirerBody(profileIdPA),
@@ -41,7 +42,8 @@ describe("OMP Scoping - Profile Acquirer", () => {
     });
   });
 
-  it("create rejects body profile mismatch", () => {
+  it("create rejects body profile mismatch", function () {
+    if (!jwtPA) this.skip();
     cy.ompCreateProfileAcquirer(
       { type: "jwt", token: jwtPA, profileId: profileIdPA },
       acquirerBody(profileIdPB),
@@ -76,7 +78,8 @@ describe("OMP Scoping - Profile Acquirer", () => {
       });
     });
 
-    it("update with matching PA path profile succeeds (positive)", () => {
+    it("update with matching PA path profile succeeds (positive)", function () {
+      if (!jwtPA) this.skip();
       // network is required on any update that isn't purely toggling
       // is_default (IR_06 otherwise).
       cy.ompUpdateProfileAcquirer(
@@ -90,7 +93,8 @@ describe("OMP Scoping - Profile Acquirer", () => {
       });
     });
 
-    it("update rejects path profile mismatch", () => {
+    it("update rejects path profile mismatch", function () {
+      if (!jwtPA) this.skip();
       // No confirmed GET/retrieve route exists for profile_acquirer, so this
       // only asserts the denial itself, not a before/after unchanged
       // comparison like other specs in this folder.
@@ -106,7 +110,8 @@ describe("OMP Scoping - Profile Acquirer", () => {
       });
     });
 
-    it("update on non-existent profile_acquirer_id returns 404", () => {
+    it("update on non-existent profile_acquirer_id returns 404", function () {
+      if (!jwtPA) this.skip();
       cy.ompUpdateProfileAcquirer(
         profileIdPA,
         "pacq_nonexistent_omp_test",
@@ -132,7 +137,8 @@ describe("OMP Scoping - Profile Acquirer", () => {
   });
 
   context("Edge cases on create", () => {
-    it("malformed profile_id in create body is rejected, not 500", () => {
+    it("malformed profile_id in create body is rejected, not 500", function () {
+      if (!jwtPA) this.skip();
       cy.ompCreateProfileAcquirer(
         { type: "jwt", token: jwtPA, profileId: profileIdPA },
         acquirerBody("!!not-a-valid-id!!"),

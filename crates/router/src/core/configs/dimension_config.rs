@@ -410,6 +410,19 @@ impl DatabaseBackedConfig for ShouldAllowPayouts {
 }
 
 config! {
+    superposition_key = SHOULD_ALLOW_REVIEW_FLOW,
+    output = bool,
+    default = false,
+    generics = [Pm, M, P, Cn, PRT, Ev, Pmt],
+    requires = dimension_state::Dimensions<Pm, M, dimension_state::HasOrgId, P, Cn, PRT, Ev, Pmt>,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for ShouldAllowReviewFlow {
+    const KEY: &'static str = "should_allow_review_flow";
+}
+
+config! {
     superposition_key = GSM_PAYOUT_CALL,
     output = bool,
     default = false,
@@ -1455,6 +1468,29 @@ impl DatabaseBackedConfig for PreferredConnectorsRoutingEnabled {
         dimensions
             .get_profile_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = SESSION_OVERRIDE,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndPaymentMethodType,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for SessionOverride {
+    const KEY: &'static str = "session_override";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        let profile_id = dimensions.get_profile_id()?;
+        let wallet_type = dimensions.get_payment_method_type()?;
+        Some(format!(
+            "{}_{}_wallets_{}",
+            Self::KEY,
+            profile_id.get_string_repr(),
+            wallet_type,
+        ))
     }
 }
 

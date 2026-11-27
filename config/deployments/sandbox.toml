@@ -305,7 +305,7 @@ bank_redirect.trustly.connector_list = "adyen"
 bank_redirect.open_banking_uk.connector_list = "adyen"
 bank_transfer.pix_automatico_push = { connector_list = "santander" }
 bank_transfer.pix_automatico_qr = { connector_list = "santander" }
-network_token.network_token.connector_list = "peachpayments"
+network_token.network_token.connector_list = "peachpayments,fiservcommercehub"
 
 [mandates.cross_currency_mit_supported_connectors]
 connector_list = ["datatrans", "stripe"]
@@ -329,7 +329,7 @@ wallet.gcash.connector_list = "adyen, dlocal"
 wallet.dana.connector_list = "adyen"
 wallet.twint.connector_list = "adyen"
 wallet.vipps.connector_list = "adyen"
-network_token.network_token.connector_list = "peachpayments,worldpayraft"
+network_token.network_token.connector_list = "peachpayments,worldpayraft,fiservcommercehub"
 
 bank_redirect.ideal.connector_list = "stripe,adyen,globalpay,multisafepay,nexinets,aci"
 bank_redirect.sofort.connector_list = "globalpay,aci,multisafepay"
@@ -353,7 +353,7 @@ card.debit = "adyen"
 adyen = "BRL,MXN,JPY"
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan,worldpayraft,paypal"
+connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan,worldpayraft,paypal,fiservcommercehub"
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit

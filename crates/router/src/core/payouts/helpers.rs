@@ -1277,6 +1277,7 @@ pub fn is_eligible_for_local_payout_cancellation(status: api_enums::PayoutStatus
             | api_enums::PayoutStatus::RequiresPayoutMethodData
             | api_enums::PayoutStatus::RequiresVendorAccountCreation
             | api_enums::PayoutStatus::RequiresFulfillment
+            | api_enums::PayoutStatus::RequiresReview
     )
 }
 

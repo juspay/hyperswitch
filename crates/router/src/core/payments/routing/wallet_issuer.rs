@@ -1,29 +1,239 @@
-//! Issuer-country enrichment before the confirm flow evaluates routing rules.
-//!
-//! Wallet identity remains `wallet` / `apple_pay` or `google_pay`. Only the issuer country
-//! is enriched from the eight-digit BIN, falling back to six digits if no record exists.
+//! Uses the decrypted wallet's exact eight-digit BIN to determine issuer country.
 
 use std::{future::Future, str::FromStr};
 
-use common_enums::{Country, CountryAlpha2, PaymentMethodType};
-use common_utils::id_type::MerchantConnectorAccountId;
+use api_models::payments::{
+    ApplepayCombinedSessionTokenData, GooglePayWalletDetails, GpaySessionTokenData,
+};
+use common_enums::{Country, CountryAlpha2, PaymentMethodType, TransactionType};
+use common_utils::{ext_traits::OptionExt, id_type::MerchantConnectorAccountId};
 use euclid::backend::inputs::{BackendInput, IssuerDataInput};
 use hyperswitch_domain_models::{
     payment_method_data::{EligibilityPaymentMethodData, PaymentMethodData, WalletData},
     routing::{PaymentRoutingInfo, PreRoutingConnectorChoice},
 };
 
+use super::utils;
 use crate::{
     core::{
         payments::{
             decrypt_apple_pay_wallet_for_eligibility, decrypt_google_pay_wallet_for_eligibility,
+            helpers::{get_merchant_connector_account, MerchantConnectorAccountType},
+            OperationSessionGetters, WalletConfirmRouting,
         },
-        routing::PaymentsDslInput,
+        routing::{helpers::get_merchant_default_config, PaymentsDslInput},
     },
     logger,
-    types::domain,
+    types::{api, domain},
     SessionState,
 };
+
+pub(in crate::core::payments) async fn route_wallet_confirmation<F, D>(
+    state: &SessionState,
+    processor: &domain::Processor,
+    business_profile: &domain::Profile,
+    payment_data: &D,
+    wallet_type: PaymentMethodType,
+    routing: &WalletConfirmRouting<'_>,
+) -> Option<Vec<api::ConnectorData>>
+where
+    F: Clone,
+    D: OperationSessionGetters<F> + Sync,
+{
+    if !state.conf.open_router.static_routing_enabled
+        || !routing
+            .dimensions
+            .with_payment_method_type(wallet_type)
+            .get_session_override(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                None,
+            )
+            .await
+        || !utils::is_decision_engine_routing_effective(state, routing.dimensions).await
+    {
+        return None;
+    }
+
+    let payment = PaymentsDslInput::new(
+        payment_data.get_setup_mandate(),
+        payment_data.get_payment_attempt(),
+        payment_data.get_payment_intent(),
+        payment_data.get_payment_method_data(),
+        payment_data.get_address(),
+        payment_data.get_recurring_details(),
+        payment_data.get_currency(),
+    );
+    let mut input = super::make_dsl_input(&payment).ok()?;
+    enrich_wallet_issuer_country(state, processor, business_profile, &payment, &mut input).await;
+    input.issuer_data.as_ref()?.country?;
+
+    let profile_id = business_profile.get_id();
+    let key_store = processor.get_key_store();
+    let fallback_config = get_merchant_default_config(
+        state.store.as_ref(),
+        profile_id.get_string_repr(),
+        &TransactionType::Payment,
+    )
+    .await
+    .ok()?;
+    let accounts = super::get_active_merchant_connector_accounts(state, key_store, profile_id)
+        .await
+        .ok()?;
+    let mut candidates = Vec::new();
+    for choice in fallback_config {
+        let connector_name = choice.connector.to_string();
+        let Some(account) = accounts.iter().find(|account| {
+            choice.merchant_connector_id.as_ref() == Some(&account.merchant_connector_id)
+                && account.connector_name == connector_name
+        }) else {
+            continue;
+        };
+        let supports_decrypted_token = match wallet_type {
+            PaymentMethodType::ApplePay => account
+                .get_metadata()
+                .parse_value::<ApplepayCombinedSessionTokenData>("ApplepayCombinedSessionTokenData")
+                .is_ok_and(|metadata| {
+                    metadata
+                        .apple_pay_combined
+                        .apple_pay_accepts_decrypted_token()
+                }),
+            PaymentMethodType::GooglePay => {
+                google_pay_accepts_decrypted_token(
+                    state,
+                    processor,
+                    account,
+                    routing.merchant_connector_account,
+                )
+                .await
+            }
+            _ => false,
+        };
+        if supports_decrypted_token {
+            candidates.push(choice);
+        }
+    }
+    if candidates.is_empty() {
+        return None;
+    }
+    let candidates = super::perform_cgraph_filtering(
+        state,
+        key_store,
+        candidates,
+        input.clone(),
+        routing.eligible_connectors,
+        profile_id,
+        &TransactionType::Payment,
+        &accounts.get_ids(),
+        business_profile.get_auto_fallback_capture_method(),
+    )
+    .await
+    .ok()?;
+    if candidates.is_empty() {
+        return None;
+    }
+    let payment_id = payment
+        .payment_attempt
+        .payment_id
+        .get_string_repr()
+        .to_owned();
+    let static_request = utils::build_static_routing_request_for_hybrid(
+        profile_id.get_string_repr().to_owned(),
+        payment_id.clone(),
+        input,
+        candidates.clone(),
+    )
+    .ok()?;
+    let mut outcome = utils::decision_engine_hybrid_routing(
+        state,
+        business_profile,
+        payment_id,
+        utils::HybridRoutingRequest {
+            static_routing_request: Some(static_request),
+            dynamic_routing_request: None,
+        },
+        Vec::new(),
+    )
+    .await
+    .inspect_err(|_| logger::warn!("Wallet confirm routing failed, keeping the session connector"))
+    .ok()?;
+    if outcome.connectors.len() == 1 {
+        outcome.connectors.extend(candidates.iter().cloned());
+    }
+    let mut choices = outcome.connectors.into_iter();
+    let selected = choices.next()?;
+    if !outcome.first_connector_matches_static_rule || !candidates.contains(&selected) {
+        return None;
+    }
+
+    let selected = api::ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        &selected.connector.to_string(),
+        api::GetToken::Connector,
+        selected.merchant_connector_id,
+    )
+    .ok()?;
+    let mut connectors = vec![selected];
+    for choice in choices {
+        if !candidates.contains(&choice)
+            || connectors
+                .iter()
+                .any(|connector| connector.merchant_connector_id == choice.merchant_connector_id)
+        {
+            continue;
+        }
+        if let Ok(connector) = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            &choice.connector.to_string(),
+            api::GetToken::Connector,
+            choice.merchant_connector_id,
+        ) {
+            connectors.push(connector);
+        }
+    }
+    Some(connectors)
+}
+
+async fn google_pay_accepts_decrypted_token(
+    state: &SessionState,
+    processor: &domain::Processor,
+    account: &domain::MerchantConnectorAccountWithoutEncrypted,
+    resolved_account: Option<&MerchantConnectorAccountType>,
+) -> bool {
+    let metadata = account
+        .get_metadata()
+        .parse_value::<GpaySessionTokenData>("GpaySessionTokenData")
+        .ok()
+        .map(|metadata| metadata.google_pay)
+        .unwrap_or_default();
+    if metadata.google_pay_accepts_decrypted_token(None) {
+        return true;
+    }
+    let wallet_details = match resolved_account {
+        Some(MerchantConnectorAccountType::DbVal(resolved))
+            if resolved.merchant_connector_id == account.merchant_connector_id
+                && resolved.connector_name == account.connector_name
+                && resolved.profile_id == account.profile_id =>
+        {
+            resolved.get_connector_wallets_details()
+        }
+        _ => get_merchant_connector_account(
+            state,
+            processor,
+            None,
+            &account.profile_id,
+            &account.connector_name,
+            Some(&account.merchant_connector_id),
+        )
+        .await
+        .ok()
+        .and_then(|account| account.get_connector_wallets_details()),
+    };
+    let wallet_details = wallet_details
+        .parse_value::<GooglePayWalletDetails>("GooglePayWalletDetails")
+        .ok();
+    metadata.google_pay_accepts_decrypted_token(wallet_details.as_ref())
+}
 
 /// Best effort: unavailable wallet keys, decryption failures, and missing BIN records must
 /// not make a payment fail. The normal connector-specific decryption flow still owns errors.

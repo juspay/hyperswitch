@@ -13,38 +13,102 @@ import State from "../../../../utils/State";
 // find_business_profile_by_merchant_id_profile_id before creating) - only
 // retrieve has the gap.
 //
-// GAP: this suite has no command that creates a relay record (it's
-// created by connector-initiated webhook relay / out-of-band events, not
-// a direct "create" API meant for this). The tests below look up whatever
-// relay record already exists for M1 at runtime and skip if none found.
+// GAP (retrieve tests only): the lookup-at-runtime convention below still
+// applies to retrieve, since no OTHER relay record exists besides the one
+// this file now creates itself.
 //
-// Route (verified): GET /relay/{relay_id} - ApiKeyAuth.
+// Route (verified): GET /relay/{relay_id}, POST /relay - both
+// HeaderAuth(ApiKeyAuth{allow_connected_scope_operation:true,
+// allow_platform_self_operation:false}) (relay.rs:74-77). relay_create
+// itself IS correctly profile-scoped (validates via
+// find_business_profile_by_merchant_id_profile_id before creating).
 let globalState;
 let apiKeyM1;
 let apiKeyM2;
 let profileIdPA;
 let profileIdPB;
+let mcaPaId;
+let capturedPaymentIdPA;
 let relayId;
 
 describe("OMP Scoping - Relay", () => {
-  before("seed global state", () => {
+  before("seed global state and create a real relay record", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
       apiKeyM1 = globalState.get("apiKeyM1");
       apiKeyM2 = globalState.get("apiKeyM2");
       profileIdPA = globalState.get("profileIdPA");
       profileIdPB = globalState.get("profileIdPB");
+      mcaPaId = globalState.get("mcaPaId");
+      capturedPaymentIdPA = globalState.get("capturedPaymentIdPA");
       relayId = globalState.get("relayIdPA");
 
-      if (!relayId) {
+      // A relay/refund request is a real, consequential action against
+      // the connector sandbox (same class of risk as the Dispute accept
+      // test) - only build one here if explicitly opted in, OR reuse one
+      // that already exists from a prior opted-in run.
+      if (relayId) return;
+
+      if (Cypress.env("CREATE_REAL_RELAY_REFUND") !== true) {
         cy.task(
           "cli_log",
-          "Skipping this suite: no relayIdPA in globalState - this suite " +
-            "has no command that creates a relay record, see the GAP " +
-            "comment at the top of this file. Set it manually if testing " +
-            "against an environment with real relay data."
+          "Skipping relay creation: set CYPRESS_CREATE_REAL_RELAY_REFUND=true " +
+            "to build a real relay/refund record for this suite to test " +
+            "against - it's a real action against the connector sandbox."
         );
+        return;
       }
+
+      if (!capturedPaymentIdPA || !mcaPaId) {
+        cy.task(
+          "cli_log",
+          "Skipping this suite: no capturedPaymentIdPA/mcaPaId in " +
+            "globalState - can't build a real RelayRequest without a " +
+            "captured payment's connector_transaction_id."
+        );
+        return;
+      }
+
+      cy.ompRetrievePayment(
+        capturedPaymentIdPA,
+        { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+        globalState
+      ).then((res) => {
+        const connectorTransactionId = res.body?.connector_transaction_id;
+        const amount = res.body?.amount_captured ?? res.body?.amount;
+        const currency = res.body?.currency;
+
+        if (!connectorTransactionId) {
+          cy.task(
+            "cli_log",
+            "Skipping this suite: capturedPaymentIdPA has no " +
+              "connector_transaction_id - can't build a real RelayRequest."
+          );
+          return;
+        }
+
+        cy.ompCreateRelay(
+          { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPA },
+          {
+            connector_resource_id: connectorTransactionId,
+            connector_id: mcaPaId,
+            type: "refund",
+            data: { type: "refund", amount, currency },
+          },
+          globalState
+        ).then((createRes) => {
+          if (createRes.status === 200) {
+            relayId = createRes.body?.relay_id;
+            globalState.set("relayIdPA", relayId);
+          } else {
+            cy.task(
+              "cli_log",
+              `Skipping this suite: relay create failed (status ` +
+                `${createRes.status}) - see response body for the reason.`
+            );
+          }
+        });
+      });
     });
   });
 
@@ -120,5 +184,61 @@ describe("OMP Scoping - Relay", () => {
         expect(res.status).to.eq(401);
       }
     );
+  });
+
+  context("Create", () => {
+    beforeEach(function () {
+      if (!mcaPaId) this.skip();
+    });
+
+    it("M2 cannot create a relay referencing M1's MCA", () => {
+      // relay_create validates the MCA's profile against the
+      // authenticated merchant/profile - M2 has no relationship to
+      // mcaPaId at all. No real connector call should be reached since
+      // this should fail at the profile-ownership check, before touching
+      // connector_resource_id.
+      cy.ompCreateRelay(
+        { type: "apiKey", apiKey: apiKeyM2 },
+        {
+          connector_resource_id: "irrelevant_for_this_check",
+          connector_id: mcaPaId,
+          type: "refund",
+          data: { type: "refund", amount: 100, currency: "USD" },
+        },
+        globalState
+      ).then((res) => {
+        expect(res.status).to.be.within(400, 499);
+      });
+    });
+
+    it("PB (same merchant, different profile) cannot create a relay referencing PA's MCA", () => {
+      cy.ompCreateRelay(
+        { type: "apiKey", apiKey: apiKeyM1, profileId: profileIdPB },
+        {
+          connector_resource_id: "irrelevant_for_this_check",
+          connector_id: mcaPaId,
+          type: "refund",
+          data: { type: "refund", amount: 100, currency: "USD" },
+        },
+        globalState
+      ).then((res) => {
+        expect(res.status).to.be.within(400, 499);
+      });
+    });
+
+    it("invalid credential on relay create is rejected", () => {
+      cy.ompCreateRelay(
+        { type: "invalid" },
+        {
+          connector_resource_id: "irrelevant_for_this_check",
+          connector_id: mcaPaId,
+          type: "refund",
+          data: { type: "refund", amount: 100, currency: "USD" },
+        },
+        globalState
+      ).then((res) => {
+        expect(res.status).to.eq(401);
+      });
+    });
   });
 });

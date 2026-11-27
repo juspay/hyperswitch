@@ -26,13 +26,6 @@ use crate::{
     admin, enums as api_enums, payment_methods::RequiredFieldInfo, payments, sender::SenderDetails,
 };
 
-#[derive(Debug, Serialize, Clone, ToSchema)]
-pub enum PayoutRequest {
-    PayoutActionRequest(PayoutActionRequest),
-    PayoutCreateRequest(Box<PayoutCreateRequest>),
-    PayoutRetrieveRequest(PayoutRetrieveRequest),
-}
-
 #[derive(
     Default, Debug, Deserialize, Serialize, Clone, ToSchema, router_derive::PolymorphicSchema,
 )]
