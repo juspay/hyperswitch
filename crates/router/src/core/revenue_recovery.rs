@@ -614,9 +614,6 @@ pub async fn perform_payments_sync(
     revenue_recovery_payment_data: &pcr::RevenueRecoveryPaymentData,
     payment_intent: &PaymentIntent,
 ) -> Result<(), errors::ProcessTrackerError> {
-    // Standardised error code for the failed attempt that motivated this retry chain,
-    let prev_attempt_error_code = tracking_data.prev_attempt_error_code;
-
     let psync_data = api::call_psync_api(
         state,
         &tracking_data.global_payment_id,
@@ -651,7 +648,6 @@ pub async fn perform_payments_sync(
             new_revenue_recovery_payment_data,
             payment_attempt,
             &mut revenue_recovery_metadata,
-            prev_attempt_error_code,
         ),
     )
     .await?;

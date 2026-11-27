@@ -1,5 +1,6 @@
 use router_env::logger;
 use serde::{Deserialize, Serialize};
+use serde_with::serde_as;
 use time::PrimitiveDateTime;
 
 /// Success counter for a single slot. Invariant: `k <= n` — every successful retry
@@ -25,8 +26,9 @@ impl SlotCounter {
 
 /// Stats document persisted per key. Each slot family holds a fixed number
 /// of buckets whose count is statically fixed by the [`SlotFamily`] associated
-/// constants, so `dow`/`dom`/`hod` can never carry the wrong number of items.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+/// constants, so `dow`/`dom`/`hod`/`delta_hours` can never carry the wrong number of items.
+#[serde_as]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StatsDocument {
     /// `dow` = day of week: one bucket per weekday (Monday..=Sunday).
     #[serde(default)]
@@ -37,6 +39,27 @@ pub struct StatsDocument {
     /// `hod` = hour of day: one bucket per hour (0..=23).
     #[serde(default)]
     pub hod: [SlotCounter; SlotFamily::HOD_SLOT_COUNT],
+    /// `delta_hours` = whole hours from the previous failure to the retry: one bucket per
+    /// hour (0..=719). Recorded only when the previous failure's time is known and under 720
+    /// hours old, so its totals can be lower than the other families'.
+    #[serde(default = "empty_delta_hours")]
+    #[serde_as(as = "[_; SlotFamily::DELTA_HOURS_SLOT_COUNT]")]
+    pub delta_hours: [SlotCounter; SlotFamily::DELTA_HOURS_SLOT_COUNT],
+}
+
+fn empty_delta_hours() -> [SlotCounter; SlotFamily::DELTA_HOURS_SLOT_COUNT] {
+    [SlotCounter::default(); SlotFamily::DELTA_HOURS_SLOT_COUNT]
+}
+
+impl Default for StatsDocument {
+    fn default() -> Self {
+        Self {
+            dow: Default::default(),
+            dom: Default::default(),
+            hod: Default::default(),
+            delta_hours: empty_delta_hours(),
+        }
+    }
 }
 
 impl StatsDocument {
@@ -60,11 +83,12 @@ impl StatsDocument {
         })
     }
 
-    /// Verify the per-document invariants: every slot has `k <= n`, and both the
+    /// Verify the per-document invariants: every slot has `k <= n`, both the
     /// retries total (`Σn`) and the successes total (`Σk`) agree
-    /// across the three slot families, since each family is an independent marginal of the
-    /// same events. The merge path maintains these by construction; run this on any
-    /// externally-sourced document (e.g. a migration CSV) that bypasses it.
+    /// across `dow`/`dom`/`hod`, since each is an independent marginal of the
+    /// same events, and `delta_hours` totals do not exceed them. The merge path maintains these
+    /// by construction; run this on any externally-sourced document (e.g. a migration CSV) that
+    /// bypasses it.
     pub fn validate_invariants(&self) -> Result<(), String> {
         let retries = |family: &[SlotCounter]| family.iter().map(|slot| slot.n).sum::<u64>();
         let successes = |family: &[SlotCounter]| family.iter().map(|slot| slot.k).sum::<u64>();
@@ -74,6 +98,7 @@ impl StatsDocument {
             .iter()
             .chain(self.dom.iter())
             .chain(self.hod.iter())
+            .chain(self.delta_hours.iter())
             .all(|slot| slot.k <= slot.n);
 
         let (dow_n, dom_n, hod_n) = (retries(&self.dow), retries(&self.dom), retries(&self.hod));
@@ -82,6 +107,7 @@ impl StatsDocument {
             successes(&self.dom),
             successes(&self.hod),
         );
+        let (delta_n, delta_k) = (retries(&self.delta_hours), successes(&self.delta_hours));
 
         if !every_slot_valid {
             Err("slot counter has k>n".to_string())
@@ -92,6 +118,11 @@ impl StatsDocument {
         } else if dow_k != dom_k || dom_k != hod_k {
             Err(format!(
                 "k totals differ across slot families (dow={dow_k}, dom={dom_k}, hod={hod_k})"
+            ))
+        } else if delta_n > dow_n || delta_k > dow_k {
+            Err(format!(
+                "delta_hours totals exceed the other families' (delta_hours n={delta_n} k={delta_k}, \
+                 dow n={dow_n} k={dow_k})"
             ))
         } else {
             Ok(())
@@ -107,22 +138,48 @@ pub struct EventSlots {
     pub dom: u8,
     /// `hod` = hour of day: bucket index 0..=23.
     pub hod: u8,
+    /// `delta_hours` = bucket index 0..=719, or `None` when the previous failure's time is
+    /// unknown, later than the retry, or 720 or more hours earlier.
+    pub delta_hours: Option<u16>,
 }
 
 impl EventSlots {
     /// Derive the day-of-week / day-of-month / hour-of-day bucket indices from an
-    /// event's `created_at`.
+    /// event's `created_at`, and the hours-since-previous-failure bucket from
+    /// `previous_failure_at`.
     ///
     /// Hyperswitch persists `created_at` as a **UTC** `PrimitiveDateTime`, but that
     /// type carries no offset, so we make the timezone explicit via `assume_utc()`.
-    pub fn from_utc(ts: PrimitiveDateTime) -> Self {
+    pub fn from_utc(ts: PrimitiveDateTime, previous_failure_at: Option<PrimitiveDateTime>) -> Self {
         let utc = ts.assume_utc();
         Self {
             dow: validate_slot(SlotFamily::Dow, utc.weekday().number_days_from_monday(), ts),
             dom: validate_slot(SlotFamily::Dom, utc.day().saturating_sub(1), ts),
             hod: validate_slot(SlotFamily::Hod, utc.hour(), ts),
+            delta_hours: previous_failure_at
+                .and_then(|previous_failure_at| delta_hours_slot(previous_failure_at, ts)),
         }
     }
+}
+
+/// Whole hours from `previous_failure_at` to `retry_at`, when that is 0..=719.
+fn delta_hours_slot(
+    previous_failure_at: PrimitiveDateTime,
+    retry_at: PrimitiveDateTime,
+) -> Option<u16> {
+    let since_failure = retry_at - previous_failure_at;
+    if since_failure.is_negative() {
+        logger::warn!(
+            %previous_failure_at,
+            %retry_at,
+            "revenue_recovery_retry_stats: previous failure is later than the retry; \
+             skipping the delta_hours update"
+        );
+        return None;
+    }
+    u16::try_from(since_failure.whole_hours())
+        .ok()
+        .filter(|slot| usize::from(*slot) < SlotFamily::DELTA_HOURS_SLOT_COUNT)
 }
 
 /// Guard a derived slot index against its family's static bucket count. Returns the
@@ -144,7 +201,7 @@ fn validate_slot(family: SlotFamily, slot: u8, ts: PrimitiveDateTime) -> u8 {
 
 #[derive(Clone, Copy, Debug)]
 pub struct SlotUpdate {
-    pub slot: u8,
+    pub slot: u16,
     pub success: bool,
 }
 
@@ -155,30 +212,20 @@ pub struct StatsDelta {
 
 impl StatsDelta {
     pub fn for_event(slots: EventSlots, success: bool) -> Self {
+        let calendar = [
+            (SlotFamily::Dow, slots.dow),
+            (SlotFamily::Dom, slots.dom),
+            (SlotFamily::Hod, slots.hod),
+        ]
+        .into_iter()
+        .map(|(family, slot)| (family, u16::from(slot)));
+        let delta_hours = slots.delta_hours.map(|slot| (SlotFamily::DeltaHours, slot));
+
         Self {
-            updates: vec![
-                (
-                    SlotFamily::Dow,
-                    SlotUpdate {
-                        slot: slots.dow,
-                        success,
-                    },
-                ),
-                (
-                    SlotFamily::Dom,
-                    SlotUpdate {
-                        slot: slots.dom,
-                        success,
-                    },
-                ),
-                (
-                    SlotFamily::Hod,
-                    SlotUpdate {
-                        slot: slots.hod,
-                        success,
-                    },
-                ),
-            ],
+            updates: calendar
+                .chain(delta_hours)
+                .map(|(family, slot)| (family, SlotUpdate { slot, success }))
+                .collect(),
         }
     }
 }
@@ -188,6 +235,7 @@ pub enum SlotFamily {
     Dow,
     Dom,
     Hod,
+    DeltaHours,
 }
 
 impl SlotFamily {
@@ -197,6 +245,8 @@ impl SlotFamily {
     pub const DOM_SLOT_COUNT: usize = 31;
     /// Hour-of-day buckets (0..=23).
     pub const HOD_SLOT_COUNT: usize = 24;
+    /// Hours-since-previous-failure buckets (0..=719, i.e. 30 days).
+    pub const DELTA_HOURS_SLOT_COUNT: usize = 720;
 
     /// The statically-known number of buckets for this family.
     pub const fn slot_count(self) -> usize {
@@ -204,6 +254,7 @@ impl SlotFamily {
             Self::Dow => Self::DOW_SLOT_COUNT,
             Self::Dom => Self::DOM_SLOT_COUNT,
             Self::Hod => Self::HOD_SLOT_COUNT,
+            Self::DeltaHours => Self::DELTA_HOURS_SLOT_COUNT,
         }
     }
 
@@ -212,6 +263,7 @@ impl SlotFamily {
             Self::Dow => "dow",
             Self::Dom => "dom",
             Self::Hod => "hod",
+            Self::DeltaHours => "delta_hours",
         }
     }
 }
@@ -226,6 +278,7 @@ impl StatsDocument {
                 SlotFamily::Dow => &mut self.dow,
                 SlotFamily::Dom => &mut self.dom,
                 SlotFamily::Hod => &mut self.hod,
+                SlotFamily::DeltaHours => &mut self.delta_hours,
             };
             // Out-of-range slots are dropped rather than panicking; valid time-derived
             // slots always fall within the statically-sized bucket range.
@@ -242,7 +295,7 @@ impl StatsDocument {
 mod tests {
     use super::*;
 
-    fn delta(slots: &[(SlotFamily, u8, bool)]) -> StatsDelta {
+    fn delta(slots: &[(SlotFamily, u16, bool)]) -> StatsDelta {
         StatsDelta {
             updates: slots
                 .iter()
@@ -268,7 +321,7 @@ mod tests {
         let date = time::Date::from_calendar_date(2026, time::Month::August, 19)
             .expect("valid calendar date");
         let clock = time::Time::from_hms(13, 30, 0).expect("valid time");
-        let slots = EventSlots::from_utc(PrimitiveDateTime::new(date, clock));
+        let slots = EventSlots::from_utc(PrimitiveDateTime::new(date, clock), None);
 
         assert!(usize::from(slots.dow) < SlotFamily::DOW_SLOT_COUNT);
         assert!(usize::from(slots.dom) < SlotFamily::DOM_SLOT_COUNT);
@@ -277,6 +330,56 @@ mod tests {
         assert_eq!(slots.dow, 2);
         assert_eq!(slots.dom, 18);
         assert_eq!(slots.hod, 13);
+        assert_eq!(slots.delta_hours, None);
+    }
+
+    fn at(day: u8, hour: u8, minute: u8) -> PrimitiveDateTime {
+        let date = time::Date::from_calendar_date(2026, time::Month::November, day)
+            .expect("valid calendar date");
+        PrimitiveDateTime::new(
+            date,
+            time::Time::from_hms(hour, minute, 0).expect("valid time"),
+        )
+    }
+
+    #[test]
+    fn delta_hours_slot_is_whole_hours_since_the_previous_failure() {
+        let failed_at = at(1, 10, 0);
+        let slot = |retry_at| EventSlots::from_utc(retry_at, Some(failed_at)).delta_hours;
+
+        assert_eq!(slot(at(1, 10, 0)), Some(0));
+        assert_eq!(slot(at(1, 10, 59)), Some(0));
+        assert_eq!(slot(at(3, 10, 0)), Some(48));
+        // 719 h 59 min is still the last bucket; 720 h is past it.
+        assert_eq!(
+            slot(at(1, 10, 0) + time::Duration::minutes(719 * 60 + 59)),
+            Some(719)
+        );
+        assert_eq!(slot(at(1, 10, 0) + time::Duration::hours(720)), None);
+        // A previous failure later than the retry has no bucket, even under an hour later.
+        assert_eq!(slot(at(1, 9, 0)), None);
+        assert_eq!(slot(at(1, 9, 30)), None);
+        assert_eq!(EventSlots::from_utc(at(3, 10, 0), None).delta_hours, None);
+    }
+
+    #[test]
+    fn delta_hours_is_updated_only_when_its_slot_is_known() {
+        let families = |previous_failure_at| {
+            StatsDelta::for_event(
+                EventSlots::from_utc(at(3, 10, 0), previous_failure_at),
+                true,
+            )
+            .updates
+            .iter()
+            .map(|(family, update)| (*family, update.slot))
+            .collect::<Vec<_>>()
+        };
+
+        assert!(families(Some(at(1, 10, 0))).contains(&(SlotFamily::DeltaHours, 48)));
+        assert!(!families(None)
+            .iter()
+            .any(|(family, _)| *family == SlotFamily::DeltaHours));
+        assert_eq!(families(None).len(), 3);
     }
 
     #[test]
@@ -285,6 +388,58 @@ mod tests {
         assert_eq!(doc.dow.len(), SlotFamily::DOW_SLOT_COUNT);
         assert_eq!(doc.dom.len(), SlotFamily::DOM_SLOT_COUNT);
         assert_eq!(doc.hod.len(), SlotFamily::HOD_SLOT_COUNT);
+        assert_eq!(doc.delta_hours.len(), SlotFamily::DELTA_HOURS_SLOT_COUNT);
+    }
+
+    #[test]
+    fn documents_stored_before_delta_hours_still_read() {
+        let stored = serde_json::json!({
+            "dow": [{"n": 2, "k": 1}, {}, {}, {}, {}, {}, {}],
+            "dom": std::iter::once(serde_json::json!({"n": 2, "k": 1}))
+                .chain(std::iter::repeat_n(serde_json::json!({}), 30))
+                .collect::<Vec<_>>(),
+            "hod": std::iter::once(serde_json::json!({"n": 2, "k": 1}))
+                .chain(std::iter::repeat_n(serde_json::json!({}), 23))
+                .collect::<Vec<_>>(),
+        });
+
+        let doc = StatsDocument::from_json(&stored).expect("old document reads");
+
+        assert_eq!(doc.dow[0], SlotCounter { n: 2, k: 1 });
+        assert!(is_empty(&doc.delta_hours));
+        assert_eq!(doc.validate_invariants(), Ok(()));
+    }
+
+    #[test]
+    fn delta_hours_round_trips_through_json() {
+        let doc = StatsDocument::default().merge(&StatsDelta::for_event(
+            EventSlots::from_utc(at(3, 10, 0), Some(at(1, 10, 0))),
+            true,
+        ));
+
+        let read_back = StatsDocument::from_json(&doc.to_json()).expect("document reads back");
+
+        assert_eq!(read_back, doc);
+        assert_eq!(read_back.delta_hours[48], SlotCounter { n: 1, k: 1 });
+    }
+
+    #[test]
+    fn delta_hours_totals_may_not_exceed_the_other_families() {
+        let calendar_only = StatsDelta::for_event(EventSlots::from_utc(at(3, 10, 0), None), false);
+        let with_delta =
+            StatsDelta::for_event(EventSlots::from_utc(at(3, 10, 0), Some(at(1, 10, 0))), true);
+        let doc = StatsDocument::default()
+            .merge(&calendar_only)
+            .merge(&with_delta);
+        assert_eq!(doc.validate_invariants(), Ok(()));
+
+        let mut too_many = doc.clone();
+        too_many.delta_hours[5] = SlotCounter { n: 2, k: 0 };
+        assert!(too_many.validate_invariants().is_err());
+
+        let mut k_above_n = doc;
+        k_above_n.delta_hours[48] = SlotCounter { n: 1, k: 2 };
+        assert!(k_above_n.validate_invariants().is_err());
     }
 
     #[test]
@@ -293,6 +448,7 @@ mod tests {
         assert_eq!(doc.dow[3], SlotCounter { n: 1, k: 1 });
         assert!(is_empty(&doc.dom));
         assert!(is_empty(&doc.hod));
+        assert!(is_empty(&doc.delta_hours));
     }
 
     #[test]
@@ -323,6 +479,8 @@ mod tests {
         // day-of-month index 31 is out of range (valid 0..=30) and must not panic.
         let doc = StatsDocument::default().merge(&delta(&[(SlotFamily::Dom, 31, true)]));
         assert!(is_empty(&doc.dom));
+        let doc = StatsDocument::default().merge(&delta(&[(SlotFamily::DeltaHours, 720, true)]));
+        assert!(is_empty(&doc.delta_hours));
     }
 
     #[test]

@@ -246,6 +246,7 @@ async fn reset_card_history_after_a_charge(state: &SessionState, request: &Recov
                     request.connector_customer_id.peek(),
                     &None,
                     &None,
+                    &None,
                     Some(
                         payment_method_data
                             .primary_processor_payment_method_token

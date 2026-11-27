@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
 use api_models::revenue_recovery_data_backfill::{self, AccountUpdateHistoryRecord, RedisKeyType};
-use common_enums::enums::CardNetwork;
+use common_enums::enums::{CardNetwork, StandardisedCode};
 use common_utils::{date_time, errors::CustomResult, id_type};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::mandates;
+use hyperswitch_domain_models::{mandates, payments::payment_attempt::PaymentAttempt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use redis_interface::{DelReply, SetnxReply};
 use router_env::{instrument, logger, tracing};
@@ -54,6 +54,29 @@ pub struct PaymentProcessorTokenStatus {
     pub account_update_history: Option<Vec<AccountUpdateHistoryRecord>>,
     /// Previous Decision threshold for selecting the best slot
     pub decision_threshold: Option<f64>,
+    /// The card's last failed charge
+    pub previous_attempt_details: Option<PreviousAttemptDetails>,
+}
+
+/// A failed charge of a card
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PreviousAttemptDetails {
+    /// Standardised error code of that failure, absent when GSM has no mapping for it
+    pub standardised_error_code: Option<StandardisedCode>,
+    /// When that charge was made
+    pub attempted_at: PrimitiveDateTime,
+}
+
+impl From<&PaymentAttempt> for PreviousAttemptDetails {
+    fn from(attempt: &PaymentAttempt) -> Self {
+        Self {
+            standardised_error_code: attempt
+                .error
+                .as_ref()
+                .and_then(|error| error.standardised_code),
+            attempted_at: attempt.created_at,
+        }
+    }
 }
 
 impl From<&PaymentProcessorTokenDetails> for api_models::payments::AdditionalCardInfo {
@@ -643,6 +666,19 @@ impl RedisTokenManager {
                     token_data.payment_processor_token_details.clone();
                 existing_token.payment_processor_token_details.card_network = card_network;
 
+                // A later charge replaces the details, and a successful one clears them.
+                let is_newer_charge = match (
+                    last_external_attempt_at,
+                    existing_token.previous_attempt_details,
+                ) {
+                    (Some(charged_at), Some(previous)) => charged_at > previous.attempted_at,
+                    (Some(_), None) => true,
+                    (None, _) => false,
+                };
+                if is_newer_charge {
+                    existing_token.previous_attempt_details = token_data.previous_attempt_details;
+                }
+
                 existing_token
                     .modified_at
                     .zip(last_external_attempt_at)
@@ -692,6 +728,7 @@ impl RedisTokenManager {
         connector_customer_id: &str,
         error_code: &Option<String>,
         is_hard_decline: &Option<bool>,
+        previous_attempt_details: &Option<PreviousAttemptDetails>,
         payment_processor_token_id: Option<&str>,
     ) -> CustomResult<bool, errors::StorageError> {
         let now_utc = date_time::now().assume_utc();
@@ -723,6 +760,7 @@ impl RedisTokenManager {
                         is_active: status.is_active,
                         account_update_history: status.account_update_history.clone(),
                         decision_threshold: status.decision_threshold,
+                        previous_attempt_details: *previous_attempt_details,
                     })
             }
             None => None,
@@ -801,6 +839,7 @@ impl RedisTokenManager {
                 is_active: status.is_active,
                 account_update_history: status.account_update_history.clone(),
                 decision_threshold: status.decision_threshold,
+                previous_attempt_details: status.previous_attempt_details,
             };
             updated_tokens_map.insert(token_id, updated_status);
         }
@@ -850,6 +889,7 @@ impl RedisTokenManager {
                     is_active: status.is_active,
                     account_update_history: status.account_update_history.clone(),
                     decision_threshold: decision_threshold.or(status.decision_threshold),
+                    previous_attempt_details: status.previous_attempt_details,
                 });
 
         match updated_token {
@@ -927,6 +967,28 @@ impl RedisTokenManager {
         );
 
         Ok(token_details)
+    }
+
+    /// The card's last failure as stored on its record. `None` when the card, its record or a
+    /// stored failure is missing, or the read fails.
+    pub async fn get_previous_attempt_details(
+        state: &SessionState,
+        connector_customer_id: &str,
+        payment_processor_token: Option<&str>,
+    ) -> Option<PreviousAttemptDetails> {
+        let payment_processor_token = payment_processor_token?;
+        Self::get_payment_processor_token_using_token_id(
+            state,
+            connector_customer_id,
+            payment_processor_token,
+        )
+        .await
+        .inspect_err(|error| {
+            logger::warn!(?error, "Failed to read the card's last failure");
+        })
+        .ok()
+        .flatten()
+        .and_then(|token| token.previous_attempt_details)
     }
 
     // Check if all tokens are hard declined or no token found for the customer
@@ -1431,6 +1493,7 @@ impl AccountUpdaterAction {
                         )),
                     }]),
                     decision_threshold: None,
+                    previous_attempt_details: None,
                 };
 
                 RedisTokenManager::upsert_payment_processor_token(state, customer_id, new_token)
@@ -1494,5 +1557,72 @@ impl AccountUpdaterAction {
         };
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn stored_card(extra_fields: &str) -> serde_json::Value {
+        let cell_id = id_type::CellId::from_string("00").expect("valid cell id");
+        let attempt_id = id_type::GlobalAttemptId::generate(&cell_id);
+        serde_json::from_str(&format!(
+            r#"{{
+                "payment_processor_token_details": {{
+                    "payment_processor_token": "pm_1",
+                    "expiry_month": null,
+                    "expiry_year": null,
+                    "card_issuer": null,
+                    "last_four_digits": null,
+                    "card_network": null,
+                    "card_type": null,
+                    "card_isin": null
+                }},
+                "inserted_by_attempt_id": "{}",
+                "error_code": "card_declined",
+                "daily_retry_history": {{}},
+                "scheduled_at": null,
+                "is_hard_decline": false,
+                "modified_at": null,
+                "is_active": true,
+                "account_update_history": null,
+                "decision_threshold": null{extra_fields}
+            }}"#,
+            attempt_id.get_string_repr()
+        ))
+        .expect("valid card record json")
+    }
+
+    #[test]
+    fn card_records_stored_before_previous_attempt_details_still_read() {
+        let card: PaymentProcessorTokenStatus =
+            serde_json::from_value(stored_card("")).expect("old card record reads");
+
+        assert_eq!(card.error_code.as_deref(), Some("card_declined"));
+        assert_eq!(card.previous_attempt_details, None);
+    }
+
+    #[test]
+    fn previous_attempt_details_round_trip_with_and_without_a_code() {
+        let attempted_at = PrimitiveDateTime::new(
+            Date::from_calendar_date(2026, time::Month::November, 20).expect("valid date"),
+            Time::from_hms(10, 15, 0).expect("valid time"),
+        );
+        for standardised_error_code in [Some(StandardisedCode::InsufficientFunds), None] {
+            let previous_attempt_details = Some(PreviousAttemptDetails {
+                standardised_error_code,
+                attempted_at,
+            });
+            let mut card: PaymentProcessorTokenStatus =
+                serde_json::from_value(stored_card("")).expect("card record reads");
+            card.previous_attempt_details = previous_attempt_details;
+
+            let read_back: PaymentProcessorTokenStatus =
+                serde_json::from_value(serde_json::to_value(&card).expect("card record writes"))
+                    .expect("card record reads back");
+
+            assert_eq!(read_back.previous_attempt_details, previous_attempt_details);
+        }
     }
 }
