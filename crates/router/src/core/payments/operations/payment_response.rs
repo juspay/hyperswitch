@@ -525,6 +525,8 @@ where
         // Update connector mandate details whenever off_session or pending activation,
         // irrespective of current active/inactive status — activates inactive mandates too.
         if is_off_session || is_mandate_pending_activation {
+            let is_mit =
+                payment_data.mandate_id.is_some() || payment_data.recurring_details.is_some();
             let (connector_mandate_id, mandate_metadata, connector_mandate_request_reference_id) =
                 payment_attempt
                     .connector_mandate_detail
@@ -543,17 +545,21 @@ where
                 MandateActivation::Successful => common_enums::ConnectorMandateStatus::Active,
                 MandateActivation::Failed => common_enums::ConnectorMandateStatus::Inactive,
             };
-
-            let connector_mandate_details = tokenization::update_connector_mandate_details(
-                Some(mandate_details),
-                payment_attempt.payment_method_type,
-                Some(
+            let (authorized_amount, authorized_currency) =
+                tokenization::original_authorization_details_for_mandate_update(
+                    is_mit,
                     payment_attempt
                         .net_amount
                         .get_total_amount()
                         .get_amount_as_i64(),
-                ),
-                payment_attempt.currency,
+                    payment_attempt.currency,
+                );
+
+            let connector_mandate_details = tokenization::update_connector_mandate_details(
+                Some(mandate_details),
+                payment_attempt.payment_method_type,
+                authorized_amount,
+                authorized_currency,
                 payment_attempt.merchant_connector_id.clone(),
                 connector_mandate_id,
                 mandate_metadata,
