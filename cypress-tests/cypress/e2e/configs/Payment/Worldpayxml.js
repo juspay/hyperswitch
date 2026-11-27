@@ -777,6 +777,7 @@ export const connectorDetails = {
             checkout: null,
             stripe: null,
             jpmorgan: null,
+            rapyd: null,
           },
         },
       },

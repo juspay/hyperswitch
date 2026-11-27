@@ -1099,6 +1099,7 @@ export const connectorDetails = {
             },
             stripe: null,
             jpmorgan: null,
+            rapyd: null,
           },
         },
       },

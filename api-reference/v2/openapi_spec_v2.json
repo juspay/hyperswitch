@@ -13123,6 +13123,14 @@
               }
             ],
             "nullable": true
+          },
+          "rapyd": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RapydConnectorMetadata"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -31866,6 +31874,17 @@
           "applied": {
             "type": "boolean",
             "description": "Whether Rapid Dispute Resolution has been applied"
+          }
+        }
+      },
+      "RapydConnectorMetadata": {
+        "type": "object",
+        "description": "Rapyd-specific metadata supplied with a payment request.",
+        "properties": {
+          "ewallet": {
+            "type": "string",
+            "description": "Destination wallet sent as ewallet in the Rapyd payment request.",
+            "nullable": true
           }
         }
       },
