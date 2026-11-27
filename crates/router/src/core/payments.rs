@@ -2115,6 +2115,8 @@ where
             )
             .await?;
 
+            add_connector_http_status_code_metrics(router_data.connector_http_status_code);
+
             let payments_response_operation = Box::new(PaymentResponse);
 
             payments_response_operation
