@@ -7,7 +7,7 @@ use common_utils::{
     fp_utils, id_type, payout_method_utils as payout_additional, pii, type_name,
     types::{
         keymanager::{Identifier, KeyManagerState},
-        MinorUnit, UnifiedCode, UnifiedMessage,
+        UnifiedCode, UnifiedMessage,
     },
 };
 use error_stack::{report, ResultExt};
@@ -1248,6 +1248,7 @@ pub fn is_payout_terminal_state(status: api_enums::PayoutStatus) -> bool {
             | api_enums::PayoutStatus::Pending
             | api_enums::PayoutStatus::Initiated
             | api_enums::PayoutStatus::RequiresFulfillment
+            | api_enums::PayoutStatus::RequiresReview
     )
 }
 
@@ -1276,6 +1277,7 @@ pub fn is_eligible_for_local_payout_cancellation(status: api_enums::PayoutStatus
             | api_enums::PayoutStatus::RequiresPayoutMethodData
             | api_enums::PayoutStatus::RequiresVendorAccountCreation
             | api_enums::PayoutStatus::RequiresFulfillment
+            | api_enums::PayoutStatus::RequiresReview
     )
 }
 
@@ -1345,8 +1347,8 @@ pub async fn update_payouts_and_payout_attempt(
         state,
         &payout_cap_dimensions,
         profile_id,
-        Some(req.amount.unwrap_or(payouts.amount.into())),
-        Some(req.currency.unwrap_or(payouts.destination_currency)),
+        Some(payouts.amount.into()),
+        Some(payouts.destination_currency),
     )
     .await?;
 
@@ -1368,7 +1370,6 @@ pub async fn update_payouts_and_payout_attempt(
     payout_data.billing_address = billing_address;
 
     // Update DB with new data
-    let amount = MinorUnit::from(req.amount.unwrap_or(payouts.amount.into()));
     let funds_transfer_type = req.funds_transfer_type.or(payouts.funds_transfer_type);
     let purpose = req.purpose.or(payouts.purpose);
     let sender_details = req
@@ -1390,12 +1391,9 @@ pub async fn update_payouts_and_payout_attempt(
         .attach_printable("Unable to encrypt payout sender details")?
         .map(Encryption::from);
     let updated_payouts = storage::PayoutsUpdate::Update {
-        amount,
-        destination_currency: req
-            .currency
-            .to_owned()
-            .unwrap_or(payouts.destination_currency),
-        source_currency: req.currency.to_owned().unwrap_or(payouts.source_currency),
+        amount: payouts.amount,
+        destination_currency: payouts.destination_currency,
+        source_currency: payouts.source_currency,
         description: req
             .description
             .to_owned()

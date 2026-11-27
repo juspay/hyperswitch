@@ -590,11 +590,7 @@ impl webhooks::IncomingWebhook for Elavon {
 impl ConnectorValidation for Elavon {}
 
 static ELAVON_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
-    let supported_capture_methods = vec![
-        CaptureMethod::Automatic,
-        CaptureMethod::Manual,
-        CaptureMethod::SequentialAutomatic,
-    ];
+    let supported_capture_methods = vec![CaptureMethod::Automatic, CaptureMethod::Manual];
 
     let supported_card_network = vec![
         common_enums::CardNetwork::Visa,

@@ -1770,7 +1770,9 @@ impl Payouts {
             )
             .service(web::resource("/{payout_id}/confirm").route(web::post().to(payouts_confirm)))
             .service(web::resource("/{payout_id}/cancel").route(web::post().to(payouts_cancel)))
-            .service(web::resource("/{payout_id}/fulfill").route(web::post().to(payouts_fulfill)));
+            .service(web::resource("/{payout_id}/fulfill").route(web::post().to(payouts_fulfill)))
+            .service(web::resource("/{payout_id}/accept").route(web::post().to(payouts_accept)))
+            .service(web::resource("/{payout_id}/reject").route(web::post().to(payouts_reject)));
         route
     }
 }

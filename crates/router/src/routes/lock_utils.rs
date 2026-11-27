@@ -219,6 +219,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PayoutsUpdate
             | Flow::PayoutsCancel
             | Flow::PayoutsFulfill
+            | Flow::PayoutsAccept
+            | Flow::PayoutsReject
             | Flow::PayoutsList
             | Flow::PayoutsFilter
             | Flow::PayoutsAccounts

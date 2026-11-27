@@ -22,10 +22,7 @@ use crate::{
         SessionState,
     },
     types::{
-        self as core_types, api,
-        domain::{self},
-        storage::PaymentAttemptUpdate,
-        transformers::ForeignFrom,
+        self as core_types, api, domain, storage::PaymentAttemptUpdate, transformers::ForeignFrom,
     },
     utils::{check_if_pull_mechanism_for_external_3ds_enabled_from_connector_metadata, OptionExt},
 };

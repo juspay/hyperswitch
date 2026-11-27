@@ -7883,6 +7883,11 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<MandateData>")]
     pub mandate_data: Option<MandateData>,
 
+    /// Evidence of the customer's acceptance that was captured when the payment was confirmed, returned as stored on the payment attempt.
+    #[schema(value_type = Option<CustomerAcceptance>)]
+    #[smithy(value_type = "Option<CustomerAcceptance>")]
+    pub customer_acceptance: Option<pii::SecretSerdeValue>,
+
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
     #[smithy(value_type = "Option<FutureUsage>")]
@@ -10969,10 +10974,35 @@ pub struct ConnectorMetadata {
     pub paypal: Option<PaypalConnectorMetadata>,
     #[smithy(value_type = "Option<WorldpayxmlData>")]
     pub worldpayxml: Option<WorldpayxmlData>,
+    #[smithy(value_type = "Option<WorldpayraftConnectorMetadata>")]
+    pub worldpayraft: Option<WorldpayraftConnectorMetadata>,
     #[smithy(value_type = "Option<CheckoutData>")]
     pub checkout: Option<CheckoutData>,
     #[smithy(value_type = "Option<StripeConnectorMetadata>")]
     pub stripe: Option<StripeConnectorMetadata>,
+    #[smithy(value_type = "Option<JpmorganConnectorMetadata>")]
+    pub jpmorgan: Option<JpmorganConnectorMetadata>,
+    #[smithy(value_type = "Option<RapydConnectorMetadata>")]
+    pub rapyd: Option<RapydConnectorMetadata>,
+}
+
+/// Rapyd-specific metadata supplied with a payment request.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct RapydConnectorMetadata {
+    /// Destination wallet sent as ewallet in the Rapyd payment request.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub ewallet: Option<Secret<String>>,
+}
+
+/// JPMorgan-specific metadata supplied with a payment request.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct JpmorganConnectorMetadata {
+    /// Request an SCA exemption for a subsequent MIT whose initial CIT completed 3D Secure.
+    #[smithy(value_type = "Option<bool>")]
+    pub request_sca_exemption: Option<bool>,
 }
 
 /// PayPal-specific metadata supplied with a payment request.
@@ -10993,6 +11023,28 @@ pub struct StripeConnectorMetadata {
     /// complete additional authentication.
     #[smithy(value_type = "Option<bool>")]
     pub error_on_requires_action: Option<bool>,
+}
+
+/// Merchant-supplied data forwarded to Worldpay RAFT's UserDefinedData.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
+pub struct WorldpayraftConnectorMetadata {
+    /// Worldpay RAFT UserData1. Maximum length: 35 characters.
+    #[schema(max_length = 35)]
+    #[smithy(value_type = "Option<String>")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_data1: Option<String>,
+    /// Worldpay RAFT UserData2. Maximum length: 20 characters.
+    #[schema(max_length = 20)]
+    #[smithy(value_type = "Option<String>")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_data2: Option<String>,
+    /// Worldpay RAFT UserData3. Maximum length: 20 characters.
+    #[schema(max_length = 20)]
+    #[smithy(value_type = "Option<String>")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_data3: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]

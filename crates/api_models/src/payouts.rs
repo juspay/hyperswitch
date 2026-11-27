@@ -26,13 +26,6 @@ use crate::{
     admin, enums as api_enums, payment_methods::RequiredFieldInfo, payments, sender::SenderDetails,
 };
 
-#[derive(Debug, Serialize, Clone, ToSchema)]
-pub enum PayoutRequest {
-    PayoutActionRequest(PayoutActionRequest),
-    PayoutCreateRequest(Box<PayoutCreateRequest>),
-    PayoutRetrieveRequest(PayoutRetrieveRequest),
-}
-
 #[derive(
     Default, Debug, Deserialize, Serialize, Clone, ToSchema, router_derive::PolymorphicSchema,
 )]
@@ -58,17 +51,17 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<String>, max_length = 255, example = "merchant_order_ref_123")]
     pub merchant_order_reference_id: Option<String>,
 
-    /// The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,
+    /// The payout amount in the lowest denomination of the currency (for example, cents for USD or paisa for INR). Set during creation; it cannot be changed in update or confirm requests.
     #[schema(value_type = Option<u64>, example = 1000)]
     #[mandatory_in(PayoutsCreateRequest = u64)]
-    #[remove_in(PayoutsConfirmRequest)]
+    #[remove_in(PayoutUpdateRequest, PayoutConfirmRequest)]
     #[serde(default, deserialize_with = "payments::amount::deserialize_option")]
     pub amount: Option<payments::Amount>,
 
-    /// The currency of the payout request can be specified here
+    /// The currency of the payout.
     #[schema(value_type = Option<Currency>, example = "USD")]
     #[mandatory_in(PayoutsCreateRequest = Currency)]
-    #[remove_in(PayoutsConfirmRequest)]
+    #[remove_in(PayoutUpdateRequest, PayoutConfirmRequest)]
     pub currency: Option<api_enums::Currency>,
 
     /// Specifies routing algorithm for selecting a connector
@@ -120,9 +113,10 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<bool>, example = true, default = false)]
     pub auto_fulfill: Option<bool>,
 
-    /// Existing customer ID used at creation. Ignored on update and confirm.
+    /// Existing customer ID used at creation.
     /// _Deprecated: Use customer.id instead._
     #[schema(deprecated, value_type = Option<String>, max_length = 255, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    #[remove_in(PayoutUpdateRequest, PayoutConfirmRequest)]
     pub customer_id: Option<id_type::CustomerId>,
 
     /// On create, attach an existing customer using customer.id.

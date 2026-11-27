@@ -126,6 +126,7 @@ pub struct ConnectorAuthentication {
     pub plaid: Option<BodyKey>,
     pub powertranz: Option<BodyKey>,
     pub prophetpay: Option<HeaderKey>,
+    pub rapidconnect: Option<SignatureKey>,
     pub rapyd: Option<BodyKey>,
     pub razorpay: Option<BodyKey>,
     pub recurly: Option<HeaderKey>,

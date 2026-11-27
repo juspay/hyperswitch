@@ -397,7 +397,7 @@ impl DatabaseBackedConfig for CardTestingGuardConfig {
 }
 
 config! {
-    superposition_key = PAYOUT_KILL_SWITCH,
+    superposition_key = SHOULD_ALLOW_PAYOUTS,
     output = bool,
     default = false,
     generics = [Pm, M, P, Cn, PRT, Ev, Pmt],
@@ -405,8 +405,21 @@ config! {
     targeting_key = id_type::ProfileId
 }
 
-impl DatabaseBackedConfig for PayoutKillSwitch {
-    const KEY: &'static str = "payout_kill_switch";
+impl DatabaseBackedConfig for ShouldAllowPayouts {
+    const KEY: &'static str = "should_allow_payouts";
+}
+
+config! {
+    superposition_key = SHOULD_ALLOW_REVIEW_FLOW,
+    output = bool,
+    default = false,
+    generics = [Pm, M, P, Cn, PRT, Ev, Pmt],
+    requires = dimension_state::Dimensions<Pm, M, dimension_state::HasOrgId, P, Cn, PRT, Ev, Pmt>,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for ShouldAllowReviewFlow {
+    const KEY: &'static str = "should_allow_review_flow";
 }
 
 config! {

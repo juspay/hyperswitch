@@ -49,7 +49,7 @@ where
 
     match serde_json::from_slice::<A::Request>(&body) {
         Ok(payload) => {
-            let payment_id = A::resolve_payment_id(&payload).ok().flatten();
+            let payment_id = A::resolve_payment_id(&payload);
 
             tracing::Span::current().record(
                 "payment_id",

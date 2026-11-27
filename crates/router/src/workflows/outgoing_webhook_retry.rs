@@ -788,11 +788,9 @@ async fn get_outgoing_webhook_content_and_event_type(
         #[cfg(feature = "payouts")]
         diesel_models::enums::EventClass::Payouts => {
             let payout_id = tracking_data.primary_object_id.clone();
-            let request = payout_models::PayoutRequest::PayoutActionRequest(
-                payout_models::PayoutActionRequest {
-                    payout_id: id_type::PayoutId::try_from(std::borrow::Cow::Owned(payout_id))?,
-                },
-            );
+            let request = payouts::PayoutRequest::Webhook(payout_models::PayoutActionRequest {
+                payout_id: id_type::PayoutId::try_from(std::borrow::Cow::Owned(payout_id))?,
+            });
 
             let payout_data = Box::pin(payouts::make_payout_data(
                 &state,

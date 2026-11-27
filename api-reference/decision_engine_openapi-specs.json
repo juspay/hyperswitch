@@ -2790,10 +2790,10 @@
                 "payment_method_sub_type": "credit",
                 "authentication_type": null,
                 "capture_method": null,
-                "payment_type": null,
-                "setup_future_usage": null,
-                "transaction_initiator": null,
-                "surcharge_amount": null,
+                "payment_type": "non_mandate",
+                "setup_future_usage": "on_session",
+                "transaction_initiator": "customer",
+                "surcharge_amount": 50,
                 "business_country": null,
                 "billing_country": "US",
                 "business_label": null,
@@ -2802,9 +2802,9 @@
                   "card_extended_bin": "00123456",
                   "card_network": "Visa",
                   "card_type": "credit",
-                  "card_issuer": null,
+                  "card_issuer": "Chase",
                   "card_issuing_country_code": "US",
-                  "card_subtype": null,
+                  "card_subtype": "CLASSIC",
                   "card_discovery": null,
                   "card_switch_provider": null
                 },
@@ -2829,7 +2829,7 @@
                 "metadata": {
                   "segment": "premium"
                 },
-                "customer_id": null,
+                "customer_id": "cus_demo",
                 "routing_config": {
                   "algorithm_for": "payment",
                   "decision_arm": null,
@@ -8759,38 +8759,44 @@
         "properties": {
           "payment_id": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "example": "pay_demo"
           },
           "merchant_reference_id": {
             "type": [
               "string",
               "null"
             ],
-            "description": "Your own reference, echoed in the response."
+            "description": "Your own reference, echoed in the response.",
+            "example": "order_demo"
           },
           "amount": {
             "type": "integer",
             "minimum": 0,
             "maximum": 18446744073709551615,
-            "description": "Amount in currency minor units."
+            "description": "Amount in currency minor units.",
+            "example": 1000
           },
           "currency": {
             "type": "string",
-            "description": "Currency code, e.g. USD."
+            "description": "Currency code, e.g. USD.",
+            "example": "USD"
           },
           "payment_method_type": {
             "type": [
               "string",
               "null"
             ],
-            "description": "Payment method family, e.g. card."
+            "description": "Payment method family, e.g. card.",
+            "example": "card"
           },
           "payment_method_sub_type": {
             "type": [
               "string",
               "null"
             ],
-            "description": "Payment method subtype, e.g. credit."
+            "description": "Payment method subtype, e.g. credit.",
+            "example": "credit"
           },
           "authentication_type": {
             "type": [
@@ -8809,19 +8815,24 @@
               "string",
               "null"
             ],
-            "description": "The `payment_type` rule key: `normal`, `new_mandate`, `update_mandate`, `setup_mandate`, `recurring_mandate`, `non_mandate` or `ppt_mandate`. A rule that tests `payment_type` matches only when it is sent."
+            "description": "The `payment_type` rule key: `normal`, `new_mandate`, `update_mandate`, `setup_mandate`, `recurring_mandate`, `non_mandate` or `ppt_mandate`. A rule that tests `payment_type` matches only when it is sent.",
+            "example": "non_mandate"
           },
           "setup_future_usage": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "example": "on_session",
+            "description": "Intended future use of the payment method: `on_session` when the customer will be present, or `off_session` when they may be absent."
           },
           "transaction_initiator": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "example": "customer",
+            "description": "Who initiated the payment: `customer` or `merchant`."
           },
           "surcharge_amount": {
             "type": [
@@ -8830,7 +8841,8 @@
             ],
             "minimum": 0,
             "maximum": 18446744073709551615,
-            "description": "Amount in currency minor units."
+            "description": "Amount in currency minor units.",
+            "example": 50
           },
           "business_country": {
             "type": [
@@ -8844,7 +8856,8 @@
               "string",
               "null"
             ],
-            "description": "ISO 3166 alpha-2 country code."
+            "description": "ISO 3166 alpha-2 country code.",
+            "example": "US"
           },
           "business_label": {
             "type": [
@@ -8883,7 +8896,9 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "example": "apple_pay",
+            "description": "Wallet used for the payment. For Apple Pay, send `payment_method_type: wallet`, `payment_method_sub_type: apple_pay` and `wallet: apple_pay`."
           },
           "upi": {
             "type": [
@@ -8970,13 +8985,19 @@
             ],
             "additionalProperties": {
               "type": "string"
-            }
+            },
+            "example": {
+              "segment": "premium"
+            },
+            "description": "Additional string-valued rule parameters. Entries cannot overwrite payment fields or configured rule keys."
           },
           "customer_id": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "example": "cus_demo",
+            "description": "Customer identifier supplied by your integration."
           },
           "routing_config": {
             "$ref": "#/components/schemas/DecideRoutingConfig"
@@ -8994,43 +9015,52 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "example": "001234",
+            "description": "Six-digit card BIN as a string, preserving leading zeros."
           },
           "card_extended_bin": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "example": "00123456",
+            "description": "Eight-digit card BIN as a string, preserving leading zeros."
           },
           "card_network": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "example": "Visa"
           },
           "card_type": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "example": "credit"
           },
           "card_issuer": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "example": "Chase"
           },
           "card_issuing_country_code": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "example": "US"
           },
           "card_subtype": {
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "example": "CLASSIC"
           },
           "card_discovery": {
             "type": [
@@ -9055,7 +9085,8 @@
         "properties": {
           "connector": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "example": "worldpay"
           },
           "merchant_connector_id": {
             "type": [
@@ -9063,7 +9094,8 @@
               "null"
             ],
             "minLength": 1,
-            "description": "The connector account. Omit to name the connector by name alone."
+            "description": "The connector account. Omit to name the connector by name alone.",
+            "example": "mca_wp"
           }
         }
       },
