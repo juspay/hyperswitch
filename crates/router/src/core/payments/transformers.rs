@@ -1922,6 +1922,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
 
     // TODO: few fields are repeated in both routerdata and request
     let request = types::SetupMandateRequestData {
+        order_id: None,
         currency: payment_data.payment_intent.amount_details.currency,
         payment_method_data: payment_data
             .payment_method_data
@@ -7770,6 +7771,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             .clone();
 
         Ok(Self {
+            order_id: None,
             currency: payment_data.currency,
             confirm: true,
             amount: amount.get_amount_as_i64(), //need to change once we move to connector module

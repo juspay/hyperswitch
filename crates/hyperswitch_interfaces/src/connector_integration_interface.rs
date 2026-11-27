@@ -519,6 +519,16 @@ impl ConnectorRedirectResponse for ConnectorEnum {
 }
 
 impl ConnectorValidation for ConnectorEnum {
+    fn validate_setup_mandate_request(
+        &self,
+        request: &hyperswitch_domain_models::router_request_types::SetupMandateRequestData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        match self {
+            Self::Old(connector) => connector.validate_setup_mandate_request(request),
+            Self::New(connector) => connector.validate_setup_mandate_request(request),
+        }
+    }
+
     fn validate_connector_against_payment_request(
         &self,
         capture_method: Option<common_enums::CaptureMethod>,
@@ -935,6 +945,13 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.should_call_tokenization_before_setup_mandate(),
             Self::New(connector) => connector.should_call_tokenization_before_setup_mandate(),
+        }
+    }
+
+    fn setup_mandate_accepts_raw_card(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.setup_mandate_accepts_raw_card(),
+            Self::New(connector) => connector.setup_mandate_accepts_raw_card(),
         }
     }
 

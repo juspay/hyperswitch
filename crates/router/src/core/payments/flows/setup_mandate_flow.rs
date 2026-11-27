@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     router_flow_types, router_request_types, router_response_types,
 };
 use hyperswitch_interfaces::{
-    api::{self as api_interface, ConnectorSpecifications},
+    api::{self as api_interface, ConnectorSpecifications, ConnectorValidation},
     consts as interface_consts,
 };
 use payment_methods::single_use_token;
@@ -125,6 +125,71 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
             auth_type: self.auth_type,
             request_data: Box::new(self.request.clone()),
         })
+    }
+
+    async fn create_order_at_connector(
+        &mut self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        should_continue_payment: bool,
+        gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<Option<types::CreateOrderResult>> {
+        if !should_continue_payment
+            || !connector.connector.is_order_create_flow_required(
+                api_interface::CurrentFlowInfo::SetupMandate {
+                    auth_type: self.auth_type,
+                    request_data: Box::new(self.request.clone()),
+                },
+            )
+        {
+            return Ok(None);
+        }
+
+        connector
+            .connector
+            .validate_setup_mandate_request(&self.request)
+            .to_payment_failed_response()?;
+
+        let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+            api::CreateOrder,
+            types::CreateOrderRequestData,
+            types::PaymentsResponseData,
+        > = connector.connector.get_connector_integration();
+        let request_data = types::CreateOrderRequestData::try_from(self.request.clone())?;
+        let create_order_router_data =
+            helpers::router_data_type_conversion::<_, api::CreateOrder, _, _, _, _>(
+                self.clone(),
+                request_data,
+                Err(types::ErrorResponse::default()),
+            );
+        let response_router_data = gateway::execute_payment_gateway(
+            state,
+            connector_integration,
+            &create_order_router_data,
+            payments::CallConnectorAction::Trigger,
+            None,
+            None,
+            gateway_context.clone(),
+        )
+        .await
+        .to_setup_mandate_failed_response()?;
+        let response = response_router_data.response.clone();
+        let result = super::get_create_order_result(&response, should_continue_payment)?;
+        *self = helpers::router_data_type_conversion::<_, api::SetupMandate, _, _, _, _>(
+            response_router_data,
+            self.request.clone(),
+            response,
+        );
+        Ok(Some(result))
+    }
+
+    fn update_router_data_with_create_order_response(
+        &mut self,
+        create_order_result: types::CreateOrderResult,
+    ) {
+        if let Ok(order_id) = create_order_result.create_order_result {
+            self.request.order_id = Some(order_id);
+        }
     }
 
     async fn decide_flows<'a>(

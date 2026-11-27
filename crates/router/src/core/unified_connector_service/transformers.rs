@@ -51,7 +51,7 @@ use hyperswitch_domain_models::{
     },
     ApiModelToDieselModelConvertor,
 };
-use hyperswitch_interfaces::consts as interface_consts;
+use hyperswitch_interfaces::{api::ConnectorSpecifications, consts as interface_consts};
 pub use hyperswitch_interfaces::{
     helpers::ForeignTryFrom,
     unified_connector_service::transformers::convert_connector_service_status_code,
@@ -1747,7 +1747,10 @@ impl
                 salutation: None,
                 name: None,
                 email: None,
-                id: None,
+                id: router_data
+                    .customer_id
+                    .as_ref()
+                    .map(|id| id.get_string_repr().to_string()),
                 connector_customer_id: router_data.connector_customer.clone(),
                 phone_number: None,
                 phone_country_code: None,
@@ -1758,7 +1761,12 @@ impl
                     .map(format_date_of_birth)
                     .transpose()?,
             }),
-            setup_future_usage: None,
+            setup_future_usage: router_data
+                .request
+                .setup_future_usage
+                .map(payments_grpc::FutureUsage::foreign_try_from)
+                .transpose()?
+                .map(Into::into),
         })
     }
 }
@@ -3585,27 +3593,6 @@ impl
     }
 }
 
-/// Connectors whose connector-service SetupMandate builder accepts raw card data.
-///
-/// `build_unified_connector_service_payment_method` substitutes the connector token for
-/// *any* payment method, so a card SetupMandate reaches the connector service as a token
-/// and the card itself is lost -- the gRPC `PaymentMethod.payment_method` oneof is card
-/// XOR token, so it cannot carry both. Our own connectors do not behave that way: Stripe's
-/// SetupMandate builder consumes `payment_method_token` on the wallet arm and ignores it
-/// for cards, re-sending the card. Shadow validation sees the difference as UCS sending
-/// `payment_method=<pm_id>` where the direct call sends `payment_method_data[card][*]`,
-/// `payment_method_data[type]`, `payment_method_options[card][network]`,
-/// `[request_three_d_secure]` and `payment_method_types[0]`.
-///
-/// An allow-list rather than a deny-list on purpose: some connectors genuinely require a
-/// token on this flow and reject raw cards (billwerk's `source` must be a `ct_`/`ca_`
-/// token; stax resolves a mandate token or errors), so an unverified connector keeps
-/// today's behaviour. Extend one connector at a time, after confirming its
-/// connector-service SetupMandate builder handles `PaymentMethodData::Card`.
-fn setup_mandate_accepts_raw_card(connector: &str) -> bool {
-    matches!(connector, "stripe")
-}
-
 impl
     transformers::ForeignTryFrom<
         &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
@@ -3617,13 +3604,11 @@ impl
         router_data: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
-        // Drop the token ONLY for a raw card on an allow-listed connector. Everything else
-        // -- wallets, mandate payments, bank debits, anything the helper below has no arm
-        // for -- keeps today's behaviour, because the helper answers NotImplemented for
-        // variants it cannot build and the token short-circuit is what rescues them today.
+        let connector = api::ConnectorData::convert_connector(&router_data.connector)
+            .change_context(UnifiedConnectorServiceError::RequestEncodingFailed)?;
         let payment_method_token = match router_data.request.payment_method_data {
             hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_)
-                if setup_mandate_accepts_raw_card(router_data.connector.as_str()) =>
+                if connector.setup_mandate_accepts_raw_card() =>
             {
                 None
             }
@@ -3781,7 +3766,7 @@ impl
             browser_info,
             payment_experience: None,
             state,
-            order_id: None,
+            order_id: router_data.request.order_id.clone(),
             connector_feature_data: None,
             enable_partial_authorization: router_data
                 .request
