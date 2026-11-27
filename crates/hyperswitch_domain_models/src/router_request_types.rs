@@ -716,6 +716,7 @@ pub struct CreateOrderRequestData {
     pub router_return_url: Option<Secret<String>>,
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub capture_method: Option<storage_enums::CaptureMethod>,
+    pub setup_future_usage: Option<storage_enums::FutureUsage>,
 }
 
 impl CreateOrderRequestData {
@@ -731,10 +732,27 @@ impl CreateOrderRequestData {
     }
 }
 
+fn get_setup_future_usage_for_order_creation(
+    setup_future_usage: Option<storage_enums::FutureUsage>,
+    customer_acceptance: Option<&common_payments_types::CustomerAcceptance>,
+    setup_mandate_details: Option<&mandates::MandateData>,
+) -> Option<storage_enums::FutureUsage> {
+    setup_future_usage.filter(|usage| {
+        *usage != storage_enums::FutureUsage::OffSession
+            || customer_acceptance.is_some()
+            || setup_mandate_details.is_some()
+    })
+}
+
 impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        let setup_future_usage = get_setup_future_usage_for_order_creation(
+            data.setup_future_usage,
+            data.customer_acceptance.as_ref(),
+            data.setup_mandate_details.as_ref(),
+        );
         Ok(Self {
             payment_method_type: data.payment_method_type,
             minor_amount: data.minor_amount,
@@ -745,6 +763,7 @@ impl TryFrom<PaymentsAuthorizeData> for CreateOrderRequestData {
             router_return_url: data.router_return_url,
             setup_mandate_details: data.setup_mandate_details,
             capture_method: data.capture_method,
+            setup_future_usage,
         })
     }
 }
@@ -753,6 +772,11 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for CreateOrderRequestData {
     type Error = error_stack::Report<ApiErrorResponse>;
 
     fn try_from(data: ExternalVaultProxyPaymentsData) -> Result<Self, Self::Error> {
+        let setup_future_usage = get_setup_future_usage_for_order_creation(
+            data.setup_future_usage,
+            data.customer_acceptance.as_ref(),
+            data.setup_mandate_details.as_ref(),
+        );
         Ok(Self {
             payment_method_type: data.payment_method_type,
             minor_amount: data.minor_amount,
@@ -763,6 +787,26 @@ impl TryFrom<ExternalVaultProxyPaymentsData> for CreateOrderRequestData {
             router_return_url: data.router_return_url,
             setup_mandate_details: data.setup_mandate_details,
             capture_method: data.capture_method,
+            setup_future_usage,
+        })
+    }
+}
+
+impl TryFrom<SetupMandateRequestData> for CreateOrderRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            minor_amount: data.minor_amount,
+            currency: data.currency,
+            payment_method_data: Some(data.payment_method_data),
+            order_details: None,
+            webhook_url: data.webhook_url,
+            payment_method_type: data.payment_method_type,
+            router_return_url: data.router_return_url,
+            setup_mandate_details: data.setup_mandate_details,
+            capture_method: data.capture_method,
+            setup_future_usage: data.setup_future_usage,
         })
     }
 }
@@ -1958,6 +2002,7 @@ impl TryFrom<PaymentsAuthorizeData> for SettlementSplitRequestData {
 pub struct SetupMandateRequestData {
     pub currency: storage_enums::Currency,
     pub payment_method_data: PaymentMethodData,
+    pub order_id: Option<String>,
     pub amount: i64,
     pub confirm: bool,
     pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,

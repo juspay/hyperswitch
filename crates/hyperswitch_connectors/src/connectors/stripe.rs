@@ -3847,6 +3847,10 @@ static STRIPE_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 3] = [
 ];
 
 impl ConnectorSpecifications for Stripe {
+    fn setup_mandate_accepts_raw_card(&self) -> bool {
+        true
+    }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&STRIPE_CONNECTOR_INFO)
     }

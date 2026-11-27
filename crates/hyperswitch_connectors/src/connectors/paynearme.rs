@@ -612,8 +612,7 @@ static PAYNEARME_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
         ];
 
         let card_details = || PaymentMethodDetails {
-            // Mandates / autopay are out of scope for this integration.
-            mandates: enums::FeatureStatus::NotSupported,
+            mandates: enums::FeatureStatus::Supported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: Some(
@@ -666,18 +665,32 @@ impl ConnectorSpecifications for Paynearme {
                 auth_type: _,
                 request_data,
                 connector_meta_data: _,
-            } => matches!(
+            } => {
+                request_data.mandate_id.is_none()
+                    && matches!(
+                        &request_data.payment_method_data,
+                        hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_)
+                    )
+            }
+            api::CurrentFlowInfo::SetupMandate { request_data, .. } => matches!(
                 &request_data.payment_method_data,
                 hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(_)
             ),
             api::CurrentFlowInfo::CompleteAuthorize { .. }
-            | api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::Psync { .. }
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
             | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
             | api::CurrentFlowInfo::Execute => false,
         }
+    }
+
+    fn should_call_tokenization_before_setup_mandate(&self) -> bool {
+        false
+    }
+
+    fn setup_mandate_accepts_raw_card(&self) -> bool {
+        true
     }
 
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

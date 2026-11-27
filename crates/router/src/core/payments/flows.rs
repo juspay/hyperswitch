@@ -21,6 +21,7 @@ pub mod update_post_confirm_flow;
 use async_trait::async_trait;
 use common_enums;
 use common_types::payments::CustomerAcceptance;
+use error_stack::ResultExt;
 use external_services::grpc_client;
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]
 use hyperswitch_domain_models::router_flow_types::{
@@ -43,6 +44,48 @@ use crate::{
     services, types as router_types,
     types::{self, api, api::enums as api_enums, domain},
 };
+
+fn get_create_order_result(
+    response: &Result<types::PaymentsResponseData, types::ErrorResponse>,
+    should_continue_payment: bool,
+) -> RouterResult<types::CreateOrderResult> {
+    match response {
+        Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse {
+            order_id,
+            session_token,
+        }) => Ok(types::CreateOrderResult {
+            create_order_result: Ok(order_id.clone()),
+            should_continue_further: should_continue_payment && session_token.is_none(),
+        }),
+        Ok(types::PaymentsResponseData::PreProcessingResponse {
+            pre_processing_id,
+            session_token,
+            ..
+        }) => Ok(types::CreateOrderResult {
+            create_order_result: Ok(pre_processing_id.get_string_repr().clone()),
+            should_continue_further: should_continue_payment && session_token.is_none(),
+        }),
+        Ok(types::PaymentsResponseData::TransactionResponse {
+            resource_id,
+            redirection_data,
+            ..
+        }) => Ok(types::CreateOrderResult {
+            create_order_result: Ok(resource_id
+                .get_connector_transaction_id()
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("unable to get connector_transaction_id during order create")?),
+            should_continue_further: should_continue_payment && redirection_data.is_none(),
+        }),
+        Ok(response) => Err(error_stack::report!(ApiErrorResponse::InternalServerError)
+            .attach_printable(format!(
+                "Unexpected response format from connector: {response:?}"
+            ))),
+        Err(error) => Ok(types::CreateOrderResult {
+            create_order_result: Err(error.clone()),
+            should_continue_further: false,
+        }),
+    }
+}
 
 #[async_trait]
 #[allow(clippy::too_many_arguments)]

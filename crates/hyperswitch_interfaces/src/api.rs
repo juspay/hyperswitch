@@ -699,6 +699,11 @@ pub trait ConnectorSpecifications {
         true
     }
 
+    /// Whether card setup requires raw card data even when a connector token exists.
+    fn setup_mandate_accepts_raw_card(&self) -> bool {
+        false
+    }
+
     /// Single-use token support of the connector in the authorize flow for the given payment method data and payment
     /// method token (e.g. pre-decrypted wallet token). The single-use token is created at the connector right before
     /// authorization and is used only for that payment, it is not stored at the connector and is unrelated to mandates.

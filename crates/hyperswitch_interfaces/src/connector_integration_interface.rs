@@ -938,6 +938,13 @@ impl ConnectorSpecifications for ConnectorEnum {
         }
     }
 
+    fn setup_mandate_accepts_raw_card(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.setup_mandate_accepts_raw_card(),
+            Self::New(connector) => connector.setup_mandate_accepts_raw_card(),
+        }
+    }
+
     fn get_single_use_token_support(
         &self,
         payment_method_data: &hyperswitch_domain_models::payment_method_data::PaymentMethodData,
