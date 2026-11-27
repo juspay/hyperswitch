@@ -169,6 +169,98 @@ export const connectorDetails = {
         },
       },
     },
+    L2L3Data: {
+      Request: {
+        currency: "USD",
+        payment_method: "card",
+        payment_method_data: {
+          // Visa card matching the connector PR's proven-good L2/L3 payload —
+          // JPMorgan applies network-specific rules to retailAddenda data.
+          card: {
+            card_number: "4012000033330026",
+            card_exp_month: "12",
+            card_exp_year: "2030",
+            card_holder_name: "John Doe",
+            card_cvc: "123",
+          },
+        },
+        // IMPORTANT — amount arithmetic must reconcile with the payment intent.
+        // JPMorgan validates L3 as: amount == Σ(taxInclusiveLineItemTotalAmount)
+        // + totalShippingAmount + dutyAmount + shippingValueAddedTaxAmount
+        // − totalTransactionDiscountAmount, and rejects the whole payment with
+        // a generic "Request contains validation error" when it doesn't hold.
+        // The intent in this spec is created with amount 6000 and no
+        // shipping/tax, and confirm-time amount/shipping_cost/order_tax_amount
+        // changes are ignored, so the addenda here is built to sum to 6000:
+        // no duty/discount/shipping tax, single line item totalling 6000.
+        merchant_order_reference_id: "PO-JPM-L2L3-001",
+        // Current timestamp: JPMorgan's host may reject stale order dates.
+        order_date: new Date().toISOString(),
+        order_commodity_code: "1234",
+        tax_status: "taxable",
+        value_added_tax_amount: 95,
+        value_added_tax_percent: 5.0,
+        vat_invoice_reference_number: "VAT-INV-001",
+        // NOTE: name/email/phone are intentionally omitted from customer —
+        // the shared fixtures already send top-level email/name, and sending
+        // both is rejected (IR_16: "email and customer.email is ambiguous").
+        customer: {
+          tax_registration_id: "GB123456789",
+        },
+        billing: {
+          address: {
+            first_name: "John",
+            last_name: "Doe",
+            line1: "123 Test Street",
+            city: "Tampa",
+            state: "FL",
+            zip: "33607",
+            country: "US",
+          },
+        },
+        shipping: {
+          address: {
+            first_name: "John",
+            last_name: "Doe",
+            line1: "456 Shipping Street",
+            city: "Tampa",
+            state: "FL",
+            zip: "33607",
+            origin_zip: "34490",
+            country: "US",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test product",
+            description: "JPMorgan L2/L3 test item",
+            product_id: "SKU-041",
+            commodity_code: "1234",
+            quantity: 1,
+            unit_of_measure: "EAC",
+            amount: 6000,
+            tax_rate: 5.0,
+            total_tax_amount: 285,
+            product_tax_code: "01",
+            total_amount: 6000,
+          },
+        ],
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        // merchant_order_reference_id is not asserted: like amount, a value
+        // sent at confirm time is not persisted onto the intent (the intent
+        // was created without it), so the response echoes null even though
+        // the value does reach JPMorgan as purchaseOrderNumber.
+        body: {
+          status: "succeeded",
+          amount: 6000,
+          net_amount: 6000,
+        },
+      },
+    },
     Capture: {
       Request: {
         amount_to_capture: 6000,
