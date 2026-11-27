@@ -476,6 +476,13 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                 })
             })
             .or_else(|| {
+                get_commerce_indicator_for_moto(
+                    item.request.payment_channel.as_ref(),
+                    &item.request.payment_method_data,
+                    solution.as_ref(),
+                )
+            })
+            .or_else(|| {
                 get_commerce_indicator_for_wallet_payment(
                     solution.as_ref(),
                     &item.request.payment_method_data,
@@ -947,6 +954,14 @@ impl
             network.as_deref(),
         );
 
+        if let Some(moto_indicator) = get_commerce_indicator_for_moto(
+            item.router_data.request.payment_channel.as_ref(),
+            &item.router_data.request.payment_method_data,
+            solution.as_ref(),
+        ) {
+            commerce_indicator = Some(moto_indicator);
+        }
+
         let connector_merchant_config =
             CybersourceConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?;
 
@@ -1382,6 +1397,25 @@ fn get_commerce_indicator_for_wallet_payment(
         None => Some("internet"),
     };
     commerce_indicator.map(String::from)
+}
+
+fn get_commerce_indicator_for_moto(
+    payment_channel: Option<&common_enums::PaymentChannel>,
+    payment_method_data: &PaymentMethodData,
+    payment_solution: Option<&PaymentSolution>,
+) -> Option<String> {
+    let is_moto_channel = matches!(
+        payment_channel,
+        Some(
+            common_enums::PaymentChannel::MailOrder | common_enums::PaymentChannel::TelephoneOrder
+        )
+    );
+    let is_raw_card = matches!(
+        payment_method_data,
+        PaymentMethodData::Card(_) | PaymentMethodData::CardWithOptionalCVC(_)
+    );
+    (is_moto_channel && is_raw_card && payment_solution.is_none())
+        .then(|| "moto".to_string())
 }
 
 impl
