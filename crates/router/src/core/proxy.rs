@@ -1,8 +1,10 @@
 use super::errors::{self, RouterResponse, RouterResult};
 use crate::{logger, routes::SessionState, services, types::domain};
 mod body;
+mod transform;
 pub mod utils;
 use api_models::proxy as proxy_api_models;
+use common_utils::fp_utils::when;
 use error_stack::ResultExt;
 use external_services::http_client::outbound_destination;
 use hyperswitch_interfaces::types::Response;
@@ -12,6 +14,16 @@ pub async fn proxy_core(
     platform: domain::Platform,
     req: proxy_api_models::ProxyRequest,
 ) -> RouterResponse<proxy_api_models::ProxyResponse> {
+    // A transformation needs a body; checked first, as it costs nothing.
+    when(
+        matches!(req.method, services::Method::Get | services::Method::Delete)
+            && req.transformation.is_some(),
+        || {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "Transformation requires a request body".to_string(),
+            })
+        },
+    )?;
     outbound_destination::validate_destination(
         &req.destination_url,
         state.conf.proxy.bypass_proxy_hosts.as_deref(),
@@ -47,8 +59,10 @@ pub async fn proxy_core(
     Ok(services::ApplicationResponse::Json(proxy_response))
 }
 
-/// The connector request for a method with a body. The body is validated before the vault is
-/// read: reading the vault consumes the single-use CVC, so an invalid request must not reach it.
+/// The connector request for a method with a body. The body and any transformation are
+/// validated before the vault is read: reading the vault consumes the single-use CVC, so an
+/// invalid request must not reach it. Only a request with transformation instructions is
+/// transformed.
 async fn body_request(
     state: &SessionState,
     platform: domain::Platform,
@@ -61,6 +75,15 @@ async fn body_request(
         .builder()
         .validate(content_type.as_ref())
         .map_err(invalid_body)?;
+    let plan = req_wrapper
+        .0
+        .transformation
+        .as_ref()
+        .map(|transformation| {
+            transform::ValidatedPlan::new(transformation, &body, &req_wrapper.0.headers)
+        })
+        .transpose()
+        .map_err(|error| invalid_body(error.into()))?;
 
     let proxy_record = req_wrapper
         .get_proxy_record(state, platform.get_provider())
@@ -68,15 +91,19 @@ async fn body_request(
 
     let vault_data = proxy_record.get_vault_data(state, platform).await?;
 
-    let request = validated_body
-        .build(
-            &vault_data,
-            req_wrapper.get_destination_url(),
-            req_wrapper.get_method(),
-            req_wrapper.get_headers(),
-        )
-        .map_err(invalid_body)?
-        .into_inner();
+    let url = req_wrapper.get_destination_url();
+    let method = req_wrapper.get_method();
+    let headers = req_wrapper.get_headers();
+    let request = match plan {
+        None => validated_body
+            .build(&vault_data, url, method, headers)
+            .map_err(invalid_body)?,
+        Some(plan) => validated_body
+            .transform(&vault_data, &plan)
+            .map_err(invalid_body)?
+            .build(url, method, headers),
+    }
+    .into_inner();
     Ok(request)
 }
 

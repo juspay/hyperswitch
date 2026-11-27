@@ -8090,6 +8090,7 @@ dependencies = [
  "router_derive",
  "router_env",
  "roxmltree",
+ "rsa",
  "rust-grpc-client",
  "rust-i18n",
  "rust_decimal",

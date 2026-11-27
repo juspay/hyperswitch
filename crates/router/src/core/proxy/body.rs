@@ -3,7 +3,10 @@
 use common_utils::request::{
     ConnectorContentType, ContentType, Method, Request, RequestBuilder, RequestContent,
 };
+use hyperswitch_masking::Maskable;
 use serde_json::Value;
+
+use super::transform::{TransformError, TransformOutput, ValidatedPlan};
 
 mod json;
 mod placeholder;
@@ -39,7 +42,13 @@ pub enum ProxyBodyError {
     /// Serialization failed.
     #[error("Failed to serialize connector body")]
     Serialization,
+    /// The transformation instructions are invalid or could not be applied.
+    #[error(transparent)]
+    Transform(#[from] TransformError),
 }
+
+/// Headers the proxy sets itself, as interpolation and transformation change the body.
+pub(super) const BODY_HEADERS: [&str; 3] = ["content-type", "content-length", "transfer-encoding"];
 
 impl ProxyBody {
     /// The connector body for the declared Content-Type: JSON, also when none is declared,
@@ -95,8 +104,9 @@ impl ProxyBody {
 }
 
 /// Type-state builder that turns a [`ProxyBody`] into a connector request:
-/// [`Init`] → [`Validated`] → [`Prepared`]. Validation checks the whole body without vault
-/// data, so an invalid request never reaches the vault.
+/// [`Init`] → [`Validated`] → [`Prepared`], or [`Init`] → [`Validated`] → [`Transformed`] →
+/// [`Prepared`] for a request with transformation instructions. Validation checks the whole body
+/// without vault data, so an invalid request never reaches the vault.
 #[derive(Debug)]
 pub struct ProxyBodyBuilder<'a, S> {
     body: &'a ProxyBody,
@@ -111,6 +121,13 @@ pub struct Init;
 #[derive(Debug)]
 pub struct Validated<'a> {
     content_type: Option<&'a ConnectorContentType<'a>>,
+}
+
+/// Builder state after the substituted body was transformed.
+#[derive(Debug)]
+pub struct Transformed<'a> {
+    content_type: &'a str,
+    output: TransformOutput,
 }
 
 /// Builder state holding the prepared request, ready to be sent to the connector.
@@ -132,42 +149,106 @@ impl<'a> ProxyBodyBuilder<'a, Init> {
 }
 
 impl<'a> ProxyBodyBuilder<'a, Validated<'a>> {
-    /// Resolve placeholders from vault data and build the connector request. The caller's
-    /// Content-Type, Content-Length and Transfer-Encoding headers are dropped, as interpolation
-    /// changes the body length; the declared Content-Type, or the body's default, is set again.
+    /// The declared Content-Type, or the body's default.
+    fn content_type(&self) -> &'a str {
+        self.state.content_type.map_or(
+            self.body.default_content_type(),
+            ConnectorContentType::header,
+        )
+    }
+
+    /// Resolve placeholders from vault data and build the connector request.
     pub fn build(
         self,
         vault: &Value,
         url: &str,
         method: Method,
-        headers: Vec<(String, hyperswitch_masking::Maskable<String>)>,
+        headers: Vec<(String, Maskable<String>)>,
     ) -> Result<ProxyBodyBuilder<'a, Prepared>, ProxyBodyError> {
         let bytes = self.body.render(vault)?;
-        let content_type = self.state.content_type.map_or(
-            self.body.default_content_type(),
-            ConnectorContentType::header,
-        );
-        let headers = headers
-            .into_iter()
-            .filter(|(name, _)| {
-                !["content-type", "content-length", "transfer-encoding"]
-                    .iter()
-                    .any(|blocked| name.eq_ignore_ascii_case(blocked))
-            })
-            .chain([("Content-Type".to_owned(), content_type.to_owned().into())])
-            .collect();
-        let request = RequestBuilder::new()
-            .method(method)
-            .url(url)
-            .attach_default_headers()
-            .headers(headers)
-            .set_body(RequestContent::RawBytes(bytes))
-            .build();
+        let request = assemble(bytes, self.content_type(), url, method, headers, Vec::new());
         Ok(ProxyBodyBuilder {
             body: self.body,
             state: Prepared(request),
         })
     }
+
+    /// Resolve placeholders from vault data, then run the plan on the resolved JSON body.
+    pub fn transform(
+        self,
+        vault: &Value,
+        plan: &ValidatedPlan,
+    ) -> Result<ProxyBodyBuilder<'a, Transformed<'a>>, ProxyBodyError> {
+        let resolved = match self.body {
+            ProxyBody::Json(body) => json::resolve(body, vault),
+            ProxyBody::Xml(_) => Err(TransformError::UnsupportedBody.into()),
+        }?;
+        let output = plan.execute(resolved)?;
+        Ok(ProxyBodyBuilder {
+            body: self.body,
+            state: Transformed {
+                content_type: self.content_type(),
+                output,
+            },
+        })
+    }
+}
+
+impl<'a> ProxyBodyBuilder<'a, Transformed<'a>> {
+    /// Build the connector request from the transformed body and the headers it added.
+    pub fn build(
+        self,
+        url: &str,
+        method: Method,
+        headers: Vec<(String, Maskable<String>)>,
+    ) -> ProxyBodyBuilder<'a, Prepared> {
+        let Transformed {
+            content_type,
+            output,
+        } = self.state;
+        let request = assemble(
+            output.body,
+            content_type,
+            url,
+            method,
+            headers,
+            output.headers,
+        );
+        ProxyBodyBuilder {
+            body: self.body,
+            state: Prepared(request),
+        }
+    }
+}
+
+/// The connector request for the final body. The caller's Content-Type, Content-Length and
+/// Transfer-Encoding headers are dropped, as the proxy changes the body; `content_type` is set
+/// again, followed by the headers a transformation added.
+fn assemble(
+    body: Vec<u8>,
+    content_type: &str,
+    url: &str,
+    method: Method,
+    headers: Vec<(String, Maskable<String>)>,
+    added: Vec<(String, Maskable<String>)>,
+) -> Request {
+    let headers = headers
+        .into_iter()
+        .filter(|(name, _)| {
+            !BODY_HEADERS
+                .iter()
+                .any(|blocked| name.eq_ignore_ascii_case(blocked))
+        })
+        .chain([("Content-Type".to_owned(), content_type.to_owned().into())])
+        .chain(added)
+        .collect();
+    RequestBuilder::new()
+        .method(method)
+        .url(url)
+        .attach_default_headers()
+        .headers(headers)
+        .set_body(RequestContent::RawBytes(body))
+        .build()
 }
 
 impl ProxyBodyBuilder<'_, Prepared> {

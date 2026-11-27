@@ -3,7 +3,6 @@ use common_utils::{
     crypto::{DecodeMessage, GcmAes256},
     encryption::Encryption,
     ext_traits::{BytesExt, Encode, OptionExt},
-    fp_utils::when,
     id_type,
 };
 use error_stack::ResultExt;
@@ -173,27 +172,17 @@ impl ProxyRequestWrapper {
             .collect()
     }
 
-    /// The connector Content-Type, parsed once for the whole proxy flow. Header names are
-    /// case-insensitive. An invalid Content-Type is rejected, and so are conflicting
-    /// duplicates, instead of picking one of them from the HashMap.
+    /// The connector Content-Type, parsed once for the whole proxy flow. An invalid
+    /// Content-Type is rejected, and so are conflicting duplicates.
     pub fn get_content_type(
         &self,
     ) -> RouterResult<Option<common_utils::request::ConnectorContentType<'_>>> {
-        let values: Vec<&str> = self
-            .0
+        self.0
             .headers
-            .as_map()
-            .iter()
-            .filter(|(name, _)| name.eq_ignore_ascii_case("content-type"))
-            .map(|(_, value)| value.as_str())
-            .collect();
-        let first = values.first().copied();
-        when(values.iter().any(|value| Some(*value) != first), || {
-            Err(errors::ApiErrorResponse::InvalidRequestData {
+            .get("content-type")
+            .map_err(|_| errors::ApiErrorResponse::InvalidRequestData {
                 message: "Conflicting connector Content-Type headers".into(),
-            })
-        })?;
-        first
+            })?
             .map(|value| {
                 common_utils::request::ConnectorContentType::parse(value).ok_or_else(|| {
                     errors::ApiErrorResponse::InvalidRequestData {
