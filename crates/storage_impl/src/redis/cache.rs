@@ -28,6 +28,11 @@ pub const DEFAULT_CACHE_TTL: u64 = 30 * 60;
 /// Default time to idle 10 mins
 pub const DEFAULT_CACHE_TTI: u64 = 10 * 60;
 
+/// Default time to live of the gsm cache, 5 mins. Rules written through the gsm API are cleared
+/// from every instance when they are written; one written to the database directly is picked up
+/// once its entries lapse, so they are kept for a short while.
+pub const DEFAULT_GSM_CACHE_TTL: u64 = 5 * 60;
+
 /// Ceiling on how long a single populate attempt may hold the per-key lock, 500ms — well
 /// above the worst-case chain of a redis read, a DB read, and a redis write (sub-millisecond, 3-5ms,
 /// sub-millisecond respectively). Not deployment-configurable: no `config/*.toml` has ever
@@ -134,6 +139,7 @@ pub struct CacheConfig {
     pub success_based_dynamic_algorithm: CacheSettings,
     pub elimination_based_dynamic_algorithm: CacheSettings,
     pub contract_based_dynamic_algorithm: CacheSettings,
+    pub gsm: CacheSettings,
 }
 
 /// The in-memory caches, together with the redis channel their invalidations travel on.
@@ -174,6 +180,8 @@ pub struct Caches {
     pub elimination_based_dynamic_algorithm: Cache,
     /// Contract routing based dynamic algorithm cache
     pub contract_based_dynamic_algorithm: Cache,
+    /// Gateway status map cache, holding the rule found for a connector error, or its absence
+    pub gsm: Cache,
 }
 
 impl Caches {
@@ -212,6 +220,11 @@ impl Caches {
             contract_based_dynamic_algorithm: config
                 .contract_based_dynamic_algorithm
                 .build(CacheId::ContractBasedDynamicAlgorithm, DEFAULT),
+            gsm: CacheSettings {
+                ttl_in_secs: config.gsm.ttl_in_secs.or(Some(DEFAULT_GSM_CACHE_TTL)),
+                ..config.gsm
+            }
+            .build(CacheId::Gsm, DEFAULT),
         }
     }
 
@@ -235,6 +248,7 @@ impl Caches {
             CacheKind::ContractBasedDynamicRoutingCache(_) => {
                 vec![&self.contract_based_dynamic_algorithm]
             }
+            CacheKind::Gsm(_) => vec![&self.gsm],
             CacheKind::All(_) => self.all().to_vec(),
         }
     }
@@ -253,6 +267,7 @@ impl Caches {
             success_based_dynamic_algorithm,
             elimination_based_dynamic_algorithm,
             contract_based_dynamic_algorithm,
+            gsm,
             invalidation_channel: _,
         } = self;
         match id {
@@ -267,12 +282,13 @@ impl Caches {
             CacheId::SuccessBasedDynamicAlgorithm => success_based_dynamic_algorithm,
             CacheId::EliminationBasedDynamicAlgorithm => elimination_based_dynamic_algorithm,
             CacheId::ContractBasedDynamicAlgorithm => contract_based_dynamic_algorithm,
+            CacheId::Gsm => gsm,
         }
     }
 
     /// Every cache in the set, so that callers iterating over all of them — metrics
     /// collection, say — cannot silently fall behind a newly added cache.
-    pub fn all(&self) -> [&Cache; 11] {
+    pub fn all(&self) -> [&Cache; 12] {
         let Self {
             config,
             accounts,
@@ -285,6 +301,7 @@ impl Caches {
             success_based_dynamic_algorithm,
             elimination_based_dynamic_algorithm,
             contract_based_dynamic_algorithm,
+            gsm,
             invalidation_channel: _,
         } = self;
         [
@@ -299,6 +316,7 @@ impl Caches {
             success_based_dynamic_algorithm,
             elimination_based_dynamic_algorithm,
             contract_based_dynamic_algorithm,
+            gsm,
         ]
     }
 }
@@ -339,6 +357,7 @@ pub enum CacheId {
     SuccessBasedDynamicAlgorithm,
     EliminationBasedDynamicAlgorithm,
     ContractBasedDynamicAlgorithm,
+    Gsm,
 }
 
 impl CacheId {
@@ -360,6 +379,7 @@ impl CacheId {
             Self::SuccessBasedDynamicAlgorithm => "SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE",
             Self::EliminationBasedDynamicAlgorithm => "ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE",
             Self::ContractBasedDynamicAlgorithm => "CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE",
+            Self::Gsm => "GSM_CACHE",
         }
     }
 }
@@ -388,6 +408,7 @@ pub enum CacheKind<'a> {
     EliminationBasedDynamicRoutingCache(Cow<'a, str>),
     ContractBasedDynamicRoutingCache(Cow<'a, str>),
     PmFiltersCGraph(Cow<'a, str>),
+    Gsm(Cow<'a, str>),
     All(Cow<'a, str>),
 }
 
@@ -405,6 +426,7 @@ impl CacheKind<'_> {
             | CacheKind::EliminationBasedDynamicRoutingCache(key)
             | CacheKind::ContractBasedDynamicRoutingCache(key)
             | CacheKind::PmFiltersCGraph(key)
+            | CacheKind::Gsm(key)
             | CacheKind::All(key) => key,
         }
     }

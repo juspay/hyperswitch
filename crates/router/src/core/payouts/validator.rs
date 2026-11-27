@@ -21,7 +21,7 @@ use url::Url;
 use super::helpers;
 #[cfg(feature = "v1")]
 use crate::core::{
-    payment_methods::cards::get_pm_list_context, payouts::kill_switch::PayoutKillSwitch,
+    payment_methods::cards::get_pm_list_context, payouts::should_allow_payouts::ShouldAllowPayouts,
 };
 use crate::{
     core::{
@@ -91,6 +91,27 @@ pub(super) fn validate_payout_condition(invalid: bool, message: &str) -> RouterR
     match invalid {
         true => Err(invalid_payout_request(message)),
         false => Ok(()),
+    }
+}
+
+/// Update and confirm share the same immutable payout value and customer identity fields.
+pub(super) fn validate_payout_mutation_request(
+    req: &payouts::PayoutCreateRequest,
+) -> RouterResult<()> {
+    let invalid_field = [
+        req.amount.is_some().then_some("amount"),
+        req.currency.is_some().then_some("currency"),
+        req.get_customer_id().is_some().then_some("customer_id"),
+    ]
+    .into_iter()
+    .flatten()
+    .next();
+
+    match invalid_field {
+        Some(field) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("{field} cannot be updated through this payout API"),
+        })),
+        None => Ok(()),
     }
 }
 
@@ -256,8 +277,6 @@ pub async fn validate_create_request(
         state.accounts_store.as_ref(),
     )
     .await?;
-    PayoutKillSwitch::ensure_payouts_enabled(state, platform, Some(business_profile.get_id()))
-        .await?;
     let profile_id = business_profile.get_id().to_owned();
 
     let customer = get_and_validate_payout_customer(state, platform, req).await?;
@@ -349,6 +368,21 @@ pub async fn validate_create_request(
         }
         _ => Ok(None),
     }?;
+
+    let payment_method_type = ShouldAllowPayouts::get_resolved_payment_method_type(
+        req.payout_method_data
+            .as_ref()
+            .or(payout_method_data.as_ref()),
+        payment_method.as_ref(),
+        None,
+    );
+    ShouldAllowPayouts::ensure_payouts_enabled(
+        state,
+        platform,
+        Some(&profile_id),
+        payment_method_type,
+    )
+    .await?;
 
     Ok((
         payout_id,

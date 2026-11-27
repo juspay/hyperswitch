@@ -11,6 +11,13 @@ use crate::{
 const ADMIN_API_AUTH: auth::AdminApiAuth = auth::AdminApiAuth;
 #[cfg(feature = "v2")]
 const ADMIN_API_AUTH: auth::V2AdminApiAuth = auth::V2AdminApiAuth;
+#[cfg(feature = "v1")]
+const GSM_RETRIEVE_AUTH: auth::AdminApiAuthWithApiKeyFallback =
+    auth::AdminApiAuthWithApiKeyFallback {
+        organization_id: None,
+    };
+#[cfg(feature = "v2")]
+const GSM_RETRIEVE_AUTH: auth::V2AdminApiAuth = auth::V2AdminApiAuth;
 /// Gsm - Create
 ///
 /// To create a Gsm Rule
@@ -64,7 +71,7 @@ pub async fn create_gsm_rule(
     ),
     tag = "Gsm",
     operation_id = "Retrieve Gsm Rule",
-    security(("admin_api_key" = [])),
+    security(("admin_api_key" = []), ("api_key" = [])),
 )]
 #[instrument(skip_all, fields(flow = ?Flow::GsmRuleRetrieve))]
 pub async fn get_gsm_rule(
@@ -80,7 +87,7 @@ pub async fn get_gsm_rule(
         &req,
         gsm_retrieve_req,
         |state, _, gsm_retrieve_req, _| gsm::retrieve_gsm_rule(state, gsm_retrieve_req),
-        &ADMIN_API_AUTH,
+        &GSM_RETRIEVE_AUTH,
         api_locking::LockAction::NotApplicable,
     ))
     .await

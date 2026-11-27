@@ -41,6 +41,15 @@ export const setMerchantId = (merchantCreateBody, merchantId) => {
   merchantCreateBody["merchant_id"] = merchantId;
 };
 
+// The API returns only the first four characters of a merchant's
+// payment_response_hash_key, so the tests create merchants with a key they know.
+// The key must be at least 32 characters. CYPRESS_PAYMENT_RESPONSE_HASH_KEY overrides it.
+const DEFAULT_PAYMENT_RESPONSE_HASH_KEY =
+  "cypress_payment_response_hash_key_0123456789";
+
+export const getPaymentResponseHashKey = () =>
+  Cypress.env("PAYMENT_RESPONSE_HASH_KEY") || DEFAULT_PAYMENT_RESPONSE_HASH_KEY;
+
 export function isoTimeTomorrow() {
   const now = new Date();
 
