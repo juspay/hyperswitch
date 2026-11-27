@@ -2588,11 +2588,19 @@ Cypress.Commands.add("linkSurchargeConnectorToProfile", (globalState) => {
     failOnStatusCode: false,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
-    expect(response.status, "status_code").to.equal(200);
-    expect(
-      response.body.surcharge_connector_details.surcharge_connector_id,
-      "surcharge_details.surcharge_connector_id"
-    ).to.equal(surchargeConnectorId);
+
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        expect(
+          response.body.surcharge_connector_details.surcharge_connector_id,
+          "surcharge_details.surcharge_connector_id"
+        ).to.equal(surchargeConnectorId);
+      } else {
+        throw new Error(
+          `Link Surcharge Connector To Profile Failed: ${response.body.error?.message || response.status}`
+        );
+      }
+    });
   });
 });
 
@@ -2618,11 +2626,20 @@ Cypress.Commands.add("unlinkSurchargeConnectorFromProfile", (globalState) => {
     failOnStatusCode: false,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
-    expect(response.status, "status_code").to.equal(200);
-    expect(
-      response.body.surcharge_connector_details?.surcharge_connector_id ?? null,
-      "surcharge_connector_details.surcharge_connector_id"
-    ).to.be.null;
+
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        expect(
+          response.body.surcharge_connector_details?.surcharge_connector_id ??
+            null,
+          "surcharge_connector_details.surcharge_connector_id"
+        ).to.be.null;
+      } else {
+        throw new Error(
+          `Unlink Surcharge Connector From Profile Failed: ${response.body.error?.message || response.status}`
+        );
+      }
+    });
   });
 });
 
