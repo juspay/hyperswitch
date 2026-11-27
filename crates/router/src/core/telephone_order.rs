@@ -3,6 +3,11 @@ pub mod twilio;
 use std::collections::HashMap;
 
 use api_models::telephone_order::response_parameters;
+/// The shared half of a provider's mapping, defined in `api_models` next to the request types
+/// that map themselves onto a payment with it.
+pub use api_models::telephone_order::{
+    error_codes, Context, Failure, ResponseParameters, TelephoneOrderParameters as Parameters,
+};
 use common_utils::events::ApiEventMetric;
 use hyperswitch_domain_models::payments::HeaderPayload;
 use router_env::logger;
@@ -22,12 +27,6 @@ use crate::{
         ApplicationResponse,
     },
     types::api,
-};
-
-/// The shared half of a provider's mapping, defined in `api_models` next to the request types
-/// that map themselves onto a payment with it.
-pub use api_models::telephone_order::{
-    error_codes, Context, Failure, ResponseParameters, TelephoneOrderParameters as Parameters,
 };
 
 /// What to do with the collected card. Each maps to a different payments flow.
