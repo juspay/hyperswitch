@@ -49691,11 +49691,9 @@
                 "nullable": true
               },
               "customer_acceptance": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/CustomerAcceptance"
-                  }
-                ],
+                "type": "string",
+                "description": "The caller's agreement to their card being kept, taken on the call. **Required whenever a\ncard is stored** — a `tokenize`, or a charge carrying `setup_future_usage`. Recorded as the\nstored-credential consent the networks require, so it says only what the IVR reported.\n\nA `CustomerAcceptance` as JSON. Use `acceptance_type: offline` — there is no browser\nsession to record an IP against — and `accepted_at` defaults to now.",
+                "example": "{\"acceptance_type\":\"offline\",\"accepted_at\":\"2026-11-26T10:11:12Z\"}",
                 "nullable": true
               },
               "tokenization": {
@@ -49707,17 +49705,15 @@
                 "nullable": true
               },
               "billing": {
-                "allOf": [
-                  {
-                    "$ref": "#/components/schemas/Address"
-                  }
-                ],
+                "type": "string",
+                "description": "The caller's billing address and email, as an `Address` in JSON. The provider's own postal\ncode, where it collects one, overrides `address.zip`.",
+                "example": "{\"email\":\"caller@example.com\",\"address\":{\"last_name\":\"Doe\",\"line1\":\"1467 Harrison Street\",\"city\":\"San Francisco\",\"state\":\"CA\",\"country\":\"US\"}}",
                 "nullable": true
               }
             }
           }
         ],
-        "description": "The IVR's `<Parameter>` tags. The ones read by Hyperswitch are named below; the rest ride along\ninto the payment's `metadata`. Keys must be lowercase — Twilio lowercases parameter names, so a\ncamelCase one lands in the passthrough instead. A tag's value is always a string, so the\nobject-valued keys — `customer_acceptance` and `billing` — are read from a JSON string as well\nas from an object."
+        "description": "The IVR's `<Parameter>` tags. The ones read by Hyperswitch are named below; the rest ride along\ninto the payment's `metadata`. Keys must be lowercase — Twilio lowercases parameter names, so a\ncamelCase one lands in the passthrough instead. A tag's value is always a string, so the\nstructured keys — `customer_acceptance` and `billing` — carry their JSON as text for the core\nto parse."
       },
       "ThirdPartySdkSessionResponse": {
         "type": "object",
