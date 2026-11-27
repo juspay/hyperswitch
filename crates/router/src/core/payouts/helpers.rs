@@ -971,6 +971,7 @@ pub async fn decide_payout_connector(
         .attach_printable("Invalid connector name received in 'routed_through'")?;
 
         routing_data.routed_through = Some(connector_name.clone());
+        routing_data.merchant_connector_id = payout_attempt.merchant_connector_id.clone();
         return Ok(api::ConnectorCallType::PreDetermined(connector_data.into()));
     }
 
