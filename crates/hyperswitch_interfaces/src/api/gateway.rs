@@ -14,7 +14,10 @@ use common_utils::{
     request::Request,
 };
 use error_stack::{Report, ResultExt};
-use hyperswitch_domain_models::router_data::RouterData;
+use hyperswitch_domain_models::{
+    errors::api_error_response::ApiErrorResponse, router_data::RouterData,
+};
+use hyperswitch_masking::Secret;
 use router_env::{logger, tracing::Instrument};
 
 use crate::{
@@ -604,6 +607,152 @@ where
                         payment_method_type,
                     )
                     .await;
+                }
+                .instrument(tracing::Span::current()),
+            );
+            direct_result
+        }
+    }
+}
+
+/// A dispute action executed through the direct connector or UCS.
+#[async_trait]
+pub trait DisputeGateway<State, ConnectorData, F, Req, Resp, Context>: Send + Sync
+where
+    State: Clone + Send + Sync + 'static + ApiClientWrapper,
+    ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
+    F: Clone + std::fmt::Debug + Send + Sync + 'static,
+    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Context: GatewayContext,
+{
+    /// Execute one dispute action through this gateway implementation.
+    async fn execute(
+        self: Box<Self>,
+        state: &State,
+        connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,
+        router_data: &RouterData<F, Req, Resp>,
+        context: Context,
+    ) -> CustomResult<RouterData<F, Req, Resp>, ApiErrorResponse>;
+}
+
+/// Selects the gateway implementation for a dispute flow.
+pub trait DisputeFlowGateway<State, ConnectorData, Req, Resp, Context>:
+    Clone + std::fmt::Debug + Send + Sync + 'static
+where
+    State: Clone + Send + Sync + 'static + ApiClientWrapper,
+    ConnectorData: Clone + RouterDataConversion<Self, Req, Resp> + Send + Sync + 'static,
+    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Context: GatewayContext,
+{
+    /// Select the direct or UCS gateway for this dispute flow.
+    fn get_dispute_gateway(
+        execution_path: ExecutionPath,
+    ) -> Box<dyn DisputeGateway<State, ConnectorData, Self, Req, Resp, Context>>;
+}
+
+fn dispute_comparison_value<F, Req, Resp>(
+    result: &CustomResult<RouterData<F, Req, Resp>, ApiErrorResponse>,
+) -> serde_json::Value
+where
+    Resp: std::fmt::Debug,
+{
+    match result {
+        Ok(data) => serde_json::json!({
+            "connector_http_status_code": data.connector_http_status_code,
+            "response": format!("{:?}", data.response),
+        }),
+        Err(error) => serde_json::json!({ "error": format!("{error:?}") }),
+    }
+}
+
+/// Run a dispute through the selected gateway. The shadow path returns the direct result
+/// and compares only outcomes, keeping dispute evidence out of the comparison payload.
+pub async fn execute_dispute_gateway<State, ConnectorData, F, Req, Resp, Context>(
+    state: &State,
+    ucs_state: &State,
+    connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,
+    router_data: &RouterData<F, Req, Resp>,
+    context: Context,
+) -> CustomResult<RouterData<F, Req, Resp>, ApiErrorResponse>
+where
+    State: Clone + Send + Sync + 'static + ApiClientWrapper + helpers::GetComparisonServiceConfig,
+    ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
+    F: DisputeFlowGateway<State, ConnectorData, Req, Resp, Context>,
+    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Context: GatewayContext + 'static,
+{
+    match context.execution_path() {
+        ExecutionPath::Direct => {
+            F::get_dispute_gateway(ExecutionPath::Direct)
+                .execute(state, connector_integration, router_data, context)
+                .await
+        }
+        ExecutionPath::UnifiedConnectorService => {
+            F::get_dispute_gateway(ExecutionPath::UnifiedConnectorService)
+                .execute(ucs_state, connector_integration, router_data, context)
+                .await
+        }
+        ExecutionPath::ShadowUnifiedConnectorService => {
+            let direct_result = F::get_dispute_gateway(ExecutionPath::Direct)
+                .execute(
+                    state,
+                    connector_integration.clone_box(),
+                    router_data,
+                    context.clone(),
+                )
+                .await;
+            let direct_for_compare = dispute_comparison_value(&direct_result);
+            let shadow_state = ucs_state.clone();
+            let shadow_router_data = router_data.clone();
+            let connector_name = router_data.connector.clone();
+            let merchant_id = router_data.merchant_id.clone();
+            let payment_method = router_data.payment_method;
+            let payment_method_type = router_data.payment_method_type;
+            tokio::spawn(
+                async move {
+                    let shadow_result =
+                        F::get_dispute_gateway(ExecutionPath::ShadowUnifiedConnectorService)
+                            .execute(
+                                &shadow_state,
+                                connector_integration,
+                                &shadow_router_data,
+                                context,
+                            )
+                            .await;
+                    if let Err(error) = &shadow_result {
+                        logger::warn!(
+                            ?error,
+                            execution_mode = "shadow",
+                            primary_impact = false,
+                            "UCS dispute shadow execution failed"
+                        );
+                    }
+                    if let Some(config) = shadow_state.get_comparison_service_config() {
+                        let comparison_data = helpers::ComparisonData {
+                            hyperswitch_data: Secret::new(direct_for_compare),
+                            unified_connector_service_data: Secret::new(dispute_comparison_value(
+                                &shadow_result,
+                            )),
+                        };
+                        if let Err(error) = helpers::send_comparison_data(
+                            &shadow_state,
+                            comparison_data,
+                            config,
+                            connector_name,
+                            api_client::get_flow_name::<F>().ok(),
+                            shadow_state.get_request_id_str(),
+                            Some(&merchant_id),
+                            Some(payment_method),
+                            payment_method_type,
+                        )
+                        .await
+                        {
+                            logger::warn!(?error, "Failed to send dispute shadow comparison");
+                        }
+                    }
                 }
                 .instrument(tracing::Span::current()),
             );

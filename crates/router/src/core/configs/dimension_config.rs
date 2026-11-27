@@ -397,7 +397,7 @@ impl DatabaseBackedConfig for CardTestingGuardConfig {
 }
 
 config! {
-    superposition_key = PAYOUT_KILL_SWITCH,
+    superposition_key = SHOULD_ALLOW_PAYOUTS,
     output = bool,
     default = false,
     generics = [Pm, M, P, Cn, PRT, Ev, Pmt],
@@ -405,8 +405,8 @@ config! {
     targeting_key = id_type::ProfileId
 }
 
-impl DatabaseBackedConfig for PayoutKillSwitch {
-    const KEY: &'static str = "payout_kill_switch";
+impl DatabaseBackedConfig for ShouldAllowPayouts {
+    const KEY: &'static str = "should_allow_payouts";
 }
 
 config! {
@@ -969,6 +969,22 @@ impl DatabaseBackedConfig for RecoveryMaxRetryCount {
         dimensions
             .get_processor_merchant_id()
             .map(|merchant_id| format!("{}_{}", merchant_id.get_string_repr(), Self::KEY))
+    }
+}
+
+config! {
+    superposition_key = RECOVERY_MAX_HYBRID_CASCADING_RETRY_COUNT,
+    output = u32,
+    default = 0,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for RecoveryMaxHybridCascadingRetryCount {
+    const KEY: &'static str = "recovery_max_hybrid_cascading_retry_count";
+
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
     }
 }
 

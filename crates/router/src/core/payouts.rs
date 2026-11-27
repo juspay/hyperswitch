@@ -3,17 +3,17 @@ use strum::IntoEnumIterator;
 
 use crate::core::payouts::gateway as payout_gateway;
 #[cfg(feature = "v1")]
-use crate::core::payouts::kill_switch::PayoutKillSwitch;
+use crate::core::payouts::should_allow_payouts::ShouldAllowPayouts;
 pub mod access_token;
 pub mod gateway;
 #[cfg(feature = "v1")]
 pub mod guards;
 pub mod helpers;
-pub mod kill_switch;
 #[cfg(feature = "v1")]
 pub mod proxy;
 #[cfg(feature = "payout_retry")]
 pub mod retry;
+pub mod should_allow_payouts;
 pub mod transformers;
 pub mod validator;
 use std::{
@@ -666,7 +666,7 @@ pub async fn payouts_create_core_wrapper(
                 req.business_label.as_ref(),
                 platform.get_processor(),
                 req.profile_id.as_ref(),
-                &*state.store,
+                state.accounts_store.as_ref(),
             )
             .await?
         }
@@ -772,6 +772,8 @@ pub async fn payouts_confirm_core(
     req: payouts::PayoutCreateRequest,
     header_payload: HeaderPayload,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
+    validator::validate_payout_mutation_request(&req)?;
+
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
@@ -843,6 +845,8 @@ pub async fn payouts_update_core(
     req: payouts::PayoutCreateRequest,
     header_payload: HeaderPayload,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
+    validator::validate_payout_mutation_request(&req)?;
+
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
@@ -3497,6 +3501,7 @@ pub async fn response_handler(
         recurring: payouts.recurring,
         metadata: payouts.metadata.clone(),
         funds_transfer_type: payouts.funds_transfer_type,
+        purpose: payouts.purpose,
         sender_details: payouts.get_optional_sender_details().cloned(),
         merchant_connector_id: payout_attempt.merchant_connector_id.to_owned(),
         status: payout_attempt.status.to_owned(),
@@ -3697,6 +3702,7 @@ pub async fn payout_create_db_entries(
         attempt_count: 1,
         metadata: req.metadata.clone(),
         funds_transfer_type: req.funds_transfer_type,
+        purpose: req.purpose,
         sender_details,
         confirm: req.confirm,
         payout_link_id: payout_link
@@ -3854,13 +3860,13 @@ pub async fn make_payout_data(
     _auth_profile_id: Option<id_type::ProfileId>,
     _req: &payouts::PayoutRequest,
     _locale: &str,
-    _enforce_kill_switch: bool,
+    _enforce_should_allow_payouts: bool,
 ) -> RouterResult<PayoutData> {
     todo!()
 }
 
 #[cfg(feature = "v1")]
-/// Load payout data, checking the kill switch for mutation and standalone execution callers.
+/// Load payout data, checking the allowlist for mutation and standalone execution callers.
 /// Retrieval, webhook delivery, and background status sync pass `false` to continue processing existing payouts.
 pub async fn make_payout_data(
     state: &SessionState,
@@ -3868,7 +3874,7 @@ pub async fn make_payout_data(
     auth_profile_id: Option<id_type::ProfileId>,
     req: &payouts::PayoutRequest,
     locale: &str,
-    enforce_kill_switch: bool,
+    enforce_should_allow_payouts: bool,
 ) -> RouterResult<PayoutData> {
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
@@ -3961,15 +3967,50 @@ pub async fn make_payout_data(
     // Validate the persisted profile before checking its scope or accessing payout data.
     let business_profile =
         validate_and_get_business_profile(state, platform.get_processor(), &profile_id).await?;
-    match enforce_kill_switch {
-        true => PayoutKillSwitch::ensure_payouts_enabled(state, platform, Some(&profile_id)).await,
-        false => Ok(()),
-    }?;
-
     // Reject proxy mutations before normal method or locker resolution.
     payout_attempt
         .execution_kind
         .validate_persisted_execution_kind(req)?;
+
+    let payment_method = payouts
+        .payout_method_id
+        .clone()
+        .async_map(|pm_id| async move {
+            db.find_payment_method(
+                platform.get_processor().get_key_store(),
+                &pm_id,
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+            .attach_printable("Unable to find payment method")
+        })
+        .await
+        .transpose()?;
+
+    match enforce_should_allow_payouts {
+        true => {
+            let requested_method_data = match req {
+                payouts::PayoutRequest::PayoutCreateRequest(request) => {
+                    request.payout_method_data.as_ref()
+                }
+                _ => None,
+            };
+            let payment_method_type = ShouldAllowPayouts::get_resolved_payment_method_type(
+                requested_method_data,
+                payment_method.as_ref(),
+                payout_attempt.additional_payout_method_data.as_ref(),
+            );
+            ShouldAllowPayouts::ensure_payouts_enabled(
+                state,
+                platform,
+                Some(&profile_id),
+                payment_method_type,
+            )
+            .await
+        }
+        false => Ok(()),
+    }?;
 
     let customer_id = payouts.customer_id.as_ref();
 
@@ -4201,22 +4242,6 @@ pub async fn make_payout_data(
         .await
         .transpose()?;
 
-    let payment_method = payouts
-        .payout_method_id
-        .clone()
-        .async_map(|pm_id| async move {
-            db.find_payment_method(
-                platform.get_processor().get_key_store(),
-                &pm_id,
-                platform.get_processor().get_account().storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-            .attach_printable("Unable to find payment method")
-        })
-        .await
-        .transpose()?;
-
     let fraud_check = match &payout_attempt.active_frm_id {
         Some(active_frm_id) => db
             .find_fraud_check_by_frm_id(active_frm_id.clone())
@@ -4293,14 +4318,18 @@ async fn validate_and_get_business_profile(
     processor: &domain::Processor,
     profile_id: &id_type::ProfileId,
 ) -> RouterResult<domain::Profile> {
-    let db = &*state.store;
-
-    if let Some(business_profile) =
-        core_utils::validate_and_get_business_profile(db, processor, Some(profile_id)).await?
+    if let Some(business_profile) = core_utils::validate_and_get_business_profile(
+        state.accounts_store.as_ref(),
+        processor,
+        Some(profile_id),
+    )
+    .await?
     {
         Ok(business_profile)
     } else {
-        db.find_business_profile_by_profile_id(processor.get_key_store(), profile_id)
+        state
+            .accounts_store
+            .find_business_profile_by_profile_id(processor.get_key_store(), profile_id)
             .await
             .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
                 id: profile_id.get_string_repr().to_owned(),
@@ -4538,18 +4567,16 @@ pub async fn payouts_manual_update_core(
             connector_payout_id,
         } = req;
 
+        let key_store_master_key = state.store.get_master_key().to_vec().into();
         let key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                &merchant_id,
-                &state.store.get_master_key().to_vec().into(),
-            )
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
             .await
             .to_not_found_response(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while fetching the key store by merchant_id")?;
 
         let merchant_account = state
-            .store
+            .accounts_store
             .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)

@@ -40,10 +40,10 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    errors::{self},
+    errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
-    webhooks::{self},
+    webhooks,
 };
 use hyperswitch_masking::{Mask, PeekInterface, Secret};
 use ring::hmac;

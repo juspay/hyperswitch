@@ -37,8 +37,7 @@ use crate::{
     routes::{app::SessionStateInfo, SessionState},
     services,
     types::{
-        api,
-        domain::{self},
+        api, domain,
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignTryFrom},
     },
@@ -152,7 +151,7 @@ async fn get_surcharge_webhook_event(
     merchant_surcharge_connector_id: common_utils::id_type::MerchantConnectorAccountId,
 ) -> CustomResult<Option<types::WebhookPayload>, errors::ApiErrorResponse> {
     let merchant_surcharge_connector = state
-        .store
+        .accounts_store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             platform.get_provider().get_account().get_id(),
             &merchant_surcharge_connector_id,
@@ -672,7 +671,7 @@ async fn trigger_webhook_to_connector(
     };
 
     let mca_result = state
-        .store
+        .accounts_store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &provider_merchant_id,
             merchant_connector_id,
@@ -797,7 +796,7 @@ async fn update_payment_attempt_from_webhook_response(
 ) {
     if event.event_type == enums::EventType::SurchargePaymentSucceeded {
         let merchant_account = state
-            .store
+            .accounts_store
             .find_merchant_account_by_merchant_id(merchant_id, merchant_key_store)
             .await;
 
@@ -1449,9 +1448,11 @@ fn get_outgoing_webhook_event_content_from_event_metadata(
             content: serde_json::Value::Null,
         },
         diesel_models::EventMetadata::Mandate {
+            payment_id,
             payment_method_id,
             mandate_id,
         } => OutgoingWebhookEventContent::Mandate {
+            payment_id,
             payment_method_id,
             mandate_id,
             content: serde_json::Value::Null,
@@ -1492,6 +1493,7 @@ impl ForeignFrom<&api::OutgoingWebhookContent> for storage::EventMetadata {
                 dispute_id: dispute_response.dispute_id.clone(),
             },
             webhooks::OutgoingWebhookContent::MandateDetails(mandate_response) => Self::Mandate {
+                payment_id: mandate_response.payment_id.clone(),
                 payment_method_id: mandate_response.payment_method_id.clone(),
                 mandate_id: mandate_response.mandate_id.clone(),
             },

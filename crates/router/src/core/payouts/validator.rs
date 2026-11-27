@@ -21,7 +21,7 @@ use url::Url;
 use super::helpers;
 #[cfg(feature = "v1")]
 use crate::core::{
-    payment_methods::cards::get_pm_list_context, payouts::kill_switch::PayoutKillSwitch,
+    payment_methods::cards::get_pm_list_context, payouts::should_allow_payouts::ShouldAllowPayouts,
 };
 use crate::{
     core::{
@@ -94,6 +94,43 @@ pub(super) fn validate_payout_condition(invalid: bool, message: &str) -> RouterR
     }
 }
 
+/// Update and confirm share the same immutable payout value and customer identity fields.
+pub(super) fn validate_payout_mutation_request(
+    req: &payouts::PayoutCreateRequest,
+) -> RouterResult<()> {
+    let invalid_field = [
+        req.amount.is_some().then_some("amount"),
+        req.currency.is_some().then_some("currency"),
+        req.get_customer_id().is_some().then_some("customer_id"),
+    ]
+    .into_iter()
+    .flatten()
+    .next();
+
+    match invalid_field {
+        Some(field) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("{field} cannot be updated through this payout API"),
+        })),
+        None => Ok(()),
+    }
+}
+
+#[cfg(feature = "v1")]
+async fn get_and_validate_payout_customer(
+    state: &SessionState,
+    platform: &domain::Platform,
+    req: &payouts::PayoutCreateRequest,
+) -> RouterResult<Option<domain::Customer>> {
+    match req.get_customer_id() {
+        Some(customer_id) => helpers::get_existing_customer_details(state, customer_id, platform)
+            .await
+            .map(Some),
+        None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "customer_id".into(),
+        })),
+    }
+}
+
 /// Validate payout ID uniqueness within the merchant's storage scheme.
 #[instrument(skip(db))]
 pub async fn validate_uniqueness_of_payout_id_against_merchant_id(
@@ -141,7 +178,6 @@ pub async fn validate_create_request(
     todo!()
 }
 
-/// Validate identity before customer creation or raw-method lookup.
 #[cfg(feature = "v1")]
 pub async fn validate_create_request(
     state: &SessionState,
@@ -178,14 +214,13 @@ pub async fn validate_create_request(
         .attach_printable("invalid merchant_id in request"))
     })?;
 
-    // Resolve the profile before any customer side effects so the cap applies to the
-    // exact merchant/profile context that will own the payout.
+    // Resolve the profile before checking its payout limit.
     let business_profile = core_utils::get_profile_from_business_details(
         req.business_country,
         req.business_label.as_ref(),
         platform.get_processor(),
         req.profile_id.as_ref(),
-        &*state.store,
+        state.accounts_store.as_ref(),
     )
     .await?;
     let profile_id = business_profile.get_id().to_owned();
@@ -234,32 +269,17 @@ pub async fn validate_create_request(
         None => Ok(()),
     }?;
 
-    // Resolve the profile and kill switch before creating customers or resolving payout methods.
     let business_profile = core_utils::get_profile_from_business_details(
         req.business_country,
         req.business_label.as_ref(),
         platform.get_processor(),
         req.profile_id.as_ref(),
-        &*state.store,
+        state.accounts_store.as_ref(),
     )
     .await?;
-    PayoutKillSwitch::ensure_payouts_enabled(state, platform, Some(business_profile.get_id()))
-        .await?;
     let profile_id = business_profile.get_id().to_owned();
 
-    // Fetch customer details (merge of loose fields + customer object) and create DB entry
-    let customer_in_request = helpers::get_customer_details_from_request(req);
-    let customer = if customer_in_request.customer_id.is_some()
-        || customer_in_request.name.is_some()
-        || customer_in_request.email.is_some()
-        || customer_in_request.phone.is_some()
-        || customer_in_request.phone_country_code.is_some()
-        || customer_in_request.document_details.is_some()
-    {
-        helpers::get_or_create_customer_details(state, &customer_in_request, platform).await?
-    } else {
-        None
-    };
+    let customer = get_and_validate_payout_customer(state, platform, req).await?;
 
     let payment_method: Option<PaymentMethod> =
         match (req.payout_token.as_ref(), req.payout_method_id.clone()) {
@@ -349,6 +369,21 @@ pub async fn validate_create_request(
         _ => Ok(None),
     }?;
 
+    let payment_method_type = ShouldAllowPayouts::get_resolved_payment_method_type(
+        req.payout_method_data
+            .as_ref()
+            .or(payout_method_data.as_ref()),
+        payment_method.as_ref(),
+        None,
+    );
+    ShouldAllowPayouts::ensure_payouts_enabled(
+        state,
+        platform,
+        Some(&profile_id),
+        payment_method_type,
+    )
+    .await?;
+
     Ok((
         payout_id,
         payout_method_data,
@@ -374,11 +409,7 @@ pub(crate) fn validate_payout_amount(
 
         utils::when(amount < min_amount || amount > max_amount, || {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
-                message: format!(
-                    "payout amount must be between {} and {} in the currency's lowest denomination",
-                    min_amount.get_amount_as_i64(),
-                    max_amount.get_amount_as_i64(),
-                ),
+                message: "Payout amount is not within configured limits".to_string(),
             }))
         })
     })

@@ -23,6 +23,26 @@ use crate::{
     enums as api_enums, payment_methods, profile_acquirer,
 };
 
+const MIN_PAYMENT_RESPONSE_HASH_KEY_LENGTH: usize = 32;
+
+fn deserialize_payment_response_hash_key<'de, D>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let key = Option::<String>::deserialize(deserializer)?;
+    if key
+        .as_ref()
+        .is_some_and(|key| key.chars().count() < MIN_PAYMENT_RESPONSE_HASH_KEY_LENGTH)
+    {
+        return Err(serde::de::Error::custom(format!(
+            "payment_response_hash_key must be at least {MIN_PAYMENT_RESPONSE_HASH_KEY_LENGTH} characters long"
+        )));
+    }
+    Ok(key)
+}
+
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
     pub organization_id: id_type::OrganizationId,
@@ -73,6 +93,8 @@ pub struct MerchantAccountCreate {
     pub enable_payment_response_hash: Option<bool>,
 
     /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.
+    #[schema(min_length = 32)]
+    #[serde(default, deserialize_with = "deserialize_payment_response_hash_key")]
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled.
@@ -475,6 +497,8 @@ pub struct MerchantAccountUpdate {
     pub enable_payment_response_hash: Option<bool>,
 
     /// Refers to the hash key used for calculating the signature for webhooks and redirect response.
+    #[schema(min_length = 32)]
+    #[serde(default, deserialize_with = "deserialize_payment_response_hash_key")]
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -660,8 +684,8 @@ pub struct MerchantAccountResponse {
     #[schema(default = false, example = true)]
     pub enable_payment_response_hash: bool,
 
-    /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.
-    #[schema(max_length = 255, example = "xkkdf909012sdjki2dkh5sdf")]
+    /// The first 4 characters of the hash key used to sign webhooks and redirect responses.
+    #[schema(max_length = 4, example = "xkkd")]
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -871,11 +895,11 @@ pub struct PrimaryBusinessDetails {
 #[serde(deny_unknown_fields)]
 pub struct WebhookDetailsRequest {
     ///The version for Webhook
-    #[schema(max_length = 255, max_length = 255, example = "1.0.2")]
+    #[schema(max_length = 255, example = "1.0.2")]
     pub webhook_version: Option<String>,
 
     ///The user name for Webhook login
-    #[schema(max_length = 255, max_length = 255, example = "ekart_retail")]
+    #[schema(max_length = 255, example = "ekart_retail")]
     pub webhook_username: Option<String>,
 
     ///The password for Webhook login
@@ -929,11 +953,11 @@ pub struct WebhookDetailsRequest {
 #[serde(deny_unknown_fields)]
 pub struct WebhookDetailsResponse {
     ///The version for Webhook
-    #[schema(max_length = 255, max_length = 255, example = "1.0.2")]
+    #[schema(max_length = 255, example = "1.0.2")]
     pub webhook_version: Option<String>,
 
     ///The user name for Webhook login
-    #[schema(max_length = 255, max_length = 255, example = "ekart_retail")]
+    #[schema(max_length = 255, example = "ekart_retail")]
     pub webhook_username: Option<String>,
 
     ///The password for Webhook login
@@ -1617,10 +1641,35 @@ pub enum ConnectorAuthType {
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MerchantConnectorWebhookDetails {
-    #[schema(value_type = String, example = "12345678900987654321")]
+    /// Webhook verification secret. Must contain at least one non-whitespace character.
+    #[schema(value_type = String, min_length = 1, example = "12345678900987654321")]
     pub merchant_secret: Secret<String>,
-    #[schema(value_type = String, example = "12345678900987654321")]
+    /// Optional additional secret. When supplied, must contain a non-whitespace character.
+    #[schema(value_type = String, min_length = 1, example = "12345678900987654321")]
     pub additional_secret: Option<Secret<String>>,
+}
+
+impl MerchantConnectorWebhookDetails {
+    /// Validate newly supplied secrets without changing stored values or deserialization.
+    pub fn validate(&self) -> Result<(), String> {
+        if self.merchant_secret.peek().trim().is_empty() {
+            Err(
+                "connector_webhook_details.merchant_secret must not be empty or whitespace-only"
+                    .to_string(),
+            )
+        } else if self
+            .additional_secret
+            .as_ref()
+            .is_some_and(|secret| secret.peek().trim().is_empty())
+        {
+            Err(
+                "connector_webhook_details.additional_secret must not be empty or whitespace-only"
+                    .to_string(),
+            )
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, ToSchema)]
@@ -2467,6 +2516,8 @@ pub struct ProfileCreate {
     pub enable_payment_response_hash: Option<bool>,
 
     /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.
+    #[schema(min_length = 32)]
+    #[serde(default, deserialize_with = "deserialize_payment_response_hash_key")]
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -2681,6 +2732,8 @@ pub struct ProfileCreate {
     pub enable_payment_response_hash: Option<bool>,
 
     /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.
+    #[schema(min_length = 32)]
+    #[serde(default, deserialize_with = "deserialize_payment_response_hash_key")]
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -2856,7 +2909,8 @@ pub struct ProfileResponse {
     #[schema(default = true, example = true)]
     pub enable_payment_response_hash: bool,
 
-    /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.
+    /// The first 4 characters of the hash key used to sign webhooks and redirect responses.
+    #[schema(max_length = 4, example = "xkkd")]
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -3084,7 +3138,8 @@ pub struct ProfileResponse {
     #[schema(default = true, example = true)]
     pub enable_payment_response_hash: bool,
 
-    /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.
+    /// The first 4 characters of the hash key used to sign webhooks and redirect responses.
+    #[schema(max_length = 4, example = "xkkd")]
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -3266,6 +3321,8 @@ pub struct ProfileUpdate {
     pub enable_payment_response_hash: Option<bool>,
 
     /// Refers to the hash key used for calculating the signature for webhooks and redirect response.
+    #[schema(min_length = 32)]
+    #[serde(default, deserialize_with = "deserialize_payment_response_hash_key")]
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -3479,6 +3536,8 @@ pub struct ProfileUpdate {
     pub enable_payment_response_hash: Option<bool>,
 
     /// Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.
+    #[schema(min_length = 32)]
+    #[serde(default, deserialize_with = "deserialize_payment_response_hash_key")]
     pub payment_response_hash_key: Option<String>,
 
     /// A boolean value to indicate if redirect to merchant with http post needs to be enabled
@@ -4108,6 +4167,53 @@ pub struct MCACGraphData {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn assert_payment_response_hash_key_validation<T: serde::de::DeserializeOwned>(
+        request: serde_json::Value,
+    ) {
+        assert!(serde_json::from_value::<T>(request.clone()).is_ok());
+
+        let mut with_key = request;
+        with_key
+            .as_object_mut()
+            .expect("request must be a JSON object")
+            .insert("payment_response_hash_key".into(), serde_json::Value::Null);
+        assert!(serde_json::from_value::<T>(with_key.clone()).is_ok());
+
+        for key in [String::new(), "a".repeat(4), "a".repeat(31), "é".repeat(16)] {
+            *with_key
+                .get_mut("payment_response_hash_key")
+                .expect("signing key field must be present") = serde_json::json!(key);
+            let error = serde_json::from_value::<T>(with_key.clone())
+                .err()
+                .expect("short signing keys must be rejected");
+            assert!(error
+                .to_string()
+                .contains("payment_response_hash_key must be at least 32 characters long"));
+        }
+
+        for key in ["a".repeat(32), "a".repeat(64), "é".repeat(32)] {
+            *with_key
+                .get_mut("payment_response_hash_key")
+                .expect("signing key field must be present") = serde_json::json!(key);
+            assert!(serde_json::from_value::<T>(with_key.clone()).is_ok());
+        }
+    }
+
+    #[cfg(feature = "v1")]
+    #[test]
+    fn merchant_requests_validate_payment_response_hash_key_length() {
+        let request = serde_json::json!({ "merchant_id": "merchant_hash_key_test" });
+        assert_payment_response_hash_key_validation::<MerchantAccountCreate>(request.clone());
+        assert_payment_response_hash_key_validation::<MerchantAccountUpdate>(request);
+    }
+
+    #[test]
+    fn profile_requests_validate_payment_response_hash_key_length() {
+        let request = serde_json::json!({ "profile_name": "Signing key test" });
+        assert_payment_response_hash_key_validation::<ProfileCreate>(request.clone());
+        assert_payment_response_hash_key_validation::<ProfileUpdate>(request);
+    }
 
     #[test]
     fn empty_webhook_url_fails_validation_while_omission_preserves_the_destination() {

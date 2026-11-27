@@ -139,8 +139,21 @@ impl InstallmentConfig {
     }
 }
 
+/// Connectors for which connector mandates may be reused across currencies.
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde(default, deny_unknown_fields)]
+pub struct CrossCurrencyMitSupportedConnectors {
+    pub connector_list: HashSet<enums::Connector>,
+    pub currency_rules: CrossCurrencyMitCurrencyRules,
+}
+
+pub type CrossCurrencyMitCurrencyRules =
+    HashMap<enums::Connector, HashMap<enums::PaymentMethodType, HashSet<enums::Currency>>>;
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Mandates {
+    #[serde(default)]
+    pub cross_currency_mit_supported_connectors: CrossCurrencyMitSupportedConnectors,
     pub supported_payment_methods: SupportedPaymentMethodsForMandate,
     pub update_mandate_supported: SupportedPaymentMethodsForMandate,
 }

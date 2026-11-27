@@ -159,7 +159,7 @@ export const connectorDetails = {
     MITManualCapture: {
       Request: {
         amount: 6000,
-        mit_category: "installment",
+        mit_category: "unscheduled",
       },
       Response: {
         status: 200,
@@ -310,10 +310,10 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
           amount: 6000,
-          amount_capturable: 0,
-          amount_received: 6000,
+          amount_capturable: 6000,
+          amount_received: null,
         },
       },
     },
@@ -324,10 +324,10 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "partially_captured",
+          status: "processing",
           amount: 6000,
-          amount_capturable: 0,
-          amount_received: 2000,
+          amount_capturable: 6000,
+          amount_received: null,
         },
       },
     },
@@ -349,7 +349,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "partially_captured_and_capturable",
+          status: "processing",
         },
       },
     },
@@ -360,7 +360,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
         },
       },
     },
@@ -399,47 +399,81 @@ export const connectorDetails = {
         },
       },
     },
+    VoidAfterConfirm: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          capture_method: "manual",
+        },
+      },
+    },
     Refund: {
+      Configs: {
+        POLL_BEFORE: true,
+      },
       Request: {
         amount: 6000,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
     PartialRefund: {
+      Configs: {
+        POLL_BEFORE: true,
+      },
       Request: {
         amount: 2000,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
     manualPaymentRefund: {
+      Configs: {
+        POLL_BEFORE: true,
+      },
       Request: {
         amount: 6000,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
     manualPaymentPartialRefund: {
+      Configs: {
+        POLL_BEFORE: true,
+      },
       Request: {
         amount: 2000,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
+        },
+      },
+    },
+    RefundInstant: {
+      Request: {
+        amount: 6000,
+        refund_type: "instant",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
         },
       },
     },
@@ -447,7 +481,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
@@ -546,6 +580,7 @@ export const connectorDetails = {
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
+        mit_category: "unscheduled",
       },
       Response: {
         status: 200,
@@ -564,6 +599,7 @@ export const connectorDetails = {
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
+        mit_category: "unscheduled",
       },
       Response: {
         status: 200,
@@ -747,7 +783,7 @@ export const connectorDetails = {
     MITAutoCapture: {
       Request: {
         amount: 6000,
-        mit_category: "installment",
+        mit_category: "unscheduled",
       },
       Response: {
         status: 200,
@@ -759,7 +795,7 @@ export const connectorDetails = {
     MITAutoCaptureWithCustomerAcceptance: {
       Request: {
         amount: 6000,
-        mit_category: "installment",
+        mit_category: "unscheduled",
         customer_acceptance: {
           acceptance_type: "offline",
           accepted_at: "1963-05-03T04:07:52.723Z",
@@ -1057,10 +1093,12 @@ export const connectorDetails = {
             santander: null,
             paypal: null,
             worldpayxml: null,
+            worldpayraft: null,
             checkout: {
               purpose_of_payment: "wallet top-up",
             },
             stripe: null,
+            jpmorgan: null,
           },
         },
       },

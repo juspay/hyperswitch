@@ -347,6 +347,8 @@ diesel::table! {
         apple_pay_certificates_encrypted -> Nullable<Bytea>,
         #[max_length = 16]
         auto_fallback_capture_method -> Nullable<Varchar>,
+        google_pay_decryption_config -> Nullable<Jsonb>,
+        google_pay_decryption_config_encrypted -> Nullable<Bytea>,
     }
 }
 
@@ -1028,6 +1030,8 @@ diesel::table! {
         offer_engine_config -> Nullable<Bytea>,
         apple_pay_certificates -> Nullable<Jsonb>,
         apple_pay_certificates_encrypted -> Nullable<Bytea>,
+        google_pay_decryption_config -> Nullable<Jsonb>,
+        google_pay_decryption_config_encrypted -> Nullable<Bytea>,
     }
 }
 
@@ -1379,6 +1383,7 @@ diesel::table! {
         order_commodity_code -> Nullable<Varchar>,
         settlement_conclusion_applied -> Nullable<Bool>,
         enable_account_name_verification -> Nullable<Bool>,
+        sender_details -> Nullable<Bytea>,
     }
 }
 
@@ -1613,6 +1618,8 @@ diesel::table! {
         #[max_length = 64]
         funds_transfer_type -> Nullable<Varchar>,
         sender_details -> Nullable<Bytea>,
+        #[max_length = 64]
+        purpose -> Nullable<Varchar>,
     }
 }
 

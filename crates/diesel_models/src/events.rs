@@ -105,6 +105,8 @@ pub enum EventMetadata {
         dispute_id: String,
     },
     Mandate {
+        #[serde(default)]
+        payment_id: Option<common_utils::id_type::PaymentId>,
         payment_method_id: String,
         mandate_id: String,
     },
@@ -117,6 +119,10 @@ pub enum EventMetadata {
     Surcharge {
         payment_id: common_utils::id_type::PaymentId,
         attempt_id: String,
+    },
+    #[cfg(feature = "v2")]
+    RevenueRecovery {
+        payment_id: common_utils::id_type::GlobalPaymentId,
     },
 }
 

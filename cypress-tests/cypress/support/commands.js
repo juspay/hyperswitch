@@ -846,6 +846,8 @@ Cypress.Commands.add(
 
     const merchantId = RequestBodyUtils.generateRandomString();
     RequestBodyUtils.setMerchantId(merchantCreateBody, merchantId);
+    merchantCreateBody.payment_response_hash_key =
+      RequestBodyUtils.getPaymentResponseHashKey();
 
     cy.request({
       method: "POST",
@@ -962,6 +964,9 @@ Cypress.Commands.add("merchantRetrieveCall", (globalState, options = {}) => {
         response.body.payment_response_hash_key,
         "payment_response_hash_key"
       ).to.not.be.null;
+      expect(
+        Array.from(response.body.payment_response_hash_key).length
+      ).to.be.at.most(4);
       expect(response.body.publishable_key, "publishable_key").to.not.be.null;
       expect(response.body.default_profile, "default_profile").to.not.be.null;
       expect(response.body.organization_id, "organization_id").to.not.be.null;
@@ -2969,7 +2974,17 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "sessionTokenCall",
   (sessionTokenBody, data, globalState) => {
-    const { Request: reqData = {}, Response: resData } = data || {};
+    const {
+      Request: reqData = {},
+      Response: resData,
+      Configs: configs,
+    } = data || {};
+
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task("cli_log", "TRIGGER_SKIP enabled, skipping sessionTokenCall");
+      return;
+    }
 
     sessionTokenBody.wallets = reqData.wallets || [];
     if ("payment_id" in reqData) {
@@ -5553,11 +5568,16 @@ Cypress.Commands.add(
     }
 
     if (validatedConfigs?.POLL_BEFORE) {
-      cy.pollPaymentStatusCallTest(globalState).then(() => {
+      const refundableStatuses = ["succeeded", "partially_captured"];
+      cy.pollPaymentStatusCallTest(globalState, [
+        ...refundableStatuses,
+        "failed",
+        "cancelled",
+      ]).then(() => {
         expect(
           globalState.get("polledPaymentStatus"),
           "payment status before refund"
-        ).to.equal("succeeded");
+        ).to.be.oneOf(refundableStatuses);
       });
     }
 
@@ -12496,6 +12516,9 @@ Cypress.Commands.add("retrieveNonExistentPaymentLinkTest", (globalState) => {
 
 /**
  * Fetches merchant account config and stores payment response hash settings in globalState.
+ * Merchants are created with the key from getPaymentResponseHashKey (the test
+ * default, or CYPRESS_PAYMENT_RESPONSE_HASH_KEY); account responses expose only
+ * its first four characters.
  * Also skips the suite if enable_payment_response_hash is false/absent.
  *
  * The backend falls back to merchant-account-level settings when business profile
@@ -12528,7 +12551,8 @@ Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
 
     const enablePaymentResponseHash =
       response.body.enable_payment_response_hash;
-    const paymentResponseHashKey = response.body.payment_response_hash_key;
+    const paymentResponseHashKeyPrefix =
+      response.body.payment_response_hash_key;
 
     if (!enablePaymentResponseHash) {
       cy.task(
@@ -12541,16 +12565,13 @@ Cypress.Commands.add("fetchPaymentResponseHashConfig", (globalState) => {
       return;
     }
 
-    // Validate that the hash key is present and non-empty
-    // A null or empty key would cause cryptic Node crypto errors downstream
-    if (
-      typeof paymentResponseHashKey !== "string" ||
-      paymentResponseHashKey.length === 0
-    ) {
-      throw new Error(
-        "fetchPaymentResponseHashConfig: enable_payment_response_hash is true but payment_response_hash_key is null or empty"
-      );
-    }
+    // Signature verification requires the full configured key, not the API prefix.
+    const paymentResponseHashKey = RequestBodyUtils.getPaymentResponseHashKey();
+
+    expect(
+      paymentResponseHashKeyPrefix,
+      "payment_response_hash_key prefix"
+    ).to.equal(Array.from(paymentResponseHashKey).slice(0, 4).join(""));
 
     globalState.set("paymentResponseHashKey", paymentResponseHashKey);
     globalState.set("enablePaymentResponseHash", true);
@@ -12779,7 +12800,8 @@ Cypress.Commands.add("captureRedirectReturnUrl", (globalState) => {
   cy.intercept(
     /\/redirect\/(?:token\/[^/]+\/)?(?:response|complete)\//,
     (req) => {
-      if (!new URL(req.url).pathname.startsWith(`/payments/${paymentId}/`))
+      // `includes`, not `startsWith`: the base URL can carry a prefix (e.g. /api)
+      if (!new URL(req.url).pathname.includes(`/payments/${paymentId}/`))
         return;
       req.on("response", (response) => {
         const location = response.headers.location;
@@ -13470,6 +13492,60 @@ Cypress.Commands.add(
 // ============================================
 // Superposition Config Commands
 // ============================================
+
+// Payout flows require explicit enablement even when the demo Superposition
+// service has no authentication configured. Keep this context separate from
+// profile-scoped feature overrides that individual specs create and remove.
+Cypress.Commands.add(
+  "enablePayouts",
+  (globalState, merchantId = globalState.get("merchantId")) => {
+    const superpositionBaseUrl = globalState.get("superpositionBaseUrl");
+    const superpositionSecret = globalState.get("superpositionSecret");
+    const superpositionAuthToken = globalState.get("superpositionAuthToken");
+
+    if (!superpositionBaseUrl) {
+      throw new Error(
+        "Payout tests require Superposition enablement. Set SUPERPOSITION_BASE_URL (or CYPRESS_SUPERPOSITION_BASE_URL), SUPERPOSITION_ORG_ID and SUPERPOSITION_WORKSPACE_ID for the router's Superposition workspace."
+      );
+    }
+    if (!merchantId) {
+      throw new Error("Create the test merchant before enabling payouts.");
+    }
+
+    return cy
+      .request({
+        method: "PUT",
+        url: `${superpositionBaseUrl}/context`,
+        headers: {
+          "User-Agent": "Mozilla/5.0",
+          "x-org-id": globalState.get("superpositionOrgId") || "hyperswitch",
+          "x-workspace":
+            globalState.get("superpositionWorkspaceId") || "hyperswitch",
+          "Content-Type": "application/json",
+          ...(superpositionSecret
+            ? { "X-Superposition-Secret": superpositionSecret }
+            : {}),
+          ...(superpositionAuthToken
+            ? { Authorization: `Bearer ${superpositionAuthToken}` }
+            : {}),
+        },
+        body: {
+          override: { "payouts.should_allow_payouts": true },
+          context: { processor_merchant_id: merchantId },
+          description: "Enable payouts for the Cypress test merchant",
+          change_reason: "Payout test setup",
+        },
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        expect(response.status, "payout allowlist setup status").to.equal(200);
+        // CI uses development.toml's five-minute polling interval. Allow a
+        // complete poll and a buffer without changing the router configuration.
+        // eslint-disable-next-line cypress/no-unnecessary-waiting
+        cy.wait(310000);
+      });
+  }
+);
 
 // Base command: PUT a superposition context carrying one or more overrides.
 // `overrides` is a plain object of config key to value; a single PUT is used so

@@ -44,12 +44,10 @@ impl UserFromToken {
         &self,
         state: SessionState,
     ) -> UserResult<MerchantAccount> {
+        let key_store_master_key = state.store.get_master_key().to_vec().into();
         let key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                &self.merchant_id,
-                &state.store.get_master_key().to_vec().into(),
-            )
+            .accounts_store
+            .get_merchant_key_store_by_merchant_id(&self.merchant_id, &key_store_master_key)
             .await
             .map_err(|e| {
                 if e.current_context().is_db_not_found() {
@@ -59,7 +57,7 @@ impl UserFromToken {
                 }
             })?;
         let merchant_account = state
-            .store
+            .accounts_store
             .find_merchant_account_by_merchant_id(&self.merchant_id, &key_store)
             .await
             .map_err(|e| {
@@ -105,10 +103,18 @@ pub async fn generate_jwt_auth_token_with_attributes(
     profile_id: id_type::ProfileId,
     tenant_id: Option<id_type::TenantId>,
 ) -> UserResult<Secret<String>> {
+    let role_info = RoleInfo::from_role_id_org_id_tenant_id(
+        state,
+        &role_id,
+        &org_id,
+        tenant_id.as_ref().unwrap_or(&state.tenant.tenant_id),
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)?;
     let token = AuthToken::new_token(
         user_id,
         merchant_id,
-        role_id,
+        &role_info,
         &state.conf,
         org_id,
         profile_id,

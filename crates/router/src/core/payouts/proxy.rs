@@ -14,7 +14,7 @@ use hyperswitch_masking::PeekInterface;
 
 use super::{
     gateway::context::RouterGatewayContext,
-    kill_switch::PayoutKillSwitch,
+    should_allow_payouts::ShouldAllowPayouts,
     validator::{self, invalid_payout_request, validate_payout_condition},
     PayoutData,
 };
@@ -210,9 +210,19 @@ impl ExternalVaultPayout<'_> {
     ) -> RouterResponse<payouts::PayoutCreateResponse> {
         let state = self.state;
         let platform = self.platform;
-        PayoutKillSwitch::ensure_payouts_enabled(state, platform, Some(profile.get_id())).await?;
         let input =
             Box::pin(self.validate_proxy_create_request(req, profile, provider_profile)).await?;
+        ShouldAllowPayouts::ensure_payouts_enabled(
+            state,
+            platform,
+            Some(input.profile.get_id()),
+            ShouldAllowPayouts::get_resolved_payment_method_type(
+                None,
+                Some(&input.payment_method),
+                None,
+            ),
+        )
+        .await?;
         self.ensure_proxy_transport_available()?;
         let dimensions = dimension_state::Dimensions::new()
             .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
@@ -449,7 +459,7 @@ impl ExternalVaultPayout<'_> {
         )?;
         let provider = platform.get_provider();
         let external_vault_mca = state
-            .store
+            .accounts_store
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                 provider.get_account().get_id(),
                 &vault_connector_id,

@@ -130,7 +130,7 @@ pub async fn create_link_token(
 
     #[cfg(feature = "v1")]
     let merchant_connector_account = state
-        .store
+        .accounts_store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             platform.get_processor().get_account().get_id(),
             &selected_config.mca_id,
@@ -252,7 +252,7 @@ pub async fn exchange_token_core(
 
     #[cfg(feature = "v1")]
     let merchant_connector_account = state
-        .store
+        .accounts_store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             platform.get_processor().get_account().get_id(),
             &config.mca_id,
@@ -790,14 +790,13 @@ pub async fn retrieve_payment_method_from_auth_service(
     auth_token: &payment_methods::BankAccountTokenData,
     payment_intent: &PaymentIntent,
 ) -> RouterResult<Option<(domain::PaymentMethodData, enums::PaymentMethod)>> {
-    let db = state.store.as_ref();
-
     let connector = PaymentAuthConnectorData::get_connector_by_name(
         auth_token.connector_details.connector.as_str(),
     )?;
 
     #[cfg(feature = "v1")]
-    let mca = db
+    let mca = state
+        .accounts_store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &payment_intent.processor_merchant_id,
             &auth_token.connector_details.mca_id,

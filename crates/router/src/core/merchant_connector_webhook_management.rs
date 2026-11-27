@@ -27,15 +27,13 @@ use transformers as configure_connector_webhook_flow;
 use crate::{
     consts,
     core::{
+        configs::dimension_state,
         errors::{self, ConnectorErrorExt, RouterResponse, StorageErrorExt},
         payments::helpers,
         utils as core_utils,
     },
     routes::{metrics, SessionState},
-    services::{
-        self,
-        api::{self as service_api},
-    },
+    services::{self, api as service_api},
     types::{self, api, domain},
 };
 
@@ -182,12 +180,15 @@ pub async fn register_connector_webhook(
     api_models::merchant_connector_webhook_management::RegisterConnectorWebhookResponse,
 > {
     let db = state.store.as_ref();
-    let key_store = db
-        .get_merchant_key_store_by_merchant_id(merchant_id, &db.get_master_key().to_vec().into())
+    let key_store_master_key = db.get_master_key().to_vec().into();
+    let key_store = state
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(merchant_id, &key_store_master_key)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let mca = db
+    let mca = state
+        .accounts_store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             merchant_id,
             merchant_connector_id,
@@ -225,6 +226,18 @@ pub async fn register_connector_webhook(
         .get_webhook_registration_plan(scope, &state.conf.connectors)
         .to_webhook_configuration_failed_response()?;
 
+    let connector_requires_mtls = connector_data.connector.is_webhook_mtls_required();
+    let mtls_verification_enabled = dimension_state::Dimensions::new()
+        .with_connector(connector_data.connector_name)
+        .get_incoming_webhook_mtls_verification_enabled(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
+    let webhook_base_url = state
+        .get_webhook_registration_base_url(connector_requires_mtls, mtls_verification_enabled)?;
+
     let scope_type = configure_connector_webhook_flow::determine_scope_type(scope);
     let requested = configure_connector_webhook_flow::extract_requested_identifiers(scope);
 
@@ -258,7 +271,7 @@ pub async fn register_connector_webhook(
 
             let merchant_connector_id = mca.merchant_connector_id.get_string_repr();
             let webhook_url = helpers::create_webhook_url(
-                &state.base_url,
+                webhook_base_url,
                 &mca.merchant_id,
                 merchant_connector_id,
             );
@@ -499,7 +512,9 @@ pub async fn register_connector_webhook(
     );
 
     if should_update_db {
-        db.update_merchant_connector_account(mca.clone(), mca_update.foreign_into(), &key_store)
+        state
+            .accounts_store
+            .update_merchant_connector_account(mca.clone(), mca_update.foreign_into(), &key_store)
             .await
             .change_context(
                 errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
@@ -583,15 +598,15 @@ pub async fn fetch_connector_webhook(
 ) -> RouterResponse<api_models::merchant_connector_webhook_management::ConnectorWebhookListResponse>
 {
     let store = state.store.as_ref();
-    let key_store = store
-        .get_merchant_key_store_by_merchant_id(
-            &merchant_id,
-            &store.get_master_key().to_vec().into(),
-        )
+    let key_store_master_key = store.get_master_key().to_vec().into();
+    let key_store = state
+        .accounts_store
+        .get_merchant_key_store_by_merchant_id(&merchant_id, &key_store_master_key)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let mca = store
+    let mca = state
+        .accounts_store
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             &merchant_id,
             &merchant_connector_id,
