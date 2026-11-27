@@ -5,8 +5,9 @@
 //! Revokes connector-level mandates stored in
 //! `payment_methods.connector_mandate_details.payments[<merchant_connector_account_id>]` by calling
 //! each connector's `MandateRevoke` flow. Eligible entries are first moved to
-//! `MandateRevocationInitiated`, then become `Inactive` after connector confirmation or return to
-//! `Active` when the connector call fails. The `mandates` table is intentionally untouched (use
+//! `MandateRevocationInitiated`, then become `Inactive` after connector confirmation. Known
+//! connector failures return to `Active`; failures with an unknown connector outcome remain
+//! `MandateRevocationInitiated`. The `mandates` table is intentionally untouched (use
 //! `POST /mandates/revoke/{id}` for table-backed mandates).
 #![cfg(feature = "v1")]
 
@@ -276,13 +277,18 @@ fn connector_mandate_revoke_error_item(
 fn should_restore_connector_mandate_after_revoke_error(
     error: &error_stack::Report<errors::ApiErrorResponse>,
 ) -> bool {
-    !matches!(
+    let has_unknown_connector_outcome = matches!(
         error.current_context(),
         errors::ApiErrorResponse::ExternalConnectorError {
             status_code: 500..=599,
             ..
         }
-    )
+    ) || matches!(
+        error.downcast_ref::<errors::ConnectorError>(),
+        Some(errors::ConnectorError::ResponseDeserializationFailed)
+    );
+
+    !has_unknown_connector_outcome
 }
 
 struct PreparedConnectorMandateRevoke {
