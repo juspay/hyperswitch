@@ -145,6 +145,11 @@ pub enum ApiEventsType {
     ThreeDsDecisionRule,
     Oidc,
     CardIssuers,
+    #[cfg(feature = "v1")]
+    TelephoneOrder {
+        payment_id: Option<id_type::PaymentId>,
+        payment_method_id: Option<String>,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
