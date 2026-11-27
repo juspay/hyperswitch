@@ -355,6 +355,7 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
             stripe,
             jpmorgan,
             paypal: _,
+            rapyd,
         } = metadata;
         fn to_snake_case_string<T: serde::Serialize>(value: T) -> Option<String> {
             serde_json::to_value(value)
@@ -399,7 +400,7 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
             user_data3: worldpayraft
                 .as_ref()
                 .and_then(|data| data.user_data3.clone()),
-            ewallet: None,
+            ewallet: rapyd.as_ref().and_then(|data| data.ewallet.clone()),
         }
     }
 }

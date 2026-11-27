@@ -10982,6 +10982,18 @@ pub struct ConnectorMetadata {
     pub stripe: Option<StripeConnectorMetadata>,
     #[smithy(value_type = "Option<JpmorganConnectorMetadata>")]
     pub jpmorgan: Option<JpmorganConnectorMetadata>,
+    #[smithy(value_type = "Option<RapydConnectorMetadata>")]
+    pub rapyd: Option<RapydConnectorMetadata>,
+}
+
+/// Rapyd-specific metadata supplied with a payment request.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct RapydConnectorMetadata {
+    /// Destination wallet sent as ewallet in the Rapyd payment request.
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    pub ewallet: Option<Secret<String>>,
 }
 
 /// JPMorgan-specific metadata supplied with a payment request.
