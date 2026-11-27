@@ -26,7 +26,7 @@ use external_services::{
 };
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::revenue_recovery::retry_stats_document::{
-    SlotCounter, StatsDocument,
+    SlotCounter, SlotFamily, StatsDocument,
 };
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
@@ -2365,6 +2365,133 @@ fn select_systematic_k_day(
     Some((chosen, chosen_inclusion_probability))
 }
 
+/// The days a retry can be scheduled on: from the day after `decision_date` to the end of the grace
+/// window, which counts `decision_date`, capped at [`MAX_GRACE_DAYS`]. Empty when `grace_days <= 1`.
+#[cfg(feature = "v2")]
+fn retry_window(decision_date: time::Date, grace_days: u32) -> Vec<time::Date> {
+    let window_len = usize::try_from(grace_days.saturating_sub(1).min(MAX_GRACE_DAYS)).unwrap_or(0);
+    let start = decision_date.next_day().unwrap_or(decision_date);
+    std::iter::successors(Some(start), |day| day.next_day())
+        .take(window_len)
+        .collect()
+}
+
+/// One day of the retry window, scored on the hours since the card's last failure.
+#[cfg(feature = "v2")]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct DeltaDayScore {
+    pub date: time::Date,
+    /// Hours from the failure to the first of the day's hour slots. `None` when none of the day's
+    /// hours are among the recorded ones.
+    pub first_gap_hour: Option<u16>,
+    /// The day's hour slots, summed
+    pub pooled: SlotCounter,
+    /// The day's score against the window's other scored days. `None` when it is not scored.
+    pub score: Option<f64>,
+}
+
+/// Score each day of the retry window on the hours since the card's last failure.
+///
+/// Slot `h` of `delta_hours` covers `[last_failure_at + h hours, last_failure_at + h + 1 hours)`
+/// and belongs to the day its start falls on, so a day pools up to 24 slots. A day is scored when
+/// its pooled `n` reaches `min_retries` and its first slot starts less than `max_gap_days` days
+/// after the failure. The scored days are ranked against each other with [`slot_scores`], the
+/// scale of the day-of-week and day-of-month scores. The window is the one
+/// [`compute_predicted_retry_time`] proposes days from.
+#[cfg(feature = "v2")]
+pub(crate) fn delta_day_scores(
+    delta_hours: &[SlotCounter; SlotFamily::DELTA_HOURS_SLOT_COUNT],
+    last_failure_at: time::PrimitiveDateTime,
+    decision_date: time::Date,
+    grace_days: u32,
+    min_retries: u64,
+    max_gap_days: u32,
+) -> Vec<DeltaDayScore> {
+    let max_gap_hours = u64::from(max_gap_days).saturating_mul(24);
+    let days: Vec<DeltaDayScore> = retry_window(decision_date, grace_days)
+        .into_iter()
+        .map(|date| {
+            let (first_gap_hour, pooled) = pool_day_slots(delta_hours, last_failure_at, date);
+            DeltaDayScore {
+                date,
+                first_gap_hour,
+                pooled,
+                score: None,
+            }
+        })
+        .collect();
+
+    let scored_days: Vec<SlotCounter> = days
+        .iter()
+        .map(|day| {
+            let within_cap = day
+                .first_gap_hour
+                .is_some_and(|hour| u64::from(hour) < max_gap_hours);
+            if within_cap && day.pooled.n >= min_retries {
+                day.pooled
+            } else {
+                SlotCounter::default()
+            }
+        })
+        .collect();
+    let scores = slot_scores(&scored_days);
+
+    days.into_iter()
+        .enumerate()
+        .map(|(index, day)| DeltaDayScore {
+            score: u8::try_from(index)
+                .ok()
+                .and_then(|index| scores.get(&index).copied()),
+            ..day
+        })
+        .collect()
+}
+
+/// The first of `date`'s hour slots and the sum of all of them. Slots starting before the failure
+/// or past the last recorded hour are left out.
+#[cfg(feature = "v2")]
+fn pool_day_slots(
+    delta_hours: &[SlotCounter; SlotFamily::DELTA_HOURS_SLOT_COUNT],
+    last_failure_at: time::PrimitiveDateTime,
+    date: time::Date,
+) -> (Option<u16>, SlotCounter) {
+    let first_slot = hours_until(last_failure_at, date.midnight()).max(0);
+    let end_slot = date.next_day().map_or(first_slot, |next_day| {
+        hours_until(last_failure_at, next_day.midnight())
+    });
+    let day_slots = usize::try_from(first_slot)
+        .ok()
+        .zip(usize::try_from(end_slot).ok())
+        .and_then(|(first, end)| {
+            delta_hours.get(first..end.min(SlotFamily::DELTA_HOURS_SLOT_COUNT))
+        })
+        .filter(|slots| !slots.is_empty());
+
+    match day_slots {
+        Some(slots) => {
+            let pooled = slots
+                .iter()
+                .fold(SlotCounter::default(), |pooled, slot| SlotCounter {
+                    n: pooled.n.saturating_add(slot.n),
+                    k: pooled.k.saturating_add(slot.k),
+                });
+            (u16::try_from(first_slot).ok(), pooled)
+        }
+        None => (None, SlotCounter::default()),
+    }
+}
+
+/// The smallest whole number of hours `h` with `from + h hours >= to`; negative when `to` is
+/// earlier than `from`.
+#[cfg(feature = "v2")]
+fn hours_until(from: time::PrimitiveDateTime, to: time::PrimitiveDateTime) -> i64 {
+    const NANOSECONDS_PER_HOUR: i128 = 3_600_000_000_000;
+    let nanoseconds = (to - from).whole_nanoseconds();
+    let hours = nanoseconds.div_euclid(NANOSECONDS_PER_HOUR)
+        + i128::from(nanoseconds.rem_euclid(NANOSECONDS_PER_HOUR) != 0);
+    i64::try_from(hours).unwrap_or(if hours < 0 { i64::MIN } else { i64::MAX })
+}
+
 /// Predict the retry datetime from cluster stats.
 ///
 /// * `stats`      the cluster's parsed success stats (dow/dom/hod `{n,k}` counters)
@@ -2434,17 +2561,9 @@ pub fn compute_predicted_retry_time(
             "retry model: grace window capped"
         );
     }
-    // future_days is capped at MAX_GRACE_DAYS (31), so this always fits usize; 0 is an unreachable
-    // safe floor (would just leave the single seeded `start` day).
-    let window_len = usize::try_from(future_days.min(MAX_GRACE_DAYS)).unwrap_or(0);
-    let start = now.date().next_day().unwrap_or(now.date());
-    let mut dates = vec![start];
-    while dates.len() < window_len {
-        match dates.last().and_then(|d| d.next_day()) {
-            Some(next) => dates.push(next),
-            None => break,
-        }
-    }
+    let dates = retry_window(now.date(), grace_days);
+    let window_len = dates.len();
+    let start = *dates.first()?;
 
     logger::debug!(
         budget = budget,
@@ -3381,5 +3500,179 @@ mod retry_model_tests {
             approx(pi, 1.0, 1e-9),
             "every day should be certain, got {pi}"
         );
+    }
+
+    fn at(day: u8, hour: u8, minute: u8) -> time::PrimitiveDateTime {
+        let date = time::Date::from_calendar_date(2026, time::Month::November, day)
+            .expect("valid calendar date");
+        let clock = time::Time::from_hms(hour, minute, 0).expect("valid time");
+        time::PrimitiveDateTime::new(date, clock)
+    }
+
+    fn date(day: u8) -> time::Date {
+        time::Date::from_calendar_date(2026, time::Month::November, day)
+            .expect("valid calendar date")
+    }
+
+    fn no_delta_hours() -> [SlotCounter; SlotFamily::DELTA_HOURS_SLOT_COUNT] {
+        [SlotCounter::default(); SlotFamily::DELTA_HOURS_SLOT_COUNT]
+    }
+
+    /// Slot `h` holds `{n: 10 + h, k: h % 5}`, so every slot's contribution is distinct.
+    fn distinct_delta_hours() -> [SlotCounter; SlotFamily::DELTA_HOURS_SLOT_COUNT] {
+        let mut slots = no_delta_hours();
+        for (hour, slot) in (0u64..).zip(slots.iter_mut()) {
+            *slot = ctr(10 + hour, hour % 5);
+        }
+        slots
+    }
+
+    fn summed(
+        slots: &[SlotCounter; SlotFamily::DELTA_HOURS_SLOT_COUNT],
+        hours: std::ops::Range<usize>,
+    ) -> SlotCounter {
+        slots
+            .get(hours)
+            .expect("hours in range")
+            .iter()
+            .fold(SlotCounter::default(), |sum, slot| {
+                ctr(sum.n + slot.n, sum.k + slot.k)
+            })
+    }
+
+    #[test]
+    fn retry_window_starts_the_day_after_the_decision_date() {
+        assert!(retry_window(date(23), 0).is_empty());
+        assert!(retry_window(date(23), 1).is_empty());
+        assert_eq!(retry_window(date(23), 2), vec![date(24)]);
+        assert_eq!(
+            retry_window(date(23), 4),
+            vec![date(24), date(25), date(26)]
+        );
+        assert_eq!(retry_window(date(23), 40).len(), 31);
+    }
+
+    #[test]
+    fn delta_day_scores_cover_the_retry_window() {
+        let days = delta_day_scores(&no_delta_hours(), at(23, 9, 0), date(23), 6, 0, 30);
+        let dates: Vec<time::Date> = days.iter().map(|day| day.date).collect();
+
+        assert_eq!(dates, retry_window(date(23), 6));
+        assert!(delta_day_scores(&no_delta_hours(), at(23, 9, 0), date(23), 1, 0, 30).is_empty());
+    }
+
+    #[test]
+    fn each_calendar_day_pools_the_hour_slots_that_start_on_it() {
+        let slots = distinct_delta_hours();
+        // A failure at Mon 22:30: slot 1 starts Mon 23:30, slot 2 starts Tue 00:30.
+        let days = delta_day_scores(&slots, at(23, 22, 30), date(23), 4, 0, 30);
+
+        let tuesday = days.first().expect("window has Tuesday");
+        assert_eq!(tuesday.date, date(24));
+        assert_eq!(tuesday.first_gap_hour, Some(2));
+        assert_eq!(tuesday.pooled, summed(&slots, 2..26));
+
+        let wednesday = days.get(1).expect("window has Wednesday");
+        assert_eq!(wednesday.first_gap_hour, Some(26));
+        assert_eq!(wednesday.pooled, summed(&slots, 26..50));
+    }
+
+    #[test]
+    fn a_failure_on_the_hour_starts_the_next_day_on_a_whole_day() {
+        let slots = distinct_delta_hours();
+        let days = delta_day_scores(&slots, at(23, 0, 0), date(23), 3, 0, 30);
+
+        let tuesday = days.first().expect("window has Tuesday");
+        assert_eq!(tuesday.first_gap_hour, Some(24));
+        assert_eq!(tuesday.pooled, summed(&slots, 24..48));
+    }
+
+    #[test]
+    fn a_day_reaching_past_the_recorded_hours_pools_only_the_recorded_ones() {
+        let slots = distinct_delta_hours();
+        // 712 hours before Tue 24 Nov 00:00.
+        let failed_at = at(24, 0, 0) - time::Duration::hours(712);
+        let days = delta_day_scores(&slots, failed_at, date(23), 3, 0, 30);
+
+        let tuesday = days.first().expect("window has Tuesday");
+        assert_eq!(tuesday.first_gap_hour, Some(712));
+        assert_eq!(tuesday.pooled, summed(&slots, 712..720));
+
+        let wednesday = days.get(1).expect("window has Wednesday");
+        assert_eq!(wednesday.first_gap_hour, None);
+        assert_eq!(wednesday.pooled, SlotCounter::default());
+        assert_eq!(wednesday.score, None);
+    }
+
+    #[test]
+    fn hours_before_the_failure_are_left_out() {
+        let slots = distinct_delta_hours();
+        // A failure timestamp later than now: Wed 12:00, while the window starts on Tuesday.
+        let days = delta_day_scores(&slots, at(25, 12, 0), date(23), 4, 0, 30);
+
+        let tuesday = days.first().expect("window has Tuesday");
+        assert_eq!(tuesday.first_gap_hour, None);
+        assert_eq!(tuesday.score, None);
+
+        let wednesday = days.get(1).expect("window has Wednesday");
+        assert_eq!(wednesday.first_gap_hour, Some(0));
+        assert_eq!(wednesday.pooled, summed(&slots, 0..12));
+    }
+
+    #[test]
+    fn days_below_min_retries_or_past_max_gap_days_are_not_scored() {
+        let slots = distinct_delta_hours();
+        // Failure Mon 00:00: Tuesday pools slots 24..48, Wednesday 48..72, Thursday 72..96.
+        let tuesday_n = summed(&slots, 24..48).n;
+        let days = delta_day_scores(&slots, at(23, 0, 0), date(23), 5, tuesday_n + 1, 3);
+        let scored: Vec<bool> = days.iter().map(|day| day.score.is_some()).collect();
+
+        // Tuesday has too few retries; Wednesday qualifies; Thursday starts 72 h = 3 days after.
+        assert_eq!(scored, vec![false, true, false, false]);
+    }
+
+    #[test]
+    fn no_delta_hours_scores_no_day() {
+        let days = delta_day_scores(&no_delta_hours(), at(23, 0, 0), date(23), 10, 0, 30);
+
+        assert!(days.iter().all(|day| day.score.is_none()));
+    }
+
+    #[test]
+    fn a_single_scored_day_scores_neutral() {
+        let mut slots = no_delta_hours();
+        if let Some(slot) = slots.get_mut(30) {
+            *slot = ctr(150, 30);
+        }
+        let days = delta_day_scores(&slots, at(23, 0, 0), date(23), 4, 100, 30);
+        let scores: Vec<Option<f64>> = days.iter().map(|day| day.score).collect();
+
+        assert_eq!(scores, vec![Some(0.0), None, None]);
+    }
+
+    #[test]
+    fn scored_days_rank_like_slot_scores_on_their_pooled_counters() {
+        let mut slots = no_delta_hours();
+        // Failure Mon 00:00: Tuesday pools slot 30, Wednesday slot 50.
+        if let Some(slot) = slots.get_mut(30) {
+            *slot = ctr(200, 20);
+        }
+        if let Some(slot) = slots.get_mut(50) {
+            *slot = ctr(200, 60);
+        }
+        let days = delta_day_scores(&slots, at(23, 0, 0), date(23), 3, 100, 30);
+        let tuesday = days
+            .first()
+            .and_then(|day| day.score)
+            .expect("Tuesday scored");
+        let wednesday = days
+            .get(1)
+            .and_then(|day| day.score)
+            .expect("Wednesday scored");
+        let expected = slot_scores(&[ctr(200, 20), ctr(200, 60)]);
+
+        assert!(wednesday > tuesday);
+        assert_eq!(Some(&tuesday), expected.get(&0));
+        assert_eq!(Some(&wednesday), expected.get(&1));
     }
 }
