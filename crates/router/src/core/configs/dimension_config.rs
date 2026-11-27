@@ -1472,6 +1472,29 @@ impl DatabaseBackedConfig for PreferredConnectorsRoutingEnabled {
 }
 
 config! {
+    superposition_key = SESSION_OVERRIDE,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndPaymentMethodType,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for SessionOverride {
+    const KEY: &'static str = "session_override";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        let profile_id = dimensions.get_profile_id()?;
+        let wallet_type = dimensions.get_payment_method_type()?;
+        Some(format!(
+            "{}_{}_wallets_{}",
+            Self::KEY,
+            profile_id.get_string_repr(),
+            wallet_type,
+        ))
+    }
+}
+
+config! {
     superposition_key = PAYOUT_BLOCKLIST_GUARD,
     output = bool,
     default = false,
