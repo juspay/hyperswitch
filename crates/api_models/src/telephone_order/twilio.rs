@@ -1,7 +1,9 @@
-use std::collections::HashMap;
+use std::{borrow::Cow, collections::HashMap};
 
 use hyperswitch_masking::Secret;
 use utoipa::ToSchema;
+
+use crate::telephone_order::response_parameters;
 
 /// The operation Twilio is asking us to perform. Set by the `<Pay>` verb's `chargeAmount`: `0` or
 /// absent makes it a `tokenize`, any other value a `charge`.
@@ -148,5 +150,27 @@ impl TwilioGenericPayResponse {
             error_message: Some(error_message),
             parameters,
         }
+    }
+
+    /// The payment this response reports: `charge_id` on a charge, `parameters` on a tokenize or
+    /// a failure that reached one. `None` only where a request was rejected on its way in.
+    pub fn payment_id(&self) -> Option<common_utils::id_type::PaymentId> {
+        self.charge_id.clone().or_else(|| {
+            self.parameters
+                .get(response_parameters::PAYMENT_ID)
+                .cloned()
+                .and_then(|payment_id| {
+                    common_utils::id_type::PaymentId::try_from(Cow::Owned(payment_id)).ok()
+                })
+        })
+    }
+
+    /// The card this response stored: a tokenize's `token_id`, or the one a charge kept.
+    pub fn payment_method_id(&self) -> Option<String> {
+        self.token_id.clone().or_else(|| {
+            self.parameters
+                .get(response_parameters::PAYMENT_METHOD_ID)
+                .cloned()
+        })
     }
 }

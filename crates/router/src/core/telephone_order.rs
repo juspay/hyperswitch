@@ -2,6 +2,7 @@ pub mod twilio;
 
 use std::collections::HashMap;
 
+use api_models::telephone_order::response_parameters;
 use common_utils::events::ApiEventMetric;
 use hyperswitch_domain_models::payments::HeaderPayload;
 use router_env::logger;
@@ -159,10 +160,9 @@ pub struct Context {
 }
 
 impl Context {
-    /// The IVR's address, with the postal code the provider collected filling in for a missing
-    /// `zip`. A fallback, not an override: an IVR that sent a whole address sent a coherent one,
-    /// and dropping a phone-collected postal code into the middle of it would make an address
-    /// that matches nothing — which fails AVS harder than either would alone.
+    /// The IVR's address, with the postal code the provider collected written over its `zip`. The
+    /// caller keyed that in on this call, so it beats a `<Parameter>` address built from whatever
+    /// the merchant's records hold.
     pub fn billing_address(
         &self,
         postal_code: Option<hyperswitch_masking::Secret<String>>,
@@ -172,12 +172,9 @@ impl Context {
         }
 
         let mut billing = self.billing.clone().unwrap_or_default();
+        // Only when there is one: assigning `None` would clear a zip the IVR sent.
         if let Some(postal_code) = postal_code {
-            billing
-                .address
-                .get_or_insert_with(Default::default)
-                .zip
-                .get_or_insert(postal_code);
+            billing.address.get_or_insert_with(Default::default).zip = Some(postal_code);
         }
         Some(billing)
     }
@@ -320,14 +317,13 @@ pub trait TelephoneOrderAdapter {
     ) -> RouterResponse<Self::Response> {
         let transaction_reference = Self::transaction_reference(&request);
 
-        let context = build_context(
+        let intent = build_context(
             &auth,
             Self::parameters(&request),
             Self::resolve_payment_id(&request),
-        );
-
-        let intent = Self::build_intent(&request, context)
-            .and_then(|intent| intent.try_map(finalize_payments_request));
+        )
+        .and_then(|context| Self::build_intent(&request, context))
+        .and_then(|intent| intent.try_map(finalize_payments_request));
 
         let outcome = match intent {
             Err(failure) => Err(failure),
@@ -496,16 +492,16 @@ where
     })
 }
 
-/// Reads the parameters the IVR passed through. Nothing is parsed here: [`Parameters`] holds these
-/// as their own types, so an unusable one failed the request's deserialization at the route. The
-/// profile was resolved by authentication, the payment id by
+/// Reads the parameters the IVR passed through. Most hold their own types, so an unusable one
+/// failed deserialization at the route. The two carrying JSON as text are parsed here instead.
+/// The profile was resolved by authentication, the payment id by
 /// [`TelephoneOrderAdapter::resolve_payment_id`] — which the route needed first, to lock on.
 fn build_context(
     auth: &AuthenticationData,
     parameters: Option<&Parameters>,
     payment_id: Option<common_utils::id_type::PaymentId>,
-) -> Context {
-    Context {
+) -> Result<Context, Failure> {
+    Ok(Context {
         // The profile authentication settled, which is the one the IVR named when it named one:
         // `parameters.profile_id` reaches auth through the adapter's `authenticator`.
         profile_id: auth
@@ -518,30 +514,53 @@ fn build_context(
             .and_then(|parameters| parameters.capture_method)
             .map(common_enums::CaptureMethod::from),
         setup_future_usage: parameters.and_then(|parameters| parameters.setup_future_usage),
-        customer_acceptance: build_customer_acceptance(parameters),
+        customer_acceptance: build_customer_acceptance(parameters)?,
         tokenization: parameters.and_then(|parameters| parameters.tokenization),
-        billing: build_billing(parameters),
+        billing: parse_json_parameter("billing", parameters.and_then(|p| p.billing.as_ref()))?,
         metadata: build_metadata(parameters),
-    }
+    })
+}
+
+/// Reads a `<Parameter>` whose value is JSON carried as text, since a tag's value is always a
+/// string. Parsed here rather than in the request's own deserialization so a malformed one can be
+/// answered with an `error_code` rather than the `422` a serde failure there would leave.
+fn parse_json_parameter<T>(name: &str, json: Option<&String>) -> Result<Option<T>, Failure>
+where
+    T: serde::de::DeserializeOwned,
+{
+    json.map(|json| {
+        serde_json::from_str(json).map_err(|error| {
+            // Where it broke, not what it said: serde quotes the offending value into some of
+            // its messages, and `billing` carries a name, an email and an address.
+            Failure::new(
+                error_codes::INVALID_REQUEST,
+                format!(
+                    "{name} is not valid JSON: line {}, column {}",
+                    error.line(),
+                    error.column()
+                ),
+            )
+        })
+    })
+    .transpose()
 }
 
 /// `None` unless the provider sent one; [`finalize_payments_request`] rejects what needs it.
 fn build_customer_acceptance(
     parameters: Option<&Parameters>,
-) -> Option<common_types::payments::CustomerAcceptance> {
-    let mut acceptance = parameters?.customer_acceptance.clone()?;
+) -> Result<Option<common_types::payments::CustomerAcceptance>, Failure> {
+    let acceptance: Option<common_types::payments::CustomerAcceptance> = parse_json_parameter(
+        "customer_acceptance",
+        parameters.and_then(|parameters| parameters.customer_acceptance.as_ref()),
+    )?;
 
-    // `now` is a little late — the disclosure plays before the card — but within the same call.
-    acceptance
-        .accepted_at
-        .get_or_insert_with(common_utils::date_time::now);
-
-    Some(acceptance)
-}
-
-/// The IVR's billing address. Twilio cannot send one; see [`Parameters::billing`].
-fn build_billing(parameters: Option<&Parameters>) -> Option<api_models::payments::Address> {
-    parameters?.billing.clone()
+    Ok(acceptance.map(|mut acceptance| {
+        // `now` is a little late — the disclosure plays before the card — but within the same call.
+        acceptance
+            .accepted_at
+            .get_or_insert_with(common_utils::date_time::now);
+        acceptance
+    }))
 }
 
 /// Carries the merchant's own parameters through to the payment, for reconciliation. Lands in
@@ -563,28 +582,10 @@ fn build_metadata(parameters: Option<&Parameters>) -> Option<serde_json::Value> 
 fn finalize_payments_request(
     mut payments_request: api_models::payments::PaymentsRequest,
 ) -> Result<api_models::payments::PaymentsRequest, Failure> {
-    // What a stored card needs, checked here: every adapter passes through this function.
-    if payments_request.setup_future_usage.is_some() {
-        // Caught before the core, whose message names `setup_future_usage` — not a field any
-        // IVR set.
-        if payments_request.customer_id.is_none() {
-            return Err(Failure::new(
-                error_codes::CUSTOMER_REQUIRED,
-                "customer_id is required to store a card. Pass it as a <Parameter>",
-            ));
-        }
+    validate_card_storage(&payments_request)?;
 
-        // Never written here: an invented consent record would be worth nothing. The save is
-        // gated on it anyway, so without it the payment succeeds and stores nothing.
-        if payments_request.customer_acceptance.is_none() {
-            return Err(Failure::new(
-                error_codes::ACCEPTANCE_REQUIRED,
-                "customer_acceptance is required to store a card. Ask the caller to agree and \
-                 pass it as a <Parameter>",
-            ));
-        }
-    }
-
+    // `PaymentsRequest::validate` is derived by `router_derive::ValidateSchema` and enforces only
+    // the field lengths the schema declares, which is why the rules above are ours.
     payments_request
         .validate()
         .map_err(|message| Failure::new(error_codes::INVALID_REQUEST, message))?;
@@ -599,6 +600,39 @@ fn finalize_payments_request(
     )?;
 
     Ok(payments_request)
+}
+
+/// What a stored card needs, checked in one place: every adapter reaches the payment through
+/// [`finalize_payments_request`]. A telephone order's own rules — an IVR cannot come back for a
+/// second call to collect what it missed — so not `PaymentsRequest`'s.
+fn validate_card_storage(
+    payments_request: &api_models::payments::PaymentsRequest,
+) -> Result<(), Failure> {
+    // Nothing is being stored, so neither rule applies.
+    if payments_request.setup_future_usage.is_none() {
+        return Ok(());
+    }
+
+    // The core rejects this too, but its message names `setup_future_usage` — not a field any
+    // IVR set. Caught here so the merchant is told which `<Parameter>` is missing.
+    if payments_request.customer_id.is_none() {
+        return Err(Failure::new(
+            error_codes::CUSTOMER_REQUIRED,
+            "customer_id is required to store a card. Pass it as a <Parameter>",
+        ));
+    }
+
+    // Never written here: an invented consent record would be worth nothing. The save is gated on
+    // it anyway, so without it the payment succeeds and stores nothing.
+    if payments_request.customer_acceptance.is_none() {
+        return Err(Failure::new(
+            error_codes::ACCEPTANCE_REQUIRED,
+            "customer_acceptance is required to store a card. Ask the caller to agree and \
+             pass it as a <Parameter>",
+        ));
+    }
+
+    Ok(())
 }
 
 /// One id per provider attempt, shared by its retries. Derived, not generated: Twilio resends the
@@ -673,7 +707,7 @@ async fn retrieve_payment(
                 "A payment already exists for this payment_id",
             )
             .with_parameters(ResponseParameters::from([(
-                "payment_id".to_string(),
+                response_parameters::PAYMENT_ID.to_string(),
                 payment_id.get_string_repr().to_owned(),
             )])))
         }
@@ -804,7 +838,7 @@ fn decline_failure(payment: &api_models::payments::PaymentsResponse) -> Failure 
 fn outcome_parameters(payment: &api_models::payments::PaymentsResponse) -> ResponseParameters {
     let mut parameters = ResponseParameters::from([
         (
-            "payment_id".to_string(),
+            response_parameters::PAYMENT_ID.to_string(),
             payment.payment_id.get_string_repr().to_owned(),
         ),
         ("status".to_string(), payment.status.to_string()),
@@ -828,7 +862,10 @@ fn outcome_parameters(payment: &api_models::payments::PaymentsResponse) -> Respo
         ),
         ("unified_code", payment.unified_code.clone()),
         // Sent on a failure too: the card may have been kept where the money did not move.
-        ("payment_method_id", payment.payment_method_id.clone()),
+        (
+            response_parameters::PAYMENT_METHOD_ID,
+            payment.payment_method_id.clone(),
+        ),
         (
             "amount_received",
             payment
