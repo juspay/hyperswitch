@@ -469,7 +469,7 @@ where
         .and_then(|customer| customer.connector_customer.as_ref());
 
     let (customer_update, call_connector_service_response, updated_state) =
-        payments::decide_unified_connector_service_call(
+        Box::pin(payments::decide_unified_connector_service_call(
             state,
             platform.get_processor(),
             platform.get_initiator(),
@@ -487,7 +487,7 @@ where
             merchant_connector_account.clone(),
             router_data,
             tokenization_action,
-        )
+        ))
         .await?;
     let customer = operation
         .to_domain()?

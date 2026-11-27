@@ -291,7 +291,7 @@ where
                 .await?;
 
             let (call_connector_service_response, updated_state) =
-                decide_unified_connector_service_call(
+                Box::pin(decide_unified_connector_service_call(
                     state,
                     req_state.clone(),
                     platform.get_processor(),
@@ -310,7 +310,7 @@ where
                     mca_type_details.clone(),
                     router_data,
                     tokenization_action,
-                )
+                ))
                 .await?;
 
             // Update customer at provider level before update_trackers
@@ -402,7 +402,7 @@ where
                 .await?;
 
             let (call_connector_service_response, updated_state) =
-                decide_unified_connector_service_call(
+                Box::pin(decide_unified_connector_service_call(
                     state,
                     req_state.clone(),
                     platform.get_processor(),
@@ -421,7 +421,7 @@ where
                     mca_type_details.clone(),
                     router_data,
                     tokenization_action,
-                )
+                ))
                 .await?;
 
             // Update customer at provider level before update_trackers
@@ -1218,7 +1218,7 @@ where
                         .await?;
 
                     let (updated_customer, call_connector_service_response, updated_state) =
-                        decide_unified_connector_service_call(
+                        Box::pin(decide_unified_connector_service_call(
                             state,
                             platform.get_processor(),
                             platform.get_initiator(),
@@ -1236,7 +1236,7 @@ where
                             merchant_connector_account.clone(),
                             router_data,
                             tokenization_action,
-                        )
+                        ))
                         .await?;
 
                     // Update customer at provider level before update_trackers
@@ -1424,7 +1424,7 @@ where
                         .await?;
 
                     let (updated_customer, call_connector_service_response, updated_state) =
-                        decide_unified_connector_service_call(
+                        Box::pin(decide_unified_connector_service_call(
                             state,
                             platform.get_processor(),
                             platform.get_initiator(),
@@ -1442,7 +1442,7 @@ where
                             merchant_connector_account.clone(),
                             router_data,
                             tokenization_action,
-                        )
+                        ))
                         .await?;
 
                     // Update customer at provider level before update_trackers
@@ -6542,7 +6542,7 @@ where
         (router_data, should_continue_further)
     };
 
-    let updated_customer = call_create_connector_customer_if_required(
+    let updated_customer = Box::pin(call_create_connector_customer_if_required(
         state,
         connector_customer_map,
         processor,
@@ -6552,7 +6552,7 @@ where
         payment_data,
         router_data.access_token.as_ref(),
         &context,
-    )
+    ))
     .await?;
 
     if let Some(connector_customer_id) = core_utils::get_connector_customer_id(
@@ -7112,16 +7112,17 @@ where
     // Extract previous gateway from payment data
     let previous_gateway = extract_gateway_system_from_payment_intent(payment_data);
 
-    let (execution_path, updated_state, rollout_result) = should_call_unified_connector_service(
-        state,
-        processor,
-        &router_data,
-        previous_gateway,
-        call_connector_action.clone(),
-        shadow_ucs_call_connector_action.clone(),
-        common_enums::TransactionType::Payment,
-    )
-    .await?;
+    let (execution_path, updated_state, rollout_result) =
+        Box::pin(should_call_unified_connector_service(
+            state,
+            processor,
+            &router_data,
+            previous_gateway,
+            call_connector_action.clone(),
+            shadow_ucs_call_connector_action.clone(),
+            common_enums::TransactionType::Payment,
+        ))
+        .await?;
 
     let lineage_ids = grpc_client::LineageIds::new(
         business_profile.merchant_id.clone(),
@@ -7155,7 +7156,7 @@ where
             gateway_context.get_gateway_system(),
         )?;
     }
-    let (updated_customer, call_connector_service_response) = call_connector_service(
+    let (updated_customer, call_connector_service_response) = Box::pin(call_connector_service(
         &updated_state,
         processor,
         initiator,
@@ -7172,7 +7173,7 @@ where
         router_data,
         tokenization_action,
         gateway_context,
-    )
+    ))
     .await?;
 
     Ok((
