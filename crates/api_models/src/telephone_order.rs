@@ -152,10 +152,7 @@ mod tests {
         let billing = parameters.billing.expect("billing should be read");
         let address = billing.address.expect("billing address should be read");
         assert_eq!(address.city.as_deref(), Some("San Francisco"));
-        assert_eq!(
-            address.country,
-            Some(common_enums::CountryAlpha2::US)
-        );
+        assert_eq!(address.country, Some(common_enums::CountryAlpha2::US));
     }
 
     /// The shape a caller posting structured parameters sends. Both forms reach the same payment.
