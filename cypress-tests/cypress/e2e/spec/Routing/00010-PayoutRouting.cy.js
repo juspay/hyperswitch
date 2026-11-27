@@ -34,6 +34,10 @@ describe("Payout Priority Routing Test", () => {
     }
   });
 
+  it("enable-payouts-for-routing-test-merchant", () => {
+    cy.enablePayouts(globalState);
+  });
+
   context("Payout Priority Routing - default connector", () => {
     before("setup payout context", () => {
       if (outerGuardPassed) {

@@ -90,11 +90,7 @@ pub use crate::{
         kafka::{KafkaError, KafkaProducer, MQResult},
         Store,
     },
-    types::{
-        domain,
-        storage::{self},
-        AccessToken,
-    },
+    types::{domain, storage, AccessToken},
 };
 
 #[derive(PartialEq, Eq)]

@@ -3,7 +3,7 @@ pub use api_models::payments::RetrievePaymentLinkResponse;
 use crate::{
     consts::DEFAULT_SESSION_EXPIRY,
     core::{errors::RouterResult, payment_link},
-    types::storage::{self},
+    types::storage,
 };
 
 #[async_trait::async_trait]

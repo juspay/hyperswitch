@@ -122,6 +122,8 @@ where
                         Flow::PayoutsConfirm,
                         Flow::PayoutsFulfill,
                         Flow::PayoutsCancel,
+                        Flow::PayoutsAccept,
+                        Flow::PayoutsReject,
                         Flow::PayoutsRetrieve,
                         Flow::PayoutLinkInitiate,
                         Flow::PayoutsUpdate,

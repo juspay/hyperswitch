@@ -3612,6 +3612,9 @@
         "security": [
           {
             "admin_api_key": []
+          },
+          {
+            "api_key": []
           }
         ]
       }
@@ -7963,6 +7966,9 @@
           "400": {
             "description": "Missing mandatory fields or invalid request"
           },
+          "404": {
+            "description": "Customer does not exist in the merchant's records"
+          },
           "501": {
             "description": "External-vault proxy payout execution is not implemented yet"
           }
@@ -8028,6 +8034,7 @@
           "Payouts"
         ],
         "summary": "Payouts - Update",
+        "description": "Updates payout details while preserving the amount, currency, and associated customer. Supplied customer contact details are ignored. Do not include amount, currency, customer_id, or customer.id.",
         "operationId": "Update a Payout",
         "parameters": [
           {
@@ -8062,7 +8069,13 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing mandatory fields or invalid request"
+          },
+          "404": {
+            "description": "Payout does not exist in the merchant's records"
+          },
+          "422": {
+            "description": "Request contains fields that cannot be updated"
           }
         },
         "security": [
@@ -8128,6 +8141,7 @@
           "Payouts"
         ],
         "summary": "Payouts - Fulfill",
+        "description": "Fulfills the existing payout using the payout_id from the URL. Request body fields are ignored.",
         "operationId": "Fulfill a Payout",
         "parameters": [
           {
@@ -8140,16 +8154,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PayoutFulfillRequest"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "200": {
             "description": "Payout fulfilled",
@@ -8163,6 +8167,100 @@
           },
           "400": {
             "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/payouts/{payout_id}/accept": {
+      "post": {
+        "tags": [
+          "Payouts"
+        ],
+        "summary": "Payouts - Accept",
+        "description": "Accept a payout in `requires_review` status and fulfill it using the payout fulfillment flow.\nPayouts in any other status cannot be accepted.\n\nReview actions require the shared Superposition flag `should_allow_review_flow`, which defaults to `false`, to be explicitly enabled by a matching organization, merchant, or profile override.",
+        "operationId": "Accept a Payout",
+        "parameters": [
+          {
+            "name": "payout_id",
+            "in": "path",
+            "description": "The identifier for payout",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payout accepted and fulfilled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayoutCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields or payout review flow is not enabled for this profile"
+          },
+          "404": {
+            "description": "Payout does not exist in the merchant's records"
+          },
+          "422": {
+            "description": "Payout is not in requires_review status"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/payouts/{payout_id}/reject": {
+      "post": {
+        "tags": [
+          "Payouts"
+        ],
+        "summary": "Payouts - Reject",
+        "description": "Reject a payout in `requires_review` status and cancel it using the payout cancellation flow.\nPayouts in any other status cannot be rejected.\n\nReview actions require the shared Superposition flag `should_allow_review_flow`, which defaults to `false`, to be explicitly enabled by a matching organization, merchant, or profile override.",
+        "operationId": "Reject a Payout",
+        "parameters": [
+          {
+            "name": "payout_id",
+            "in": "path",
+            "description": "The identifier for payout",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payout rejected and cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayoutCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields or payout review flow is not enabled for this profile"
+          },
+          "404": {
+            "description": "Payout does not exist in the merchant's records"
+          },
+          "422": {
+            "description": "Payout is not in requires_review status"
           }
         },
         "security": [
@@ -8300,6 +8398,7 @@
           "Payouts"
         ],
         "summary": "Payouts - Confirm",
+        "description": "Confirms the existing payout while preserving the amount, currency, and associated customer. Supplied customer contact details are ignored. Do not include amount, currency, customer_id, or customer.id.",
         "operationId": "Confirm a Payout",
         "parameters": [
           {
@@ -8334,7 +8433,13 @@
             }
           },
           "400": {
-            "description": "Missing Mandatory fields"
+            "description": "Missing mandatory fields or invalid request"
+          },
+          "404": {
+            "description": "Payout does not exist in the merchant's records"
+          },
+          "422": {
+            "description": "Request contains fields that cannot be updated"
           }
         },
         "security": [
@@ -10515,11 +10620,11 @@
                     "expiry_year": "28",
                     "method": "charge",
                     "parameters": {
-                      "payment_id": "pay_8320b449b06630271e378214dab80ce5",
-                      "profile_id": "pro_GUMsmmzTU7oadT00pJeo"
+                      "payment_id": "pay_1234",
+                      "profile_id": "pro_1234"
                     },
                     "postal_code": "94122",
-                    "transaction_id": "IPe16430-39ba-4820-bedc-7aad0762a487"
+                    "transaction_id": "IP1234"
                   }
                 }
               }
@@ -10538,16 +10643,16 @@
                 "examples": {
                   "01. The card was charged": {
                     "value": {
-                      "charge_id": "pay_8320b449b06630271e378214dab80ce5",
+                      "charge_id": "pay_1234",
                       "error_code": null,
                       "error_message": null,
                       "parameters": {
                         "amount_capturable": "0",
                         "amount_received": "100",
                         "connector": "stripe",
-                        "connector_transaction_id": "pi_3URyI8D5R7gDAGff17RhZpfW",
-                        "merchant_order_reference_id": "IPe16430-39ba-4820-bedc-7aad0762a487",
-                        "payment_id": "pay_8320b449b06630271e378214dab80ce5",
+                        "connector_transaction_id": "pi_1234",
+                        "merchant_order_reference_id": "IP1234",
+                        "payment_id": "pay_1234",
                         "status": "succeeded"
                       }
                     }
@@ -10559,8 +10664,8 @@
                       "error_message": "Your card was declined.",
                       "parameters": {
                         "connector": "stripe",
-                        "merchant_order_reference_id": "IPe16430-39ba-4820-bedc-7aad0762a487",
-                        "payment_id": "pay_8320b449b06630271e378214dab80ce5",
+                        "merchant_order_reference_id": "IP1234",
+                        "payment_id": "pay_1234",
                         "status": "failed",
                         "unified_code": "UE_9000"
                       }
@@ -10573,8 +10678,8 @@
                       "error_message": "Payment is not yet complete",
                       "parameters": {
                         "connector": "stripe",
-                        "merchant_order_reference_id": "IPe16430-39ba-4820-bedc-7aad0762a487",
-                        "payment_id": "pay_8320b449b06630271e378214dab80ce5",
+                        "merchant_order_reference_id": "IP1234",
+                        "payment_id": "pay_1234",
                         "status": "processing"
                       }
                     }
@@ -20038,6 +20143,14 @@
             ],
             "nullable": true
           },
+          "worldpayraft": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorldpayraftConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
           "checkout": {
             "allOf": [
               {
@@ -20050,6 +20163,22 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/StripeConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "jpmorgan": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JpmorganConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "rapyd": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RapydConnectorMetadata"
               }
             ],
             "nullable": true
@@ -20453,6 +20582,42 @@
                 "$ref": "#/components/schemas/SourceOfFunds"
               }
             ],
+            "nullable": true
+          }
+        }
+      },
+      "CorporateSenderDetailsResponse": {
+        "type": "object",
+        "description": "A partially masked view of `CorporateSenderDetails`, safe to return in API responses.",
+        "required": [
+          "company_name"
+        ],
+        "properties": {
+          "company_name": {
+            "type": "string",
+            "description": "The sender's legal company name.",
+            "example": "Acme Ltd"
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "phone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedSenderPhoneDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "The sender's masked email address.",
+            "example": "tr******@acme.com",
             "nullable": true
           }
         }
@@ -24361,6 +24526,7 @@
           "payout_expired",
           "payout_reversed",
           "payout_not_permitted",
+          "payout_review_required",
           "invoice_paid",
           "surcharge_payment_succeeded",
           "surcharge_refund_succeeded"
@@ -26933,6 +27099,46 @@
           }
         }
       },
+      "IndividualSenderDetailsResponse": {
+        "type": "object",
+        "description": "A partially masked view of `IndividualSenderDetails`, safe to return in API responses.",
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "description": "The sender's first name.",
+            "example": "John",
+            "nullable": true
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The sender's last name.",
+            "example": "Doe",
+            "nullable": true
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "phone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedSenderPhoneDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "The sender's masked email address.",
+            "example": "jo******@example.com",
+            "nullable": true
+          }
+        }
+      },
       "IndomaretVoucherData": {
         "type": "object",
         "properties": {
@@ -27322,6 +27528,17 @@
             "type": "string",
             "description": "The telephone number for Japanese convenience stores",
             "example": "9123456789",
+            "nullable": true
+          }
+        }
+      },
+      "JpmorganConnectorMetadata": {
+        "type": "object",
+        "description": "JPMorgan-specific metadata supplied with a payment request.",
+        "properties": {
+          "request_sca_exemption": {
+            "type": "boolean",
+            "description": "Request an SCA exemption for a subsequent MIT whose initial CIT completed 3D Secure.",
             "nullable": true
           }
         }
@@ -28057,6 +28274,24 @@
           }
         }
       },
+      "MaskedSenderPhoneDetails": {
+        "type": "object",
+        "description": "A partially masked view of [`PhoneDetails`], safe to return in API responses.",
+        "properties": {
+          "number": {
+            "type": "string",
+            "description": "The sender's partially masked phone number.",
+            "example": "********89",
+            "nullable": true
+          },
+          "country_code": {
+            "type": "string",
+            "description": "The country code of the sender's phone number.",
+            "example": "+44",
+            "nullable": true
+          }
+        }
+      },
       "MasterCardEligibilityCheckData": {
         "type": "object",
         "required": [
@@ -28162,7 +28397,8 @@
           "payment_response_hash_key": {
             "type": "string",
             "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
-            "nullable": true
+            "nullable": true,
+            "minLength": 32
           },
           "redirect_to_merchant_with_http_post": {
             "type": "boolean",
@@ -28579,10 +28815,10 @@
           },
           "payment_response_hash_key": {
             "type": "string",
-            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
-            "example": "xkkdf909012sdjki2dkh5sdf",
+            "description": "The first 4 characters of the hash key used to sign webhooks and redirect responses.",
+            "example": "xkkd",
             "nullable": true,
-            "maxLength": 255
+            "maxLength": 4
           },
           "redirect_to_merchant_with_http_post": {
             "type": "boolean",
@@ -28790,7 +29026,8 @@
           "payment_response_hash_key": {
             "type": "string",
             "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response.",
-            "nullable": true
+            "nullable": true,
+            "minLength": 32
           },
           "redirect_to_merchant_with_http_post": {
             "type": "boolean",
@@ -29620,11 +29857,15 @@
         "properties": {
           "merchant_secret": {
             "type": "string",
-            "example": "12345678900987654321"
+            "description": "Webhook verification secret. Must contain at least one non-whitespace character.",
+            "example": "12345678900987654321",
+            "minLength": 1
           },
           "additional_secret": {
             "type": "string",
-            "example": "12345678900987654321"
+            "description": "Optional additional secret. When supplied, must contain a non-whitespace character.",
+            "example": "12345678900987654321",
+            "minLength": 1
           }
         },
         "additionalProperties": false
@@ -36581,6 +36822,14 @@
             ],
             "nullable": true
           },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetails"
+              }
+            ],
+            "nullable": true
+          },
           "tokenization": {
             "allOf": [
               {
@@ -36856,6 +37105,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MandateData"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
               }
             ],
             "nullable": true
@@ -37423,6 +37680,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MaskedRecipientDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetailsResponse"
               }
             ],
             "nullable": true
@@ -38509,6 +38774,14 @@
             ],
             "nullable": true
           },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetails"
+              }
+            ],
+            "nullable": true
+          },
           "tokenization": {
             "allOf": [
               {
@@ -38793,6 +39066,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MandateData"
+              }
+            ],
+            "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
               }
             ],
             "nullable": true
@@ -39377,6 +39658,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MaskedRecipientDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetailsResponse"
               }
             ],
             "nullable": true
@@ -40166,6 +40455,14 @@
             ],
             "nullable": true
           },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetails"
+              }
+            ],
+            "nullable": true
+          },
           "tokenization": {
             "allOf": [
               {
@@ -40345,22 +40642,6 @@
             "nullable": true,
             "maxLength": 255
           },
-          "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
-            "example": 1000,
-            "nullable": true,
-            "minimum": 0
-          },
-          "currency": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Currency"
-              }
-            ],
-            "nullable": true
-          },
           "routing": {
             "allOf": [
               {
@@ -40419,14 +40700,6 @@
             "default": false,
             "example": true,
             "nullable": true
-          },
-          "customer_id": {
-            "type": "string",
-            "description": "Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id. _Deprecated: Use customer.id instead._",
-            "deprecated": true,
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
-            "maxLength": 255
           },
           "customer": {
             "allOf": [
@@ -40558,7 +40831,7 @@
           },
           "email": {
             "type": "string",
-            "description": "Customer's email. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "johntest@test.com",
             "nullable": true,
@@ -40566,7 +40839,7 @@
           },
           "name": {
             "type": "string",
-            "description": "Customer's name. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "John Test",
             "nullable": true,
@@ -40574,7 +40847,7 @@
           },
           "phone": {
             "type": "string",
-            "description": "Customer's phone. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "9123456789",
             "nullable": true,
@@ -40582,7 +40855,7 @@
           },
           "phone_country_code": {
             "type": "string",
-            "description": "Customer's phone country code. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "+1",
             "nullable": true,
@@ -40771,7 +41044,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated. _Deprecated: Use the customer object instead._",
+            "description": "Attached customer ID, if any. _Deprecated: Use customer.id instead._",
             "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "maxLength": 255
@@ -41504,6 +41777,7 @@
           "requires_confirmation",
           "requires_payout_method_data",
           "requires_fulfillment",
+          "requires_review",
           "requires_vendor_account_creation"
         ]
       },
@@ -41526,22 +41800,6 @@
             "example": "merchant_order_ref_123",
             "nullable": true,
             "maxLength": 255
-          },
-          "amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
-            "example": 1000,
-            "nullable": true,
-            "minimum": 0
-          },
-          "currency": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Currency"
-              }
-            ],
-            "nullable": true
           },
           "routing": {
             "allOf": [
@@ -41608,14 +41866,6 @@
             "default": false,
             "example": true,
             "nullable": true
-          },
-          "customer_id": {
-            "type": "string",
-            "description": "Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id. _Deprecated: Use customer.id instead._",
-            "deprecated": true,
-            "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
-            "nullable": true,
-            "maxLength": 255
           },
           "customer": {
             "allOf": [
@@ -41747,7 +41997,7 @@
           },
           "email": {
             "type": "string",
-            "description": "Customer's email. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "johntest@test.com",
             "nullable": true,
@@ -41755,7 +42005,7 @@
           },
           "name": {
             "type": "string",
-            "description": "Customer's name. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "John Test",
             "nullable": true,
@@ -41763,7 +42013,7 @@
           },
           "phone": {
             "type": "string",
-            "description": "Customer's phone. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "9123456789",
             "nullable": true,
@@ -41771,7 +42021,7 @@
           },
           "phone_country_code": {
             "type": "string",
-            "description": "Customer's phone country code. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "+1",
             "nullable": true,
@@ -41825,7 +42075,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
+            "description": "The payout amount in the lowest denomination of the currency (for example, cents for USD or paisa for INR). Set during creation; it cannot be changed in update or confirm requests.",
             "minimum": 0
           },
           "currency": {
@@ -41899,7 +42149,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id. _Deprecated: Use customer.id instead._",
+            "description": "Existing customer ID used at creation.\n_Deprecated: Use customer.id instead._",
             "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
@@ -42035,7 +42285,7 @@
           },
           "email": {
             "type": "string",
-            "description": "Customer's email. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "johntest@test.com",
             "nullable": true,
@@ -42043,7 +42293,7 @@
           },
           "name": {
             "type": "string",
-            "description": "Customer's name. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "John Test",
             "nullable": true,
@@ -42051,7 +42301,7 @@
           },
           "phone": {
             "type": "string",
-            "description": "Customer's phone. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "9123456789",
             "nullable": true,
@@ -42059,7 +42309,7 @@
           },
           "phone_country_code": {
             "type": "string",
-            "description": "Customer's phone country code. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "+1",
             "nullable": true,
@@ -43590,7 +43840,8 @@
           "payment_response_hash_key": {
             "type": "string",
             "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
-            "nullable": true
+            "nullable": true,
+            "minLength": 32
           },
           "redirect_to_merchant_with_http_post": {
             "type": "boolean",
@@ -43969,8 +44220,10 @@
           },
           "payment_response_hash_key": {
             "type": "string",
-            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
-            "nullable": true
+            "description": "The first 4 characters of the hash key used to sign webhooks and redirect responses.",
+            "example": "xkkd",
+            "nullable": true,
+            "maxLength": 4
           },
           "redirect_to_merchant_with_http_post": {
             "type": "boolean",
@@ -44462,6 +44715,17 @@
           "applied": {
             "type": "boolean",
             "description": "Whether Rapid Dispute Resolution has been applied"
+          }
+        }
+      },
+      "RapydConnectorMetadata": {
+        "type": "object",
+        "description": "Rapyd-specific metadata supplied with a payment request.",
+        "properties": {
+          "ewallet": {
+            "type": "string",
+            "description": "Destination wallet sent as ewallet in the Rapyd payment request.",
+            "nullable": true
           }
         }
       },
@@ -47712,6 +47976,56 @@
           "propertyName": "type"
         }
       },
+      "SenderDetailsResponse": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IndividualSenderDetailsResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "individual"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CorporateSenderDetailsResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "corporate"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "description": "A partially masked view of `SenderDetails`, safe to return in API responses. The sender's\ndate of birth is never returned.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
       "SepaAndBacsBillingDetails": {
         "type": "object",
         "properties": {
@@ -49353,6 +49667,54 @@
           }
         }
       },
+      "TelephoneOrderCaptureMethod": {
+        "type": "string",
+        "description": "Specifies how the authorization is captured.",
+        "enum": [
+          "automatic",
+          "manual"
+        ]
+      },
+      "TelephoneOrderParameters": {
+        "allOf": [
+          {
+            "type": "object",
+            "description": "Whatever else the merchant put on the `<Pay>` verb, carried through unread."
+          },
+          {
+            "type": "object",
+            "properties": {
+              "payment_id": {
+                "type": "string",
+                "description": "Charges this payment id rather than one derived from the provider's attempt id.",
+                "example": "pay_1234",
+                "nullable": true
+              },
+              "profile_id": {
+                "type": "string",
+                "description": "The profile to charge against. Absent, the merchant's default profile is used.",
+                "example": "pro_1234",
+                "nullable": true
+              },
+              "customer_id": {
+                "type": "string",
+                "description": "The customer this payment belongs to.",
+                "example": "cus_1234",
+                "nullable": true
+              },
+              "capture_method": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/TelephoneOrderCaptureMethod"
+                  }
+                ],
+                "nullable": true
+              }
+            }
+          }
+        ],
+        "description": "The IVR's `<Parameter>` tags. The four read by Hyperswitch are named below; the rest ride along\ninto the payment's `metadata`. Keys must be lowercase — Twilio lowercases parameter names, so a\ncamelCase one lands in the passthrough instead."
+      },
       "ThirdPartySdkSessionResponse": {
         "type": "object",
         "required": [
@@ -49980,7 +50342,7 @@
           "transaction_id": {
             "type": "string",
             "description": "Twilio's id for this attempt. Stable across its retries, and used to derive the `payment_id` so a retry replays the original charge.",
-            "example": "IPe16430-39ba-4820-bedc-7aad0762a487"
+            "example": "IP1234"
           },
           "cardnumber": {
             "type": "string",
@@ -50043,8 +50405,11 @@
             "nullable": true
           },
           "parameters": {
-            "type": "object",
-            "description": "Values from the IVR's `<Parameter>` tags, stored unmasked in the payment's `metadata`. `profile_id`, `payment_id` and `customer_id` are also read.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TelephoneOrderParameters"
+              }
+            ],
             "nullable": true
           }
         }
@@ -50059,7 +50424,7 @@
           "charge_id": {
             "type": "string",
             "description": "The Hyperswitch `payment_id`, on a successful charge.",
-            "example": "pay_8320b449b06630271e378214dab80ce5",
+            "example": "pay_1234",
             "nullable": true
           },
           "error_code": {
@@ -52198,6 +52563,31 @@
             "nullable": true
           }
         }
+      },
+      "WorldpayraftConnectorMetadata": {
+        "type": "object",
+        "description": "Merchant-supplied data forwarded to Worldpay RAFT's UserDefinedData.",
+        "properties": {
+          "user_data1": {
+            "type": "string",
+            "description": "Worldpay RAFT UserData1. Maximum length: 35 characters.",
+            "nullable": true,
+            "maxLength": 35
+          },
+          "user_data2": {
+            "type": "string",
+            "description": "Worldpay RAFT UserData2. Maximum length: 20 characters.",
+            "nullable": true,
+            "maxLength": 20
+          },
+          "user_data3": {
+            "type": "string",
+            "description": "Worldpay RAFT UserData3. Maximum length: 20 characters.",
+            "nullable": true,
+            "maxLength": 20
+          }
+        },
+        "additionalProperties": false
       },
       "WorldpayxmlData": {
         "type": "object",

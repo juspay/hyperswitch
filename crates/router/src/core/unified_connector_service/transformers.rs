@@ -1,16 +1,19 @@
 use std::{collections::HashMap, str::FromStr};
 
-use api_models::payments::{
-    additional_info::WalletAdditionalDataForCard, AdditionalCardInfo, AdditionalPaymentData,
-    AmountInfo, ApplePayAddressParameters, ApplePayPaymentRequest, ApplePaySessionResponse,
-    ApplepayPaymentMethod, ApplepaySessionTokenResponse, GooglePaySessionResponse,
-    GooglePayTokenizationSpecificationType, GpayAllowedMethodsParameters,
-    GpayAllowedPaymentMethods, GpayBillingAddressFormat, GpayBillingAddressParameters,
-    GpayMerchantInfo, GpaySessionTokenResponse, GpayShippingAddressParameters, GpayTokenParameters,
-    GpayTokenizationSpecification, GpayTransactionInfo, NextActionCall, PaypalFlow,
-    PaypalSessionTokenResponse, PaypalTransactionInfo, RecipientAccount, RecipientBankAccount,
-    RecipientDetails, SdkNextAction, SecretInfoToInitiateSdk, SessionToken,
-    ThirdPartySdkSessionResponse,
+use api_models::{
+    payments::{
+        additional_info::WalletAdditionalDataForCard, AdditionalCardInfo, AdditionalPaymentData,
+        AmountInfo, ApplePayAddressParameters, ApplePayPaymentRequest, ApplePaySessionResponse,
+        ApplepayPaymentMethod, ApplepaySessionTokenResponse, GooglePaySessionResponse,
+        GooglePayTokenizationSpecificationType, GpayAllowedMethodsParameters,
+        GpayAllowedPaymentMethods, GpayBillingAddressFormat, GpayBillingAddressParameters,
+        GpayMerchantInfo, GpaySessionTokenResponse, GpayShippingAddressParameters,
+        GpayTokenParameters, GpayTokenizationSpecification, GpayTransactionInfo, NextActionCall,
+        PaypalFlow, PaypalSessionTokenResponse, PaypalTransactionInfo, RecipientAccount,
+        RecipientBankAccount, RecipientDetails, SdkNextAction, SecretInfoToInitiateSdk,
+        SessionToken, ThirdPartySdkSessionResponse,
+    },
+    sender::SenderDetails,
 };
 use common_enums::{AttemptStatus, AuthenticationType, AuthorizationStatus, RefundStatus};
 use common_utils::{
@@ -61,8 +64,9 @@ use unified_connector_service_client::payments::{
     self as payments_grpc,
     additional_payment_data::PaymentMethodData as AdditionalPaymentMethodData,
     client_authentication_token_data, recipient_account::AccountType as RecipientAccountType,
-    recipient_bank_account::BankAccountType as RecipientBankAccountType, ConnectorState,
-    EventServiceHandleRequest, EventServiceParseRequest,
+    recipient_bank_account::BankAccountType as RecipientBankAccountType,
+    sender_details::SenderType, ConnectorState, EventServiceHandleRequest,
+    EventServiceParseRequest,
 };
 
 use crate::{
@@ -309,6 +313,30 @@ fn payout_purpose_to_ucs(purpose: Option<common_enums::PayoutPurpose>) -> Option
         .map(i32::from)
 }
 
+fn connector_purpose_of_payment(
+    metadata: &api_models::payments::ConnectorMetadata,
+    connector: common_enums::connector_enums::Connector,
+) -> Option<String> {
+    let to_snake_case_string = |value: serde_json::Value| value.as_str().map(ToString::to_string);
+    match connector {
+        common_enums::connector_enums::Connector::Checkout => metadata
+            .checkout
+            .as_ref()
+            .and_then(|details| details.purpose_of_payment.clone()),
+        common_enums::connector_enums::Connector::Worldpayxml => metadata
+            .worldpayxml
+            .as_ref()
+            .and_then(|details| details.payment_purpose)
+            .and_then(|purpose| {
+                serde_json::to_value(purpose)
+                    .ok()
+                    .and_then(to_snake_case_string)
+            }),
+        _ => None,
+    }
+}
+
+#[allow(deprecated)]
 impl ForeignFrom<&api_models::payments::ConnectorMetadata>
     for payments_grpc::AdditionalConnectorDetails
 {
@@ -323,8 +351,11 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
             peachpayments: _,
             santander: _,
             worldpayxml,
+            worldpayraft,
             stripe,
+            jpmorgan,
             paypal: _,
+            rapyd,
         } = metadata;
         fn to_snake_case_string<T: serde::Serialize>(value: T) -> Option<String> {
             serde_json::to_value(value)
@@ -350,6 +381,26 @@ impl ForeignFrom<&api_models::payments::ConnectorMetadata>
                 .map(|data| payments_grpc::StripeAdditionalInformation {
                     error_on_requires_action: data.error_on_requires_action,
                 }),
+            request_sca_exemption: jpmorgan
+                .as_ref()
+                .and_then(|data| data.request_sca_exemption),
+            funding_transaction_type: worldpayxml
+                .as_ref()
+                .and_then(|data| data.funding_transaction_type)
+                .and_then(to_snake_case_string),
+            error_on_requires_action: stripe
+                .as_ref()
+                .and_then(|data| data.error_on_requires_action),
+            user_data1: worldpayraft
+                .as_ref()
+                .and_then(|data| data.user_data1.clone()),
+            user_data2: worldpayraft
+                .as_ref()
+                .and_then(|data| data.user_data2.clone()),
+            user_data3: worldpayraft
+                .as_ref()
+                .and_then(|data| data.user_data3.clone()),
+            ewallet: rapyd.as_ref().and_then(|data| data.ewallet.clone()),
         }
     }
 }
@@ -694,6 +745,87 @@ impl transformers::ForeignTryFrom<&RecipientDetails> for payments_grpc::Recipien
                 .address
                 .as_ref()
                 .map(payments_grpc::Address::foreign_from),
+        })
+    }
+}
+
+impl ForeignFrom<&api_models::payments::AddressDetails> for payments_grpc::SenderAddress {
+    fn foreign_from(address: &api_models::payments::AddressDetails) -> Self {
+        let country_alpha2_code = address
+            .country
+            .as_ref()
+            .and_then(|c| payments_grpc::CountryAlpha2::from_str_name(&c.to_string()))
+            .map(|c| c.into());
+
+        Self {
+            line1: address.line1.clone(),
+            line2: address.line2.clone(),
+            line3: address.line3.clone(),
+            city: address.city.clone().map(Secret::new),
+            state: address.state.clone(),
+            zip_code: address.zip.clone(),
+            country_alpha2_code,
+        }
+    }
+}
+
+impl transformers::ForeignTryFrom<&SenderDetails> for payments_grpc::SenderDetails {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(details: &SenderDetails) -> Result<Self, Self::Error> {
+        let sender_type = match details {
+            SenderDetails::Individual(individual) => {
+                SenderType::Individual(payments_grpc::IndividualSenderDetails {
+                    first_name: individual.first_name.clone(),
+                    last_name: individual.last_name.clone(),
+                    date_of_birth: individual
+                        .date_of_birth
+                        .as_ref()
+                        .map(format_date_of_birth)
+                        .transpose()?,
+                    address: individual
+                        .address
+                        .as_ref()
+                        .map(payments_grpc::SenderAddress::foreign_from),
+                    email: individual
+                        .email
+                        .as_ref()
+                        .map(|email| email.peek().to_string().into()),
+                    phone_number: individual
+                        .phone
+                        .as_ref()
+                        .and_then(|phone| phone.number.clone()),
+                    phone_country_code: individual
+                        .phone
+                        .as_ref()
+                        .and_then(|phone| phone.country_code.clone()),
+                })
+            }
+            SenderDetails::Corporate(corporate) => {
+                SenderType::Corporate(payments_grpc::CorporateSenderDetails {
+                    company_name: Some(corporate.company_name.clone()),
+                    address: corporate
+                        .address
+                        .as_ref()
+                        .map(payments_grpc::SenderAddress::foreign_from),
+                    email: corporate
+                        .email
+                        .as_ref()
+                        .map(|email| email.peek().to_string().into()),
+                    phone_number: corporate
+                        .phone
+                        .as_ref()
+                        .and_then(|phone| phone.number.clone()),
+                    phone_country_code: corporate
+                        .phone
+                        .as_ref()
+                        .and_then(|phone| phone.country_code.clone()),
+                })
+            }
+        };
+
+        Ok(Self {
+            sender_type: Some(sender_type),
         })
     }
 }
@@ -1222,12 +1354,29 @@ impl
                 }),
             currency_conversion_data,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: router_data
+                .request
+                .sender_details
+                .as_ref()
+                .map(payments_grpc::SenderDetails::foreign_try_from)
+                .transpose()?,
             recipient_details: router_data
                 .request
                 .recipient_details
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            purpose_of_payment: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .and_then(|metadata| {
+                    common_enums::connector_enums::Connector::from_str(
+                        router_data.connector.as_str(),
+                    )
+                    .ok()
+                    .and_then(|connector| connector_purpose_of_payment(metadata, connector))
+                }),
             additional_connector_details: router_data
                 .request
                 .connector_intent_metadata
@@ -1508,12 +1657,29 @@ impl
             partner_merchant_identifier_details: None,
             currency_conversion_data,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: router_data
+                .request
+                .sender_details
+                .as_ref()
+                .map(payments_grpc::SenderDetails::foreign_try_from)
+                .transpose()?,
             recipient_details: router_data
                 .request
                 .recipient_details
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            purpose_of_payment: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .and_then(|metadata| {
+                    common_enums::connector_enums::Connector::from_str(
+                        router_data.connector.as_str(),
+                    )
+                    .ok()
+                    .and_then(|connector| connector_purpose_of_payment(metadata, connector))
+                }),
             additional_connector_details: router_data
                 .request
                 .connector_intent_metadata
@@ -2927,12 +3093,29 @@ impl
             partner_merchant_identifier_details: None,
             currency_conversion_data,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: router_data
+                .request
+                .sender_details
+                .as_ref()
+                .map(payments_grpc::SenderDetails::foreign_try_from)
+                .transpose()?,
             recipient_details: router_data
                 .request
                 .recipient_details
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            purpose_of_payment: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .and_then(|metadata| {
+                    common_enums::connector_enums::Connector::from_str(
+                        router_data.connector.as_str(),
+                    )
+                    .ok()
+                    .and_then(|connector| connector_purpose_of_payment(metadata, connector))
+                }),
             additional_connector_details: router_data
                 .request
                 .connector_intent_metadata
@@ -3162,12 +3345,29 @@ impl
             partner_merchant_identifier_details: None,
             currency_conversion_data,
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: router_data
+                .request
+                .sender_details
+                .as_ref()
+                .map(payments_grpc::SenderDetails::foreign_try_from)
+                .transpose()?,
             recipient_details: router_data
                 .request
                 .recipient_details
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            purpose_of_payment: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .and_then(|metadata| {
+                    common_enums::connector_enums::Connector::from_str(
+                        router_data.connector.as_str(),
+                    )
+                    .ok()
+                    .and_then(|connector| connector_purpose_of_payment(metadata, connector))
+                }),
             additional_connector_details: router_data
                 .request
                 .connector_intent_metadata
@@ -3246,6 +3446,7 @@ impl
         Ok(Self {
             risk_assessment_data: None,
             is_account_funding_transaction: None,
+            sender_details: None,
             recipient_details: None,
             business_country: None,
             split_settlement: None,
@@ -3373,6 +3574,7 @@ impl
             partner_merchant_identifier_details: None,
             // TODO: Populate currency_conversion_data when Dynamic Currency Conversion (DCC) is implemented
             currency_conversion_data: None,
+            purpose_of_payment: None,
             additional_connector_details: None,
             enable_avs_check: None,
             enable_account_name_verification: None,
@@ -3630,12 +3832,29 @@ impl
                     }),
                 }),
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: router_data
+                .request
+                .sender_details
+                .as_ref()
+                .map(payments_grpc::SenderDetails::foreign_try_from)
+                .transpose()?,
             recipient_details: router_data
                 .request
                 .recipient_details
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            purpose_of_payment: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .and_then(|metadata| {
+                    common_enums::connector_enums::Connector::from_str(
+                        router_data.connector.as_str(),
+                    )
+                    .ok()
+                    .and_then(|connector| connector_purpose_of_payment(metadata, connector))
+                }),
             additional_connector_details: router_data
                 .request
                 .connector_intent_metadata
@@ -3874,10 +4093,12 @@ impl
             partner_merchant_identifier_details: None,
             payment_channel: None,
             is_account_funding_transaction: None,
+            sender_details: None,
             recipient_details: None,
             additional_connector_details: None,
             session_token: None,
             currency_conversion_data: None,
+            purpose_of_payment: None,
             integrity_specifications: Some(payments_grpc::IntegritySpecifications {
                 allow_amount_mismatch: router_data.accept_amount_mismatch.map(|accept| *accept),
             }),
@@ -4235,12 +4456,29 @@ impl
                 .transpose()?
                 .map(|payment_channel| payment_channel.into()),
             is_account_funding_transaction: router_data.request.is_account_funded_transaction,
+            sender_details: router_data
+                .request
+                .sender_details
+                .as_ref()
+                .map(payments_grpc::SenderDetails::foreign_try_from)
+                .transpose()?,
             recipient_details: router_data
                 .request
                 .recipient_details
                 .as_ref()
                 .map(payments_grpc::RecipientDetails::foreign_try_from)
                 .transpose()?,
+            purpose_of_payment: router_data
+                .request
+                .connector_intent_metadata
+                .as_ref()
+                .and_then(|metadata| {
+                    common_enums::connector_enums::Connector::from_str(
+                        router_data.connector.as_str(),
+                    )
+                    .ok()
+                    .and_then(|connector| connector_purpose_of_payment(metadata, connector))
+                }),
             additional_connector_details: router_data
                 .request
                 .connector_intent_metadata
@@ -5473,7 +5711,8 @@ impl transformers::ForeignTryFrom<payments_grpc::CardNetwork> for common_enums::
             payments_grpc::CardNetwork::EftposAustralia => Ok(Self::EftposAustralia),
             payments_grpc::CardNetwork::GeCapital => Ok(Self::GeCapital),
             payments_grpc::CardNetwork::Uatp => Ok(Self::Uatp),
-            payments_grpc::CardNetwork::Unspecified => {
+            // MyDebit is not yet represented in Hyperswitch's card network enum.
+            payments_grpc::CardNetwork::Unspecified | payments_grpc::CardNetwork::Mydebit => {
                 Err(UnifiedConnectorServiceError::ResponseDeserializationFailed)?
             }
         }
@@ -9607,6 +9846,10 @@ impl
             amount,
             payment_method,
             capture_method: capture_method.map(Into::into),
+            state: router_data
+                .access_token
+                .as_ref()
+                .map(ConnectorState::foreign_from),
         })
     }
 }

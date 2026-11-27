@@ -13,7 +13,7 @@ use crate::{
     core::errors::{UserErrors, UserResult},
     db::user_role::ListUserRolesByUserIdPayload,
     routes::SessionState,
-    services::authentication as auth,
+    services::{authentication as auth, authorization::roles::RoleInfo},
     utils,
 };
 
@@ -214,10 +214,19 @@ impl JWTFlow {
             .await?;
         }
 
+        let role_info = RoleInfo::from_role_id_org_id_tenant_id(
+            state,
+            &new_lineage_context.role_id,
+            &new_lineage_context.org_id,
+            &new_lineage_context.tenant_id,
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
         auth::AuthToken::new_token(
             new_lineage_context.user_id,
             new_lineage_context.merchant_id,
-            new_lineage_context.role_id,
+            &role_info,
             &state.conf,
             new_lineage_context.org_id,
             new_lineage_context.profile_id,

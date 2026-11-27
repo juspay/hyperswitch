@@ -18,10 +18,10 @@ use hyperswitch_domain_models::{
 use router_env::{instrument, logger, which as router_env_which, Env};
 use url::Url;
 
-use super::helpers;
+use super::{helpers, PayoutActionType, PayoutRequest};
 #[cfg(feature = "v1")]
 use crate::core::{
-    payment_methods::cards::get_pm_list_context, payouts::kill_switch::PayoutKillSwitch,
+    payment_methods::cards::get_pm_list_context, payouts::should_allow_payouts::ShouldAllowPayouts,
 };
 use crate::{
     core::{
@@ -39,16 +39,109 @@ use crate::{
 };
 
 pub(crate) trait PayoutExecutionKindValidation {
-    fn validate_persisted_execution_kind(self, req: &payouts::PayoutRequest) -> RouterResult<()>;
+    fn validate_persisted_execution_kind(self, req: &PayoutRequest) -> RouterResult<()>;
     fn validate_normal_execution_kind(self) -> RouterResult<()>;
+}
+
+pub(super) async fn validate_payout_request_status(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
+    req: &PayoutRequest,
+    payout_id: &id_type::PayoutId,
+    status: common_enums::PayoutStatus,
+) -> RouterResult<()> {
+    match req {
+        PayoutRequest::Fulfill(_, PayoutActionType::Review)
+        | PayoutRequest::Cancel(_, PayoutActionType::Review) => {
+            let review_flow_enabled = dimensions
+                .get_should_allow_review_flow(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    None,
+                )
+                .await;
+
+            match review_flow_enabled {
+                true => Ok(()),
+                false => Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Payout review flow is disabled by configuration".to_string(),
+                })),
+            }
+        }
+        PayoutRequest::Fulfill(_, PayoutActionType::Standard)
+        | PayoutRequest::Cancel(_, PayoutActionType::Standard)
+        | PayoutRequest::Create(_)
+        | PayoutRequest::Retrieve(_)
+        | PayoutRequest::Webhook(_) => Ok(()),
+    }?;
+
+    match req {
+        PayoutRequest::Fulfill(_, action_type) => {
+            action_type.validate_fulfillment_status(payout_id, status)
+        }
+        PayoutRequest::Cancel(_, action_type) => {
+            action_type.validate_cancellation_status(payout_id, status)
+        }
+        PayoutRequest::Create(_) | PayoutRequest::Retrieve(_) | PayoutRequest::Webhook(_) => Ok(()),
+    }
+}
+
+impl PayoutActionType {
+    pub(super) fn validate_fulfillment_status(
+        self,
+        payout_id: &id_type::PayoutId,
+        status: common_enums::PayoutStatus,
+    ) -> RouterResult<()> {
+        let (allowed, action) = match self {
+            Self::Standard => (
+                status == common_enums::PayoutStatus::RequiresFulfillment,
+                "fulfilled",
+            ),
+            Self::Review => (
+                status == common_enums::PayoutStatus::RequiresReview,
+                "accepted",
+            ),
+        };
+        validate_payout_action_status(payout_id, status, allowed, action)
+    }
+
+    pub(super) fn validate_cancellation_status(
+        self,
+        payout_id: &id_type::PayoutId,
+        status: common_enums::PayoutStatus,
+    ) -> RouterResult<()> {
+        let (allowed, action) = match self {
+            // Preserve cancellation for the existing set of non-terminal payout states.
+            Self::Standard => (!helpers::is_payout_terminal_state(status), "cancelled"),
+            Self::Review => (
+                status == common_enums::PayoutStatus::RequiresReview,
+                "rejected",
+            ),
+        };
+        validate_payout_action_status(payout_id, status, allowed, action)
+    }
+}
+
+fn validate_payout_action_status(
+    payout_id: &id_type::PayoutId,
+    status: common_enums::PayoutStatus,
+    allowed: bool,
+    action: &str,
+) -> RouterResult<()> {
+    if !allowed {
+        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("Payout {payout_id:?} cannot be {action} for status {status}"),
+        }));
+    }
+    Ok(())
 }
 
 impl PayoutExecutionKindValidation for common_enums::PayoutExecutionKind {
     /// Proxy trackers allow read-only retrieval, but not normal mutation or force-sync.
-    fn validate_persisted_execution_kind(self, req: &payouts::PayoutRequest) -> RouterResult<()> {
+    fn validate_persisted_execution_kind(self, req: &PayoutRequest) -> RouterResult<()> {
         match (self, req) {
             (Self::Normal, _) => Ok(()),
-            (Self::ExternalVaultProxy, payouts::PayoutRequest::PayoutRetrieveRequest(retrieve))
+            (Self::ExternalVaultProxy, PayoutRequest::Retrieve(retrieve))
                 if retrieve.force_sync != Some(true) =>
             {
                 Ok(())
@@ -91,6 +184,43 @@ pub(super) fn validate_payout_condition(invalid: bool, message: &str) -> RouterR
     match invalid {
         true => Err(invalid_payout_request(message)),
         false => Ok(()),
+    }
+}
+
+/// Update and confirm share the same immutable payout value and customer identity fields.
+pub(super) fn validate_payout_mutation_request(
+    req: &payouts::PayoutCreateRequest,
+) -> RouterResult<()> {
+    let invalid_field = [
+        req.amount.is_some().then_some("amount"),
+        req.currency.is_some().then_some("currency"),
+        req.get_customer_id().is_some().then_some("customer_id"),
+    ]
+    .into_iter()
+    .flatten()
+    .next();
+
+    match invalid_field {
+        Some(field) => Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("{field} cannot be updated through this payout API"),
+        })),
+        None => Ok(()),
+    }
+}
+
+#[cfg(feature = "v1")]
+async fn get_and_validate_payout_customer(
+    state: &SessionState,
+    platform: &domain::Platform,
+    req: &payouts::PayoutCreateRequest,
+) -> RouterResult<Option<domain::Customer>> {
+    match req.get_customer_id() {
+        Some(customer_id) => helpers::get_existing_customer_details(state, customer_id, platform)
+            .await
+            .map(Some),
+        None => Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+            field_name: "customer_id".into(),
+        })),
     }
 }
 
@@ -141,7 +271,6 @@ pub async fn validate_create_request(
     todo!()
 }
 
-/// Validate identity before customer creation or raw-method lookup.
 #[cfg(feature = "v1")]
 pub async fn validate_create_request(
     state: &SessionState,
@@ -178,8 +307,7 @@ pub async fn validate_create_request(
         .attach_printable("invalid merchant_id in request"))
     })?;
 
-    // Resolve the profile before any customer side effects so the cap applies to the
-    // exact merchant/profile context that will own the payout.
+    // Resolve the profile before checking its payout limit.
     let business_profile = core_utils::get_profile_from_business_details(
         req.business_country,
         req.business_label.as_ref(),
@@ -234,7 +362,6 @@ pub async fn validate_create_request(
         None => Ok(()),
     }?;
 
-    // Resolve the profile and kill switch before creating customers or resolving payout methods.
     let business_profile = core_utils::get_profile_from_business_details(
         req.business_country,
         req.business_label.as_ref(),
@@ -243,23 +370,9 @@ pub async fn validate_create_request(
         state.accounts_store.as_ref(),
     )
     .await?;
-    PayoutKillSwitch::ensure_payouts_enabled(state, platform, Some(business_profile.get_id()))
-        .await?;
     let profile_id = business_profile.get_id().to_owned();
 
-    // Fetch customer details (merge of loose fields + customer object) and create DB entry
-    let customer_in_request = helpers::get_customer_details_from_request(req);
-    let customer = if customer_in_request.customer_id.is_some()
-        || customer_in_request.name.is_some()
-        || customer_in_request.email.is_some()
-        || customer_in_request.phone.is_some()
-        || customer_in_request.phone_country_code.is_some()
-        || customer_in_request.document_details.is_some()
-    {
-        helpers::get_or_create_customer_details(state, &customer_in_request, platform).await?
-    } else {
-        None
-    };
+    let customer = get_and_validate_payout_customer(state, platform, req).await?;
 
     let payment_method: Option<PaymentMethod> =
         match (req.payout_token.as_ref(), req.payout_method_id.clone()) {
@@ -348,6 +461,21 @@ pub async fn validate_create_request(
         }
         _ => Ok(None),
     }?;
+
+    let payment_method_type = ShouldAllowPayouts::get_resolved_payment_method_type(
+        req.payout_method_data
+            .as_ref()
+            .or(payout_method_data.as_ref()),
+        payment_method.as_ref(),
+        None,
+    );
+    ShouldAllowPayouts::ensure_payouts_enabled(
+        state,
+        platform,
+        Some(&profile_id),
+        payment_method_type,
+    )
+    .await?;
 
     Ok((
         payout_id,

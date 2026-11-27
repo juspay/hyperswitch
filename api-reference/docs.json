@@ -146,6 +146,8 @@
                       "v1/payouts/payouts--update",
                       "v1/payouts/payouts--cancel",
                       "v1/payouts/payouts--fulfill",
+                      "v1/payouts/payouts--accept",
+                      "v1/payouts/payouts--reject",
                       "v1/payouts/payouts--confirm",
                       "v1/payouts/payouts--retrieve",
                       "v1/payouts/payouts--list",

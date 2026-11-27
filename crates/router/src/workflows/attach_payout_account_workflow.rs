@@ -47,7 +47,7 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
             .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
             .await?;
 
-        let request = api::payouts::PayoutRequest::PayoutRetrieveRequest(tracking_data);
+        let request = payouts::PayoutRequest::Retrieve(tracking_data);
 
         let platform = domain::Platform::new(
             merchant_account.clone(),
