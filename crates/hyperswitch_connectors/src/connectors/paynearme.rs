@@ -161,6 +161,20 @@ impl ConnectorCommon for Paynearme {
 }
 
 impl ConnectorValidation for Paynearme {
+    fn validate_setup_mandate_request(
+        &self,
+        request: &SetupMandateRequestData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        if request.setup_future_usage != Some(enums::FutureUsage::OffSession) {
+            return Err(errors::ConnectorError::NotSupported {
+                message: "Standalone setup requires setup_future_usage=off_session".to_string(),
+                connector: self.id().into(),
+            }
+            .into());
+        }
+        Ok(())
+    }
+
     fn validate_psync_reference_id(
         &self,
         _data: &PaymentsSyncData,

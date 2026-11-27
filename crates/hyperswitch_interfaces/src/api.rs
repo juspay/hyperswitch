@@ -1014,6 +1014,14 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
         }
     }
 
+    /// Validate setup requirements before creating a connector order.
+    fn validate_setup_mandate_request(
+        &self,
+        _request: &router_request_types::SetupMandateRequestData,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        Ok(())
+    }
+
     /// fn validate_psync_reference_id
     fn validate_psync_reference_id(
         &self,

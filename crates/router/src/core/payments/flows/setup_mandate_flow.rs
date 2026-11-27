@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     router_flow_types, router_request_types, router_response_types,
 };
 use hyperswitch_interfaces::{
-    api::{self as api_interface, ConnectorSpecifications},
+    api::{self as api_interface, ConnectorSpecifications, ConnectorValidation},
     consts as interface_consts,
 };
 use payment_methods::single_use_token;
@@ -144,6 +144,11 @@ impl Feature<api::SetupMandate, types::SetupMandateRequestData> for types::Setup
         {
             return Ok(None);
         }
+
+        connector
+            .connector
+            .validate_setup_mandate_request(&self.request)
+            .to_payment_failed_response()?;
 
         let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
             api::CreateOrder,
