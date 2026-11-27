@@ -12076,6 +12076,7 @@ pub enum ProcessTrackerRunner {
     BatchBlocklistUpload,
     NetworkTokenizationWorkflow,
     OfferEngineNotifyWorkflow,
+    SavePaymentMethodAttemptUpdateWorkflow,
     BlocklistExportWorkflow,
     BlocklistProfileCloneWorkflow,
     AnalyticsReportWorkflow,
