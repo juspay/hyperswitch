@@ -1,7 +1,5 @@
 pub mod twilio;
 
-use std::collections::HashMap;
-
 use api_models::telephone_order::response_parameters;
 /// The shared half of a provider's mapping, defined in `api_models` next to the request types
 /// that map themselves onto a payment with it.
