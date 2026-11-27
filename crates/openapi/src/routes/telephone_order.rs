@@ -11,7 +11,7 @@
     ),
     request_body(
         content = TwilioGenericPayRequest,
-        description = "The provider's request. Shown here in Twilio's Generic Pay Connector shape.",
+        description = "The provider's request. Shown here in Twilio's Generic Pay Connector shape. `method` follows the `<Pay>` verb's `chargeAmount`: `0` or absent makes it a `tokenize`. Storing a card is asked for by `parameters.setup_future_usage`, which is never assumed, and needs `parameters.customer_id` and `parameters.customer_acceptance` with it. A `<Parameter>` value is always a string, so the structured parameters — `customer_acceptance` and `billing` — carry their JSON as text.",
         examples(
             ("01. Charge a card collected over the phone" = (
                 value = json!({
@@ -45,10 +45,7 @@
                     "parameters": {
                         "customer_id": "cus_1234",
                         "setup_future_usage": "off_session",
-                        "customer_acceptance": {
-                            "acceptance_type": "offline",
-                            "accepted_at": "2026-11-26T10:11:12Z"
-                        }
+                        "customer_acceptance": r#"{"acceptance_type":"offline","accepted_at":"2026-11-26T10:11:12Z"}"#
                     }
                 })
             )),
@@ -65,21 +62,8 @@
                         "customer_id": "cus_1234",
                         "currency": "USD",
                         "setup_future_usage": "off_session",
-                        "customer_acceptance": {
-                            "acceptance_type": "offline",
-                            "accepted_at": "2026-11-26T10:11:12Z"
-                        },
-                        "billing": {
-                            "email": "caller@example.com",
-                            "address": {
-                                "first_name": "John",
-                                "last_name": "Doe",
-                                "line1": "1467 Harrison Street",
-                                "city": "San Francisco",
-                                "state": "CA",
-                                "country": "US"
-                            }
-                        }
+                        "customer_acceptance": r#"{"acceptance_type":"offline","accepted_at":"2026-11-26T10:11:12Z"}"#,
+                        "billing": r#"{"email":"caller@example.com","address":{"first_name":"John","last_name":"Doe","line1":"1467 Harrison Street","city":"San Francisco","state":"CA","country":"US"}}"#
                     }
                 })
             ))

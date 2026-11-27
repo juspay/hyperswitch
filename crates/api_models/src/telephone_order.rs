@@ -17,8 +17,9 @@ pub mod response_parameters {
 /// The IVR's `<Parameter>` tags. The ones read by Hyperswitch are named below; the rest ride along
 /// into the payment's `metadata`. Keys must be lowercase — Twilio lowercases parameter names, so a
 /// camelCase one lands in the passthrough instead. A tag's value is always a string, so the
-/// structured keys — `customer_acceptance` and `billing` — carry their JSON as text for the core
-/// to parse.
+/// structured keys — `customer_acceptance` and `billing` — carry their JSON as text, which
+/// `JsonString` reads back into the type.
+#[serde_with::serde_as]
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct TelephoneOrderParameters {
     /// Charges this payment id rather than one derived from the provider's attempt id.
@@ -59,9 +60,13 @@ pub struct TelephoneOrderParameters {
     ///
     /// A `CustomerAcceptance` as JSON. Use `acceptance_type: offline` — there is no browser
     /// session to record an IP against — and `accepted_at` defaults to now.
+    #[serde_as(as = "Option<serde_with::json::JsonString>")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schema(example = json!(r#"{"acceptance_type":"offline","accepted_at":"2026-11-26T10:11:12Z"}"#))]
-    pub customer_acceptance: Option<String>,
+    #[schema(
+        value_type = Option<String>,
+        example = json!(r#"{"acceptance_type":"offline","accepted_at":"2026-11-26T10:11:12Z"}"#)
+    )]
+    pub customer_acceptance: Option<common_types::payments::CustomerAcceptance>,
 
     // `skip_psp` drops Cybersource's `TOKEN_CREATE`, which is the way past an account without
     // Token Management Service, at the cost of the `connector_mandate_id`.
@@ -75,9 +80,13 @@ pub struct TelephoneOrderParameters {
     // mandate, so a tokenize that skips this is refused at the connector, not here.
     /// The caller's billing address and email, as an `Address` in JSON. The provider's own postal
     /// code, where it collects one, overrides `address.zip`.
+    #[serde_as(as = "Option<serde_with::json::JsonString>")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schema(example = json!(r#"{"email":"caller@example.com","address":{"last_name":"Doe","line1":"1467 Harrison Street","city":"San Francisco","state":"CA","country":"US"}}"#))]
-    pub billing: Option<String>,
+    #[schema(
+        value_type = Option<String>,
+        example = json!(r#"{"email":"caller@example.com","address":{"last_name":"Doe","line1":"1467 Harrison Street","city":"San Francisco","state":"CA","country":"US"}}"#)
+    )]
+    pub billing: Option<crate::payments::Address>,
 
     /// Whatever else the merchant put on the `<Pay>` verb, carried through unread.
     #[serde(flatten)]
@@ -109,12 +118,15 @@ impl From<TelephoneOrderCaptureMethod> for common_enums::CaptureMethod {
 
 #[cfg(test)]
 mod tests {
+    // `Email` derefs to a `Secret`, so reading one back needs this in scope.
+    use hyperswitch_masking::PeekInterface;
+
     use super::*;
 
     /// The shape Twilio actually posts: every `<Parameter>` value is a string, so the structured
-    /// keys arrive as JSON text and are held as such.
+    /// keys arrive as JSON text and are read back into their types.
     #[test]
-    fn reads_structured_parameters_as_text() {
+    fn reads_structured_parameters_from_json_text() {
         let parameters: TelephoneOrderParameters = serde_json::from_value(serde_json::json!({
             "customer_acceptance": "{\"acceptance_type\":\"offline\"}",
             "profile_id": "pro_1234",
@@ -126,12 +138,19 @@ mod tests {
         .expect("Twilio's string-valued parameters should deserialize");
 
         assert_eq!(
-            parameters.customer_acceptance.as_deref(),
-            Some(r#"{"acceptance_type":"offline"}"#)
+            parameters
+                .customer_acceptance
+                .expect("customer_acceptance should be read")
+                .acceptance_type,
+            common_types::payments::AcceptanceType::Offline
         );
         assert_eq!(
-            parameters.billing.as_deref(),
-            Some(r#"{"email":"caller@example.com"}"#)
+            parameters
+                .billing
+                .and_then(|billing| billing.email)
+                .map(|email| email.peek().to_owned())
+                .as_deref(),
+            Some("caller@example.com")
         );
         assert_eq!(
             parameters.setup_future_usage,

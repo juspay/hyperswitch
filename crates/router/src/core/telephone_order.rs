@@ -317,13 +317,14 @@ pub trait TelephoneOrderAdapter {
     ) -> RouterResponse<Self::Response> {
         let transaction_reference = Self::transaction_reference(&request);
 
-        let intent = build_context(
+        let context = build_context(
             &auth,
             Self::parameters(&request),
             Self::resolve_payment_id(&request),
-        )
-        .and_then(|context| Self::build_intent(&request, context))
-        .and_then(|intent| intent.try_map(finalize_payments_request));
+        );
+
+        let intent = Self::build_intent(&request, context)
+            .and_then(|intent| intent.try_map(finalize_payments_request));
 
         let outcome = match intent {
             Err(failure) => Err(failure),
@@ -492,16 +493,17 @@ where
     })
 }
 
-/// Reads the parameters the IVR passed through. Most hold their own types, so an unusable one
-/// failed deserialization at the route. The two carrying JSON as text are parsed here instead.
-/// The profile was resolved by authentication, the payment id by
+/// Reads the parameters the IVR passed through. Nothing is parsed here: [`Parameters`] holds
+/// these as their own types — the two carrying JSON as text included, which `JsonString` reads
+/// back — so an unusable one failed the request's deserialization at the route. The profile was
+/// resolved by authentication, the payment id by
 /// [`TelephoneOrderAdapter::resolve_payment_id`] — which the route needed first, to lock on.
 fn build_context(
     auth: &AuthenticationData,
     parameters: Option<&Parameters>,
     payment_id: Option<common_utils::id_type::PaymentId>,
-) -> Result<Context, Failure> {
-    Ok(Context {
+) -> Context {
+    Context {
         // The profile authentication settled, which is the one the IVR named when it named one:
         // `parameters.profile_id` reaches auth through the adapter's `authenticator`.
         profile_id: auth
@@ -514,53 +516,25 @@ fn build_context(
             .and_then(|parameters| parameters.capture_method)
             .map(common_enums::CaptureMethod::from),
         setup_future_usage: parameters.and_then(|parameters| parameters.setup_future_usage),
-        customer_acceptance: build_customer_acceptance(parameters)?,
+        customer_acceptance: build_customer_acceptance(parameters),
         tokenization: parameters.and_then(|parameters| parameters.tokenization),
-        billing: parse_json_parameter("billing", parameters.and_then(|p| p.billing.as_ref()))?,
+        billing: parameters.and_then(|parameters| parameters.billing.clone()),
         metadata: build_metadata(parameters),
-    })
-}
-
-/// Reads a `<Parameter>` whose value is JSON carried as text, since a tag's value is always a
-/// string. Parsed here rather than in the request's own deserialization so a malformed one can be
-/// answered with an `error_code` rather than the `422` a serde failure there would leave.
-fn parse_json_parameter<T>(name: &str, json: Option<&String>) -> Result<Option<T>, Failure>
-where
-    T: serde::de::DeserializeOwned,
-{
-    json.map(|json| {
-        serde_json::from_str(json).map_err(|error| {
-            // Where it broke, not what it said: serde quotes the offending value into some of
-            // its messages, and `billing` carries a name, an email and an address.
-            Failure::new(
-                error_codes::INVALID_REQUEST,
-                format!(
-                    "{name} is not valid JSON: line {}, column {}",
-                    error.line(),
-                    error.column()
-                ),
-            )
-        })
-    })
-    .transpose()
+    }
 }
 
 /// `None` unless the provider sent one; [`finalize_payments_request`] rejects what needs it.
 fn build_customer_acceptance(
     parameters: Option<&Parameters>,
-) -> Result<Option<common_types::payments::CustomerAcceptance>, Failure> {
-    let acceptance: Option<common_types::payments::CustomerAcceptance> = parse_json_parameter(
-        "customer_acceptance",
-        parameters.and_then(|parameters| parameters.customer_acceptance.as_ref()),
-    )?;
+) -> Option<common_types::payments::CustomerAcceptance> {
+    let mut acceptance = parameters?.customer_acceptance.clone()?;
 
-    Ok(acceptance.map(|mut acceptance| {
-        // `now` is a little late — the disclosure plays before the card — but within the same call.
-        acceptance
-            .accepted_at
-            .get_or_insert_with(common_utils::date_time::now);
-        acceptance
-    }))
+    // `now` is a little late — the disclosure plays before the card — but within the same call.
+    acceptance
+        .accepted_at
+        .get_or_insert_with(common_utils::date_time::now);
+
+    Some(acceptance)
 }
 
 /// Carries the merchant's own parameters through to the payment, for reconciliation. Lands in
