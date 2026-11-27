@@ -5179,6 +5179,18 @@ Cypress.Commands.add(
           }
           expect(response.body.customer, "customer").to.not.be.empty;
 
+          if (resData.connectorReferenceIdRequired) {
+            for (const [path, value] of Object.entries(resData.body)) {
+              expect(Cypress._.get(response.body, path), path).to.deep.equal(
+                value
+              );
+            }
+            expect(
+              response.body.state_metadata.post_capture_void
+                .connector_reference_id
+            ).to.be.a("string").and.not.be.empty;
+          }
+
           if (
             resData.body &&
             Object.prototype.hasOwnProperty.call(
