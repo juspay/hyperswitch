@@ -2974,7 +2974,17 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "sessionTokenCall",
   (sessionTokenBody, data, globalState) => {
-    const { Request: reqData = {}, Response: resData } = data || {};
+    const {
+      Request: reqData = {},
+      Response: resData,
+      Configs: configs,
+    } = data || {};
+
+    const validatedConfigs = validateConfig(configs);
+    if (validatedConfigs?.TRIGGER_SKIP) {
+      cy.task("cli_log", "TRIGGER_SKIP enabled, skipping sessionTokenCall");
+      return;
+    }
 
     sessionTokenBody.wallets = reqData.wallets || [];
     if ("payment_id" in reqData) {
