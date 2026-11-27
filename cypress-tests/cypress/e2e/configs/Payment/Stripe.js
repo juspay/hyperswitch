@@ -78,6 +78,23 @@ const onlineCustomerAcceptance = {
   acceptance_type: "online",
 };
 
+const saveCardNo3DSAutoCapture = {
+  Request: {
+    payment_method: "card",
+    payment_method_data: { card: successfulNo3DSCardDetails },
+    currency: "USD",
+    setup_future_usage: "on_session",
+    customer_acceptance: customerAcceptance,
+  },
+  Response: {
+    status: 200,
+    body: {
+      status: "succeeded",
+      customer_acceptance: customerAcceptance,
+    },
+  },
+};
+
 const idealBaseRequest = {
   payment_method: "bank_redirect",
   payment_method_type: "ideal",
@@ -891,23 +908,23 @@ export const connectorDetails = {
         },
       },
     },
-    SaveCardUseNo3DSAutoCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        setup_future_usage: "on_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
+    SaveCardUseNo3DSAutoCapture: saveCardNo3DSAutoCapture,
+    SaveCardOnlineAcceptanceNo3DSAutoCapture: getCustomExchange(
+      {
+        Request: { customer_acceptance: onlineCustomerAcceptance },
+        Response: {
+          body: {
+            status: "succeeded",
+            customer_acceptance: onlineCustomerAcceptance,
+          },
         },
       },
-    },
+      saveCardNo3DSAutoCapture
+    ),
+    ConfirmWithStoredCustomerAcceptance: getCustomExchange(
+      { Request: { customer_acceptance: null } },
+      saveCardNo3DSAutoCapture
+    ),
     SaveCardUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",

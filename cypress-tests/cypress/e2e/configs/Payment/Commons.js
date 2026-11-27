@@ -2384,6 +2384,53 @@ export const connectorDetails = {
         },
       },
     }),
+    PaymentIntentWithoutCustomerAcceptance: getCustomExchange({
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          customer_acceptance: null,
+        },
+      },
+    }),
+    PaymentIntentWithCustomerAcceptance: getCustomExchange({
+      Request: {
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+        setup_future_usage: "on_session",
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          customer_acceptance: customerAcceptance,
+        },
+      },
+    }),
+    PaymentIntentWithMinimalCustomerAcceptance: getCustomExchange({
+      Request: {
+        currency: "USD",
+        customer_acceptance: { acceptance_type: "offline" },
+        billing: standardBillingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          customer_acceptance: {
+            acceptance_type: "offline",
+            accepted_at: null,
+            online: null,
+          },
+        },
+      },
+    }),
     PaymentIntentOffSession: getCustomExchange({
       Request: {
         currency: "USD",
