@@ -1,3 +1,5 @@
 ---
 openapi: post /payouts/{payout_id}
 ---
+
+Updates keep the amount, currency, and customer assigned at payout creation. Requests containing `amount`, `currency`, `customer_id`, or `customer.id` are rejected. Supplied customer contact details are ignored.

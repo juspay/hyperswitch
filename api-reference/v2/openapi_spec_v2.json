@@ -13092,6 +13092,14 @@
             ],
             "nullable": true
           },
+          "worldpayraft": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorldpayraftConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
           "checkout": {
             "allOf": [
               {
@@ -13104,6 +13112,22 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/StripeConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "jpmorgan": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JpmorganConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "rapyd": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RapydConnectorMetadata"
               }
             ],
             "nullable": true
@@ -13436,6 +13460,42 @@
                 "$ref": "#/components/schemas/SourceOfFunds"
               }
             ],
+            "nullable": true
+          }
+        }
+      },
+      "CorporateSenderDetailsResponse": {
+        "type": "object",
+        "description": "A partially masked view of `CorporateSenderDetails`, safe to return in API responses.",
+        "required": [
+          "company_name"
+        ],
+        "properties": {
+          "company_name": {
+            "type": "string",
+            "description": "The sender's legal company name.",
+            "example": "Acme Ltd"
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "phone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedSenderPhoneDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "The sender's masked email address.",
+            "example": "tr******@acme.com",
             "nullable": true
           }
         }
@@ -15991,6 +16051,7 @@
           "payout_expired",
           "payout_reversed",
           "payout_not_permitted",
+          "payout_review_required",
           "invoice_paid",
           "surcharge_payment_succeeded",
           "surcharge_refund_succeeded"
@@ -18567,6 +18628,46 @@
           }
         }
       },
+      "IndividualSenderDetailsResponse": {
+        "type": "object",
+        "description": "A partially masked view of `IndividualSenderDetails`, safe to return in API responses.",
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "description": "The sender's first name.",
+            "example": "John",
+            "nullable": true
+          },
+          "last_name": {
+            "type": "string",
+            "description": "The sender's last name.",
+            "example": "Doe",
+            "nullable": true
+          },
+          "address": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "phone": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MaskedSenderPhoneDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "The sender's masked email address.",
+            "example": "jo******@example.com",
+            "nullable": true
+          }
+        }
+      },
       "IndomaretVoucherData": {
         "type": "object",
         "properties": {
@@ -18747,6 +18848,17 @@
             "type": "string",
             "description": "The telephone number for Japanese convenience stores",
             "example": "9123456789",
+            "nullable": true
+          }
+        }
+      },
+      "JpmorganConnectorMetadata": {
+        "type": "object",
+        "description": "JPMorgan-specific metadata supplied with a payment request.",
+        "properties": {
+          "request_sca_exemption": {
+            "type": "boolean",
+            "description": "Request an SCA exemption for a subsequent MIT whose initial CIT completed 3D Secure.",
             "nullable": true
           }
         }
@@ -19529,6 +19641,24 @@
                 "$ref": "#/components/schemas/AddressDetails"
               }
             ],
+            "nullable": true
+          }
+        }
+      },
+      "MaskedSenderPhoneDetails": {
+        "type": "object",
+        "description": "A partially masked view of [`PhoneDetails`], safe to return in API responses.",
+        "properties": {
+          "number": {
+            "type": "string",
+            "description": "The sender's partially masked phone number.",
+            "example": "********89",
+            "nullable": true
+          },
+          "country_code": {
+            "type": "string",
+            "description": "The country code of the sender's phone number.",
+            "example": "+44",
             "nullable": true
           }
         }
@@ -20478,11 +20608,15 @@
         "properties": {
           "merchant_secret": {
             "type": "string",
-            "example": "12345678900987654321"
+            "description": "Webhook verification secret. Must contain at least one non-whitespace character.",
+            "example": "12345678900987654321",
+            "minLength": 1
           },
           "additional_secret": {
             "type": "string",
-            "example": "12345678900987654321"
+            "description": "Optional additional secret. When supplied, must contain a non-whitespace character.",
+            "example": "12345678900987654321",
+            "minLength": 1
           }
         },
         "additionalProperties": false
@@ -26783,6 +26917,14 @@
             ],
             "nullable": true
           },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetails"
+              }
+            ],
+            "nullable": true
+          },
           "enable_avs_check": {
             "type": "boolean",
             "description": "Request address verification using the billing address for supported card payments.",
@@ -27192,6 +27334,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/MaskedRecipientDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetailsResponse"
               }
             ],
             "nullable": true
@@ -27706,6 +27856,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/RecipientDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetails"
               }
             ],
             "nullable": true
@@ -28244,6 +28402,14 @@
             ],
             "nullable": true
           },
+          "sender_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SenderDetails"
+              }
+            ],
+            "nullable": true
+          },
           "enable_avs_check": {
             "type": "boolean",
             "description": "Request address verification using the billing address for supported card payments.\nOmit this field on updates or confirmation to preserve the existing setting.",
@@ -28465,7 +28631,7 @@
           "amount": {
             "type": "integer",
             "format": "int64",
-            "description": "The payout amount. Amount for the payout in lowest denomination of the currency. (i.e) in cents for USD denomination, in paisa for INR denomination etc.,",
+            "description": "The payout amount in the lowest denomination of the currency (for example, cents for USD or paisa for INR). Set during creation; it cannot be changed in update or confirm requests.",
             "example": 1000,
             "nullable": true,
             "minimum": 0
@@ -28546,7 +28712,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "Customer identifier for normal and proxy payouts; normal creates may generate it when omitted, while proxy creates require this or customer.id owning payout_method_id. _Deprecated: Use customer.id instead._",
+            "description": "Existing customer ID used at creation.\n_Deprecated: Use customer.id instead._",
             "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "nullable": true,
@@ -28689,7 +28855,7 @@
           },
           "email": {
             "type": "string",
-            "description": "Customer's email. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "johntest@test.com",
             "nullable": true,
@@ -28697,7 +28863,7 @@
           },
           "name": {
             "type": "string",
-            "description": "Customer's name. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "John Test",
             "nullable": true,
@@ -28705,7 +28871,7 @@
           },
           "phone": {
             "type": "string",
-            "description": "Customer's phone. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "9123456789",
             "nullable": true,
@@ -28713,7 +28879,7 @@
           },
           "phone_country_code": {
             "type": "string",
-            "description": "Customer's phone country code. _Deprecated: Use customer object instead._",
+            "description": "Ignored. _Deprecated: Manage customer details through the Customers API._",
             "deprecated": true,
             "example": "+1",
             "nullable": true,
@@ -28828,7 +28994,7 @@
           },
           "customer_id": {
             "type": "string",
-            "description": "The identifier for the customer object. If not provided the customer ID will be autogenerated. _Deprecated: Use the customer object instead._",
+            "description": "Attached customer ID, if any. _Deprecated: Use customer.id instead._",
             "deprecated": true,
             "example": "cus_y3oqhf46pyzuxjbcn2giaqnb44",
             "maxLength": 255
@@ -29544,6 +29710,7 @@
           "requires_confirmation",
           "requires_payout_method_data",
           "requires_fulfillment",
+          "requires_review",
           "requires_vendor_account_creation"
         ]
       },
@@ -30782,7 +30949,8 @@
           "payment_response_hash_key": {
             "type": "string",
             "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
-            "nullable": true
+            "nullable": true,
+            "minLength": 32
           },
           "redirect_to_merchant_with_http_post": {
             "type": "boolean",
@@ -31105,8 +31273,10 @@
           },
           "payment_response_hash_key": {
             "type": "string",
-            "description": "Refers to the hash key used for calculating the signature for webhooks and redirect response. If the value is not provided, a value is automatically generated.",
-            "nullable": true
+            "description": "The first 4 characters of the hash key used to sign webhooks and redirect responses.",
+            "example": "xkkd",
+            "nullable": true,
+            "maxLength": 4
           },
           "redirect_to_merchant_with_http_post": {
             "type": "boolean",
@@ -31704,6 +31874,17 @@
           "applied": {
             "type": "boolean",
             "description": "Whether Rapid Dispute Resolution has been applied"
+          }
+        }
+      },
+      "RapydConnectorMetadata": {
+        "type": "object",
+        "description": "Rapyd-specific metadata supplied with a payment request.",
+        "properties": {
+          "ewallet": {
+            "type": "string",
+            "description": "Destination wallet sent as ewallet in the Rapyd payment request.",
+            "nullable": true
           }
         }
       },
@@ -34954,6 +35135,56 @@
           }
         ],
         "description": "Details of the party providing the funds.",
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "SenderDetailsResponse": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IndividualSenderDetailsResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "individual"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CorporateSenderDetailsResponse"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "corporate"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "description": "A partially masked view of `SenderDetails`, safe to return in API responses. The sender's\ndate of birth is never returned.",
         "discriminator": {
           "propertyName": "type"
         }
@@ -38820,6 +39051,31 @@
           "Success",
           "Failure"
         ]
+      },
+      "WorldpayraftConnectorMetadata": {
+        "type": "object",
+        "description": "Merchant-supplied data forwarded to Worldpay RAFT's UserDefinedData.",
+        "properties": {
+          "user_data1": {
+            "type": "string",
+            "description": "Worldpay RAFT UserData1. Maximum length: 35 characters.",
+            "nullable": true,
+            "maxLength": 35
+          },
+          "user_data2": {
+            "type": "string",
+            "description": "Worldpay RAFT UserData2. Maximum length: 20 characters.",
+            "nullable": true,
+            "maxLength": 20
+          },
+          "user_data3": {
+            "type": "string",
+            "description": "Worldpay RAFT UserData3. Maximum length: 20 characters.",
+            "nullable": true,
+            "maxLength": 20
+          }
+        },
+        "additionalProperties": false
       },
       "WorldpayxmlData": {
         "type": "object",

@@ -12,9 +12,10 @@ use api_models::{
     customers::CustomerDocumentDetails,
     mandates::RecurringDetails,
     payments::{
-        additional_info::{self as payment_additional_types},
-        InstallmentRequest, RequestSurchargeDetails,
+        additional_info as payment_additional_types, AddressDetails, InstallmentRequest,
+        RequestSurchargeDetails,
     },
+    sender::{CorporateSenderDetails, IndividualSenderDetails, SenderDetails},
 };
 use base64::Engine;
 use common_enums::{enums::ExecutionMode, ConnectorType, UcsAvailability, WalletDecryptedToken};
@@ -23,9 +24,8 @@ use common_types::payments::InstallmentOption;
 use common_utils::id_type::GenerateId;
 use common_utils::{
     crypto::Encryptable,
-    ext_traits::{AsyncExt, ByteSliceExt, Encode, ValueExt},
-    fp_utils, generate_id,
-    id_type::{self},
+    ext_traits::{AsyncExt, ByteSliceExt, ConfigExt, Encode, ValueExt},
+    fp_utils, generate_id, id_type,
     new_type::{MaskedIban, MaskedSortCode},
     pii, type_name,
     types::{
@@ -79,6 +79,10 @@ use super::{
     CustomerDetails, PaymentData,
 };
 #[cfg(feature = "v1")]
+use crate::configs::settings::{
+    ConnectorFilters, CrossCurrencyMitSupportedConnectors, PaymentMethodFilterKey,
+};
+#[cfg(feature = "v1")]
 use crate::core::mandate::helpers::MandateGenericData;
 #[cfg(feature = "v1")]
 use crate::core::{
@@ -100,11 +104,7 @@ use crate::{
         configs::dimension_state,
         customers,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payment_methods::{
-            self,
-            cards::{self},
-            network_tokenization, vault,
-        },
+        payment_methods::{self, cards, network_tokenization, vault},
         payments,
         pm_auth::retrieve_payment_method_from_auth_service,
     },
@@ -1466,6 +1466,103 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
             }
             Ok(())
         }
+    }
+}
+
+/// Validate connector mandate currency on initial attempts and retries.
+#[cfg(feature = "v1")]
+pub(super) fn validate_connector_mandate_currency(
+    config: &CrossCurrencyMitSupportedConnectors,
+    pm_filters: &ConnectorFilters,
+    connector: api_enums::Connector,
+    payment_method_type: Option<api_enums::PaymentMethodType>,
+    original_currency: Option<api_enums::Currency>,
+    payment_currency: api_enums::Currency,
+) -> RouterResult<()> {
+    match original_currency {
+        Some(original_currency) if original_currency == payment_currency => Ok(()),
+        Some(original_currency) => match is_cross_currency_mit_allowed(
+            config,
+            pm_filters,
+            connector,
+            payment_method_type,
+            original_currency,
+            payment_currency,
+        ) {
+            true => {
+                logger::info!(
+                    %connector,
+                    ?payment_method_type,
+                    %original_currency,
+                    %payment_currency,
+                    "allowing cross-currency connector mandate"
+                );
+                Ok(())
+            }
+            false => Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
+                reason: "Cross currency mandates not supported".into(),
+            })),
+        },
+        None => Ok(()),
+    }
+}
+
+/// Connector opt-in is required before applying explicit currency rules or the PM fallback.
+#[cfg(feature = "v1")]
+fn is_cross_currency_mit_allowed(
+    config: &CrossCurrencyMitSupportedConnectors,
+    pm_filters: &ConnectorFilters,
+    connector: api_enums::Connector,
+    payment_method_type: Option<api_enums::PaymentMethodType>,
+    original_currency: api_enums::Currency,
+    payment_currency: api_enums::Currency,
+) -> bool {
+    match config.connector_list.contains(&connector) {
+        true => {
+            let currency_rule = payment_method_type
+                .and_then(|method| config.currency_rules.get(&connector)?.get(&method))
+                .filter(|currencies| !currencies.is_empty());
+            match currency_rule {
+                Some(currencies) => {
+                    currencies.contains(&original_currency)
+                        && currencies.contains(&payment_currency)
+                }
+                None => is_payment_currency_allowed_by_pm_filters(
+                    pm_filters,
+                    connector,
+                    payment_method_type,
+                    payment_currency,
+                ),
+            }
+        }
+        false => false,
+    }
+}
+
+/// Resolve connector-specific PM rules before defaults; absent currency restrictions allow payment.
+#[cfg(feature = "v1")]
+fn is_payment_currency_allowed_by_pm_filters(
+    pm_filters: &ConnectorFilters,
+    connector: api_enums::Connector,
+    payment_method_type: Option<api_enums::PaymentMethodType>,
+    payment_currency: api_enums::Currency,
+) -> bool {
+    let filter = payment_method_type.and_then(|method| {
+        let key = PaymentMethodFilterKey::PaymentMethodType(method);
+        pm_filters
+            .0
+            .get(&connector.to_string())
+            .and_then(|filters| filters.0.get(&key))
+            .or_else(|| {
+                pm_filters
+                    .0
+                    .get("default")
+                    .and_then(|filters| filters.0.get(&key))
+            })
+    });
+    match filter.and_then(|filter| filter.currency.as_ref()) {
+        Some(currencies) => currencies.contains(&payment_currency),
+        None => true,
     }
 }
 
@@ -8443,6 +8540,129 @@ pub fn validate_session_expiry(session_expiry: u32) -> Result<(), errors::ApiErr
     } else {
         Ok(())
     }
+}
+
+/// Validates that the names identifying an account funded transaction sender are not blank.
+pub fn validate_sender_details(
+    sender_details: Option<&SenderDetails>,
+) -> Result<(), errors::ApiErrorResponse> {
+    sender_details
+        .map(|sender_details| sender_details.get_name_fields())
+        .unwrap_or_default()
+        .into_iter()
+        .find(|(_, value)| value.is_empty_after_trim())
+        .map_or(Ok(()), |(field_name, _)| {
+            Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!("{field_name} must not be empty"),
+            })
+        })
+}
+
+/// Fills in the sender of an account funded transaction from the billing address of the payment
+/// method.
+pub fn get_sender_details_with_billing_fallback(
+    sender_details: Option<SenderDetails>,
+    billing: Option<&hyperswitch_domain_models::address::Address>,
+) -> Option<SenderDetails> {
+    let billing_details = billing.and_then(|billing| billing.address.as_ref());
+    // Only the location is taken from billing; the sender's name is resolved separately below.
+    let billing_address = billing_details
+        .map(|details| AddressDetails {
+            line1: details.line1.clone(),
+            line2: details.line2.clone(),
+            line3: details.line3.clone(),
+            city: details.city.clone(),
+            state: details.state.clone(),
+            zip: details.zip.clone(),
+            country: details.country,
+            ..Default::default()
+        })
+        .filter(has_sender_address_location);
+    let billing_first_name = || billing_details.and_then(|details| details.first_name.clone());
+    let billing_last_name = || billing_details.and_then(|details| details.last_name.clone());
+    let resolve_address = |address: Option<AddressDetails>| {
+        address
+            .filter(has_sender_address_location)
+            .or_else(|| billing_address.clone())
+    };
+
+    let sender_details = match sender_details {
+        None => billing_details.map(|_| {
+            SenderDetails::Individual(IndividualSenderDetails {
+                first_name: billing_first_name(),
+                last_name: billing_last_name(),
+                date_of_birth: None,
+                address: billing_address.clone(),
+                phone: None,
+                email: None,
+                reference_id: None,
+                source_of_funds: None,
+            })
+        }),
+        Some(SenderDetails::Individual(individual)) => {
+            // The first and last name are taken together, from the sender when either is
+            // provided, otherwise from the billing name.
+            let is_sender_named = individual.first_name.is_some() || individual.last_name.is_some();
+            let (first_name, last_name) = if is_sender_named {
+                (individual.first_name, individual.last_name)
+            } else {
+                (billing_first_name(), billing_last_name())
+            };
+
+            // The billing address belongs to the cardholder, so it is not used for a sender
+            // named as someone else.
+            let is_billing_named_differently = is_sender_named
+                && (billing_first_name().is_some() || billing_last_name().is_some())
+                && !(is_same_name_part(first_name.as_ref(), billing_first_name().as_ref())
+                    && is_same_name_part(last_name.as_ref(), billing_last_name().as_ref()));
+            let address = individual
+                .address
+                .filter(has_sender_address_location)
+                .or_else(|| {
+                    billing_address
+                        .clone()
+                        .filter(|_| !is_billing_named_differently)
+                });
+
+            Some(SenderDetails::Individual(IndividualSenderDetails {
+                first_name,
+                last_name,
+                address,
+                ..individual
+            }))
+        }
+        Some(SenderDetails::Corporate(corporate)) => {
+            Some(SenderDetails::Corporate(CorporateSenderDetails {
+                address: resolve_address(corporate.address),
+                ..corporate
+            }))
+        }
+    };
+
+    // Names are compared with billing after trimming, so they are sent trimmed as well.
+    sender_details.map(SenderDetails::with_trimmed_names)
+}
+
+/// Whether a sender address carries any location field
+fn has_sender_address_location(address: &AddressDetails) -> bool {
+    address.line1.is_some()
+        || address.line2.is_some()
+        || address.line3.is_some()
+        || address.city.is_some()
+        || address.state.is_some()
+        || address.zip.is_some()
+        || address.country.is_some()
+}
+
+/// Compares a part of a name ignoring case and surrounding whitespace.
+fn is_same_name_part(
+    sender_name: Option<&hyperswitch_masking::Secret<String>>,
+    billing_name: Option<&hyperswitch_masking::Secret<String>>,
+) -> bool {
+    let normalize = |name: Option<&hyperswitch_masking::Secret<String>>| {
+        name.map(|name| name.peek().trim().to_lowercase())
+    };
+    normalize(sender_name) == normalize(billing_name)
 }
 
 pub fn get_recipient_id_for_open_banking(

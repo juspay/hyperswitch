@@ -57,7 +57,7 @@ use crate::{
     services,
     types::{
         api::{self, ConnectorCallType, PaymentIdTypeExt},
-        domain::{self},
+        domain,
         storage::{self, enums as storage_enums},
         transformers::{ForeignFrom, ForeignInto},
     },
@@ -3246,6 +3246,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_intent
                             .is_account_funded_transaction,
                         recipient_details: payment_data.payment_intent.recipient_details.clone(),
+                        sender_details: payment_data.payment_intent.sender_details.clone(),
                         payment_channel: payment_data.payment_intent.payment_channel,
                         feature_metadata: payment_data.payment_intent.feature_metadata.clone(),
                         tax_status: payment_data.payment_intent.tax_status,

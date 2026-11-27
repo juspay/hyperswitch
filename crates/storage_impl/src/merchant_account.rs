@@ -869,11 +869,7 @@ where
 }
 
 use common_utils::{
-    date_time,
-    encryption::Encryption,
-    errors::ValidationError,
-    type_name,
-    types::keymanager::{self},
+    date_time, encryption::Encryption, errors::ValidationError, type_name, types::keymanager,
 };
 use hyperswitch_domain_models::type_encryption::{crypto_operation, AsyncLift, CryptoOperation};
 use hyperswitch_masking::Secret;
@@ -940,6 +936,8 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 offer_engine_config: offer_engine_config.map(Encryption::from),
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
             },
             domain::MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
                 storage_scheme: Some(storage_scheme),
@@ -973,6 +971,8 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 offer_engine_config: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
             },
             domain::MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
                 recon_status: Some(recon_status),
@@ -1006,6 +1006,8 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 offer_engine_config: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
             },
             domain::MerchantAccountUpdate::UnsetDefaultProfile => Self {
                 default_profile: Some(None),
@@ -1039,6 +1041,8 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 offer_engine_config: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
             },
             domain::MerchantAccountUpdate::ModifiedAtUpdate => Self {
                 modified_at: now,
@@ -1070,6 +1074,46 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 product_type: None,
                 network_tokenization_credentials: None,
                 offer_engine_config: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
+            },
+            domain::MerchantAccountUpdate::GooglePayDecryptionConfigUpdate {
+                google_pay_decryption_config,
+                google_pay_decryption_config_encrypted,
+            } => Self {
+                modified_at: now,
+                merchant_name: None,
+                merchant_details: None,
+                return_url: None,
+                webhook_details: None,
+                sub_merchants_enabled: None,
+                parent_merchant_id: None,
+                enable_payment_response_hash: None,
+                payment_response_hash_key: None,
+                redirect_to_merchant_with_http_post: None,
+                publishable_key: None,
+                storage_scheme: None,
+                locker_id: None,
+                metadata: None,
+                routing_algorithm: None,
+                primary_business_details: None,
+                intent_fulfillment_time: None,
+                frm_routing_algorithm: None,
+                payout_routing_algorithm: None,
+                organization_id: None,
+                is_recon_enabled: None,
+                default_profile: None,
+                recon_status: None,
+                payment_link_config: None,
+                pm_collect_link_config: None,
+                is_platform_account: None,
+                product_type: None,
+                network_tokenization_credentials: None,
+                offer_engine_config: None,
+                google_pay_decryption_config,
+                google_pay_decryption_config_encrypted,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
             },
@@ -1108,6 +1152,8 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 offer_engine_config: None,
                 apple_pay_certificates,
                 apple_pay_certificates_encrypted,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
             },
         }
     }
@@ -1137,6 +1183,8 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 product_type: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
             },
             domain::MerchantAccountUpdate::StorageSchemeUpdate { storage_scheme } => Self {
                 storage_scheme: Some(storage_scheme),
@@ -1151,6 +1199,8 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 product_type: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
             },
             domain::MerchantAccountUpdate::ReconUpdate { recon_status } => Self {
                 recon_status: Some(recon_status),
@@ -1165,6 +1215,8 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 product_type: None,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
             },
             domain::MerchantAccountUpdate::ModifiedAtUpdate => Self {
                 modified_at: now,
@@ -1177,6 +1229,27 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 recon_status: None,
                 is_platform_account: None,
                 product_type: None,
+                apple_pay_certificates: None,
+                apple_pay_certificates_encrypted: None,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
+            },
+            domain::MerchantAccountUpdate::GooglePayDecryptionConfigUpdate {
+                google_pay_decryption_config,
+                google_pay_decryption_config_encrypted,
+            } => Self {
+                modified_at: now,
+                merchant_name: None,
+                merchant_details: None,
+                publishable_key: None,
+                storage_scheme: None,
+                metadata: None,
+                organization_id: None,
+                recon_status: None,
+                is_platform_account: None,
+                product_type: None,
+                google_pay_decryption_config,
+                google_pay_decryption_config_encrypted,
                 apple_pay_certificates: None,
                 apple_pay_certificates_encrypted: None,
             },
@@ -1196,6 +1269,8 @@ impl ForeignFrom<domain::MerchantAccountUpdate> for MerchantAccountUpdateInterna
                 product_type: None,
                 apple_pay_certificates,
                 apple_pay_certificates_encrypted,
+                google_pay_decryption_config: None,
+                google_pay_decryption_config_encrypted: None,
             },
         }
     }
@@ -1225,6 +1300,10 @@ impl Conversion for domain::MerchantAccount {
             product_type: self.product_type,
             merchant_account_type: self.merchant_account_type,
             fingerprint_secret: self.fingerprint_secret,
+            google_pay_decryption_config: self.google_pay_decryption_config,
+            google_pay_decryption_config_encrypted: self
+                .google_pay_decryption_config_encrypted
+                .map(Encryption::from),
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -1240,6 +1319,23 @@ impl Conversion for domain::MerchantAccount {
         Self: Sized,
     {
         let id = item.get_id().to_owned();
+        let google_pay_decryption_config_encrypted = item
+            .google_pay_decryption_config_encrypted
+            .async_lift(|inner| async {
+                crypto_operation(
+                    state,
+                    type_name!(Self::DstType),
+                    CryptoOperation::DecryptOptional(inner),
+                    key_manager_identifier.clone(),
+                    key.peek(),
+                )
+                .await
+                .and_then(|value| value.try_into_optionaloperation())
+            })
+            .await
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed to decrypt Google Pay decryption configuration".to_string(),
+            })?;
         let publishable_key =
             item.publishable_key
                 .ok_or(ValidationError::MissingRequiredField {
@@ -1290,6 +1386,8 @@ impl Conversion for domain::MerchantAccount {
                     product_type: item.product_type,
                     merchant_account_type: item.merchant_account_type.unwrap_or_default(),
                     fingerprint_secret: item.fingerprint_secret,
+                    google_pay_decryption_config: item.google_pay_decryption_config,
+                    google_pay_decryption_config_encrypted,
                 }
                 .into(),
             )
@@ -1320,6 +1418,10 @@ impl Conversion for domain::MerchantAccount {
                 .or(Some(common_enums::MerchantProductType::Orchestration)),
             merchant_account_type: self.merchant_account_type,
             fingerprint_secret: self.fingerprint_secret,
+            google_pay_decryption_config: self.google_pay_decryption_config,
+            google_pay_decryption_config_encrypted: self
+                .google_pay_decryption_config_encrypted
+                .map(Encryption::from),
         })
     }
 }
@@ -1367,6 +1469,10 @@ impl Conversion for domain::MerchantAccount {
                 .map(|credentials| credentials.into()),
             fingerprint_secret: self.fingerprint_secret,
             offer_engine_config: self.offer_engine_config.map(|config| config.into()),
+            google_pay_decryption_config: self.google_pay_decryption_config,
+            google_pay_decryption_config_encrypted: self
+                .google_pay_decryption_config_encrypted
+                .map(Encryption::from),
         };
 
         Ok(diesel_models::MerchantAccount::from(setter))
@@ -1382,6 +1488,23 @@ impl Conversion for domain::MerchantAccount {
         Self: Sized,
     {
         let merchant_id = item.get_id().to_owned();
+        let google_pay_decryption_config_encrypted = item
+            .google_pay_decryption_config_encrypted
+            .async_lift(|inner| async {
+                crypto_operation(
+                    state,
+                    type_name!(Self::DstType),
+                    CryptoOperation::DecryptOptional(inner),
+                    key_manager_identifier.clone(),
+                    key.peek(),
+                )
+                .await
+                .and_then(|value| value.try_into_optionaloperation())
+            })
+            .await
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed to decrypt Google Pay decryption configuration".to_string(),
+            })?;
         let publishable_key =
             item.publishable_key
                 .ok_or(ValidationError::MissingRequiredField {
@@ -1492,6 +1615,8 @@ impl Conversion for domain::MerchantAccount {
                             .and_then(|val| val.try_into_optionaloperation())
                         })
                         .await?,
+                    google_pay_decryption_config: item.google_pay_decryption_config,
+                    google_pay_decryption_config_encrypted,
                 }
                 .into(),
             )
@@ -1544,6 +1669,10 @@ impl Conversion for domain::MerchantAccount {
             storage_scheme: self.storage_scheme,
             fingerprint_secret: self.fingerprint_secret,
             offer_engine_config: self.offer_engine_config.map(|config| config.into()),
+            google_pay_decryption_config: self.google_pay_decryption_config,
+            google_pay_decryption_config_encrypted: self
+                .google_pay_decryption_config_encrypted
+                .map(Encryption::from),
         })
     }
 }

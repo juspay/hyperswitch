@@ -1,8 +1,7 @@
 use std::str::FromStr;
 
 use api_models::{
-    admin::{self as admin_types},
-    enums as api_enums, organization as org_types, routing as routing_types,
+    admin as admin_types, enums as api_enums, organization as org_types, routing as routing_types,
 };
 use common_enums::{MerchantAccountType, OrganizationType};
 use common_utils::{
@@ -39,18 +38,14 @@ use crate::{
         encryption::transfer_encryption_key,
         errors::{self, RouterResponse, RouterResult, StorageErrorExt},
         payment_methods::{cards, transformers, vault},
-        payments::helpers::{self},
+        payments::helpers,
         pm_auth::helpers::PaymentAuthConnectorDataExt,
         routing, utils as core_utils,
     },
     db::AccountsStorageInterface,
     logger,
     routes::{app::SessionStateInfo, metrics, SessionState},
-    services::{
-        self,
-        api::{self as service_api},
-        authentication, pm_auth as payment_initiation_service,
-    },
+    services::{self, api as service_api, authentication, pm_auth as payment_initiation_service},
     types::{
         self,
         api::{self, admin},
@@ -664,6 +659,8 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     offer_engine_config: None,
                     apple_pay_certificates: None,
                     apple_pay_certificates_encrypted: None,
+                    google_pay_decryption_config: None,
+                    google_pay_decryption_config_encrypted: None,
                 },
             )
         }
@@ -972,6 +969,8 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                         consts::FINGERPRINT_SECRET_LENGTH,
                         "fs",
                     ))),
+                    google_pay_decryption_config: None,
+                    google_pay_decryption_config_encrypted: None,
                 }),
             )
         }
@@ -2776,6 +2775,11 @@ pub async fn create_connector(
     processor: domain::Processor,
     auth_profile_id: Option<id_type::ProfileId>,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
+    if let Some(details) = &req.connector_webhook_details {
+        details
+            .validate()
+            .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })?;
+    }
     let key_manager_state = &(&state).into();
     #[cfg(feature = "dummy_connector")]
     fp_utils::when(
@@ -3096,6 +3100,11 @@ pub async fn update_connector(
     merchant_connector_id: &id_type::MerchantConnectorAccountId,
     req: api_models::admin::MerchantConnectorUpdate,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
+    if let Some(details) = &req.connector_webhook_details {
+        details
+            .validate()
+            .map_err(|message| errors::ApiErrorResponse::InvalidRequestData { message })?;
+    }
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
     let key_store_master_key = db.get_master_key().to_vec().into();
