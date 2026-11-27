@@ -6,6 +6,7 @@ use api_models::{
 };
 use common_enums::SurchargeEventMapper;
 use common_utils::{
+    crypto::Encryptable,
     errors::CustomResult,
     ext_traits::{Encode, StringExt},
     request::RequestContent,
@@ -326,30 +327,16 @@ async fn insert_event_and_spawn_webhook_delivery(
         .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable("Failed to construct outgoing webhook request content")?;
 
-    let key_manager_state = &(&state).into();
     let encrypted_content = match request_content {
-        Some(ref request_content_data) => {
-            let encoded = request_content_data
-                .clone()
-                .encode_to_string_of_json()
-                .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .attach_printable("Failed to encode outgoing webhook request content")
-                .map(Secret::new)?;
-
-            let encrypted = crypto_operation(
-                key_manager_state,
-                type_name!(domain::Event),
-                CryptoOperation::Encrypt(encoded),
-                Identifier::Merchant(webhook_recipient.key_store.merchant_id.clone()),
-                webhook_recipient.key_store.key.get_inner().peek(),
+        Some(ref request_content_data) => Some(
+            encrypt_outgoing_webhook_request(
+                &state,
+                &webhook_recipient.key_store,
+                request_content_data,
             )
             .await
-            .and_then(|val| val.try_into_operation())
-            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .attach_printable("Failed to encrypt outgoing webhook request content")?;
-
-            Some(encrypted)
-        }
+            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)?,
+        ),
         None => None,
     };
 
@@ -1235,6 +1222,30 @@ pub(super) fn refresh_outgoing_webhook_request_headers(
         body: request.body,
         headers,
     }
+}
+
+/// Encodes and encrypts the request content for storing on an event.
+pub(super) async fn encrypt_outgoing_webhook_request(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    request_content: &OutgoingWebhookRequestContent,
+) -> CustomResult<Encryptable<Secret<String>>, errors::WebhooksFlowError> {
+    let encoded = request_content
+        .encode_to_string_of_json()
+        .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
+        .attach_printable("Failed to encode outgoing webhook request content")?;
+
+    crypto_operation(
+        &state.into(),
+        type_name!(domain::Event),
+        CryptoOperation::Encrypt(Secret::new(encoded)),
+        Identifier::Merchant(key_store.merchant_id.clone()),
+        key_store.key.get_inner().peek(),
+    )
+    .await
+    .and_then(|val| val.try_into_operation())
+    .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
+    .attach_printable("Failed to encrypt outgoing webhook request content")
 }
 
 #[derive(Debug)]

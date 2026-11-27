@@ -1,11 +1,8 @@
 use std::collections::HashSet;
 
-use common_utils::{
-    self, errors::CustomResult, ext_traits::Encode, fp_utils, types::keymanager::Identifier,
-};
+use common_utils::{self, errors::CustomResult, fp_utils};
 use error_stack::ResultExt;
-use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::PeekInterface;
 use router_env::instrument;
 
 use crate::{
@@ -421,21 +418,10 @@ pub async fn retry_delivery_attempt(
         );
 
         // Persisted on this attempt only; automatic retries keep using the initial event's request.
-        let encoded_request = request_content
-            .encode_to_string_of_json()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encode refreshed outgoing webhook request")?;
-        let request = crypto_operation(
-            &(&state).into(),
-            common_utils::type_name!(domain::Event),
-            CryptoOperation::Encrypt(Secret::new(encoded_request)),
-            Identifier::Merchant(key_store.merchant_id.clone()),
-            key_store.key.get_inner().peek(),
-        )
-        .await
-        .and_then(|value| value.try_into_operation())
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to encrypt refreshed outgoing webhook request")?;
+        let request =
+            super::outgoing::encrypt_outgoing_webhook_request(&state, &key_store, &request_content)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         (request_content, Some(request))
     } else {
