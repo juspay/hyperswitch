@@ -89,6 +89,7 @@ pub struct DynamicRoutingWrapper {
 pub struct HybridRoutingOutcome {
     pub connectors: Vec<RoutableConnectorChoice>,
     pub routing_approach: RoutingApproach,
+    pub(super) first_connector_matches_static_rule: bool,
 }
 
 impl HybridRoutingOutcome {
@@ -97,6 +98,7 @@ impl HybridRoutingOutcome {
         Self {
             connectors: Vec::new(),
             routing_approach: RoutingApproach::Default,
+            first_connector_matches_static_rule: false,
         }
     }
 }
@@ -501,9 +503,15 @@ pub fn normalize_hybrid_routing_response(
             .iter()
             .cloned()
             .map(RoutableConnectorChoice::from)
-            .collect();
+            .collect::<Vec<_>>();
+        let first_static_rule_connector = response
+            .static_routing
+            .as_ref()
+            .filter(|result| result.status == "success")
+            .and_then(|result| result.evaluated_output.first());
 
         HybridRoutingOutcome {
+            first_connector_matches_static_rule: connectors.first() == first_static_rule_connector,
             connectors,
             routing_approach: infer_hybrid_routing_approach(response),
         }
@@ -534,6 +542,7 @@ pub fn normalize_hybrid_routing_response(
         HybridRoutingOutcome {
             connectors: static_connectors,
             routing_approach: RoutingApproach::StaticRouting,
+            first_connector_matches_static_rule: false,
         }
     } else {
         logger::debug!(
