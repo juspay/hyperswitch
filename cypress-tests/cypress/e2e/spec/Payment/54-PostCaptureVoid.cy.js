@@ -80,10 +80,11 @@ describe("Card - Post-capture void flow test", { retries: 0 }, () => {
       });
 
       cy.step("Retrieve Payment after Void", () => {
-        cy.retrievePostCaptureVoidCallTest(
-          card.PostCaptureVoidFull,
-          globalState
-        );
+        cy.retrievePaymentCallTest({
+          globalState,
+          data: card.PostCaptureVoidFull,
+          expectedIntentStatus: card.PostCaptureVoidFull.Response.body.status,
+        });
       });
 
       cy.step("Reject Duplicate Void", () => {
@@ -132,10 +133,12 @@ describe("Card - Post-capture void flow test", { retries: 0 }, () => {
       });
 
       cy.step("Retrieve Payment after Void", () => {
-        cy.retrievePostCaptureVoidCallTest(
-          card.PostCaptureVoidPartial,
-          globalState
-        );
+        cy.retrievePaymentCallTest({
+          globalState,
+          data: card.PostCaptureVoidPartial,
+          expectedIntentStatus:
+            card.PostCaptureVoidPartial.Response.body.status,
+        });
       });
     });
   });

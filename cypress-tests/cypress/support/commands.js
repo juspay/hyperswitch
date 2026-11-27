@@ -5017,31 +5017,6 @@ Cypress.Commands.add("postCaptureVoidCallTest", (data, globalState) => {
   });
 });
 
-Cypress.Commands.add("retrievePostCaptureVoidCallTest", (data, globalState) => {
-  const paymentId = globalState.get("paymentID");
-  cy.request({
-    method: "GET",
-    url: `${globalState.get("baseUrl")}/payments/${paymentId}`,
-    headers: { "api-key": globalState.get("apiKey") },
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-    storeRequestId(response.headers["x-request-id"], globalState);
-    expect(response.status).to.equal(data.Response.status);
-    for (const [path, value] of Object.entries(data.Response.body)) {
-      expect(Cypress._.get(response.body, path), path).to.deep.equal(value);
-    }
-    if (data.Response.status === 200) {
-      expect(response.body.payment_id).to.equal(paymentId);
-    }
-    if (data.Response.connectorReferenceIdRequired) {
-      expect(
-        response.body.state_metadata.post_capture_void.connector_reference_id
-      ).to.be.a("string").and.not.be.empty;
-    }
-  });
-});
-
 Cypress.Commands.add(
   "voidCallTest",
   (requestBody, data, globalState, connectedMerchantId) => {
