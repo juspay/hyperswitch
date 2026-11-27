@@ -1414,8 +1414,7 @@ fn get_commerce_indicator_for_moto(
         payment_method_data,
         PaymentMethodData::Card(_) | PaymentMethodData::CardWithOptionalCVC(_)
     );
-    (is_moto_channel && is_raw_card && payment_solution.is_none())
-        .then(|| "moto".to_string())
+    (is_moto_channel && is_raw_card && payment_solution.is_none()).then(|| "moto".to_string())
 }
 
 impl
