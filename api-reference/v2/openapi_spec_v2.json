@@ -13115,6 +13115,22 @@
               }
             ],
             "nullable": true
+          },
+          "jpmorgan": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JpmorganConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "rapyd": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RapydConnectorMetadata"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -18832,6 +18848,17 @@
             "type": "string",
             "description": "The telephone number for Japanese convenience stores",
             "example": "9123456789",
+            "nullable": true
+          }
+        }
+      },
+      "JpmorganConnectorMetadata": {
+        "type": "object",
+        "description": "JPMorgan-specific metadata supplied with a payment request.",
+        "properties": {
+          "request_sca_exemption": {
+            "type": "boolean",
+            "description": "Request an SCA exemption for a subsequent MIT whose initial CIT completed 3D Secure.",
             "nullable": true
           }
         }
@@ -29567,43 +29594,6 @@
           "other"
         ]
       },
-      "PayoutRequest": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "PayoutActionRequest"
-            ],
-            "properties": {
-              "PayoutActionRequest": {
-                "$ref": "#/components/schemas/PayoutActionRequest"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "PayoutCreateRequest"
-            ],
-            "properties": {
-              "PayoutCreateRequest": {
-                "$ref": "#/components/schemas/PayoutCreateRequest"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "PayoutRetrieveRequest"
-            ],
-            "properties": {
-              "PayoutRetrieveRequest": {
-                "$ref": "#/components/schemas/PayoutRetrieveRequest"
-              }
-            }
-          }
-        ]
-      },
       "PayoutRetrieveBody": {
         "type": "object",
         "properties": {
@@ -31847,6 +31837,17 @@
           "applied": {
             "type": "boolean",
             "description": "Whether Rapid Dispute Resolution has been applied"
+          }
+        }
+      },
+      "RapydConnectorMetadata": {
+        "type": "object",
+        "description": "Rapyd-specific metadata supplied with a payment request.",
+        "properties": {
+          "ewallet": {
+            "type": "string",
+            "description": "Destination wallet sent as ewallet in the Rapyd payment request.",
+            "nullable": true
           }
         }
       },

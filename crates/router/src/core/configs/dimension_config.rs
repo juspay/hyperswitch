@@ -410,6 +410,19 @@ impl DatabaseBackedConfig for ShouldAllowPayouts {
 }
 
 config! {
+    superposition_key = SHOULD_ALLOW_REVIEW_FLOW,
+    output = bool,
+    default = false,
+    generics = [Pm, M, P, Cn, PRT, Ev, Pmt],
+    requires = dimension_state::Dimensions<Pm, M, dimension_state::HasOrgId, P, Cn, PRT, Ev, Pmt>,
+    targeting_key = id_type::ProfileId
+}
+
+impl DatabaseBackedConfig for ShouldAllowReviewFlow {
+    const KEY: &'static str = "should_allow_review_flow";
+}
+
+config! {
     superposition_key = GSM_PAYOUT_CALL,
     output = bool,
     default = false,

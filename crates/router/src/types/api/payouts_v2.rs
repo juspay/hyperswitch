@@ -2,7 +2,7 @@ pub use api_models::payouts::{
     AchBankTransfer, BacsBankTransfer, Bank as BankPayout, CardPayout, PayoutActionRequest,
     PayoutAttemptResponse, PayoutCreateRequest, PayoutCreateResponse, PayoutListConstraints,
     PayoutListFilterConstraints, PayoutListFilters, PayoutListResponse, PayoutMethodData,
-    PayoutRequest, PayoutRetrieveBody, PayoutRetrieveRequest, PixBankTransfer, SepaBankTransfer,
+    PayoutRetrieveBody, PayoutRetrieveRequest, PixBankTransfer, SepaBankTransfer,
     Wallet as WalletPayout,
 };
 pub use hyperswitch_domain_models::router_flow_types::payouts::{

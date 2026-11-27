@@ -258,6 +258,7 @@ pub async fn payouts_cancel(
                 profile_id,
                 header_payload.clone(),
                 req,
+                PayoutActionType::Standard,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -299,6 +300,93 @@ pub async fn payouts_fulfill(
                 profile_id,
                 header_payload.clone(),
                 req,
+                PayoutActionType::Standard,
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
+        }),
+        locking_action,
+    ))
+    .await
+}
+
+/// Payouts - Accept
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsAccept))]
+pub async fn payouts_accept(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::PayoutId>,
+) -> HttpResponse {
+    let flow = Flow::PayoutsAccept;
+    let payload = payout_types::PayoutActionRequest {
+        payout_id: path.into_inner(),
+    };
+    let locking_action = payload.get_locking_input(flow.clone());
+
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            let profile_id = get_authenticated_profile_id(&auth);
+            payouts_fulfill_core(
+                state,
+                auth.platform,
+                profile_id,
+                header_payload.clone(),
+                req,
+                PayoutActionType::Review,
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
+        }),
+        locking_action,
+    ))
+    .await
+}
+
+/// Payouts - Reject
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsReject))]
+pub async fn payouts_reject(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<id_type::PayoutId>,
+) -> HttpResponse {
+    let flow = Flow::PayoutsReject;
+    let payload = payout_types::PayoutActionRequest {
+        payout_id: path.into_inner(),
+    };
+    let locking_action = payload.get_locking_input(flow.clone());
+
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, _| {
+            let profile_id = get_authenticated_profile_id(&auth);
+            payouts_cancel_core(
+                state,
+                auth.platform,
+                profile_id,
+                header_payload.clone(),
+                req,
+                PayoutActionType::Review,
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {

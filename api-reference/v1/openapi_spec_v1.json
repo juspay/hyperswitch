@@ -3612,6 +3612,9 @@
         "security": [
           {
             "admin_api_key": []
+          },
+          {
+            "api_key": []
           }
         ]
       }
@@ -8164,6 +8167,100 @@
           },
           "400": {
             "description": "Missing Mandatory fields"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/payouts/{payout_id}/accept": {
+      "post": {
+        "tags": [
+          "Payouts"
+        ],
+        "summary": "Payouts - Accept",
+        "description": "Accept a payout in `requires_review` status and fulfill it using the payout fulfillment flow.\nPayouts in any other status cannot be accepted.\n\nReview actions require the shared Superposition flag `should_allow_review_flow`, which defaults to `false`, to be explicitly enabled by a matching organization, merchant, or profile override.",
+        "operationId": "Accept a Payout",
+        "parameters": [
+          {
+            "name": "payout_id",
+            "in": "path",
+            "description": "The identifier for payout",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payout accepted and fulfilled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayoutCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields or payout review flow is not enabled for this profile"
+          },
+          "404": {
+            "description": "Payout does not exist in the merchant's records"
+          },
+          "422": {
+            "description": "Payout is not in requires_review status"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/payouts/{payout_id}/reject": {
+      "post": {
+        "tags": [
+          "Payouts"
+        ],
+        "summary": "Payouts - Reject",
+        "description": "Reject a payout in `requires_review` status and cancel it using the payout cancellation flow.\nPayouts in any other status cannot be rejected.\n\nReview actions require the shared Superposition flag `should_allow_review_flow`, which defaults to `false`, to be explicitly enabled by a matching organization, merchant, or profile override.",
+        "operationId": "Reject a Payout",
+        "parameters": [
+          {
+            "name": "payout_id",
+            "in": "path",
+            "description": "The identifier for payout",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payout rejected and cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayoutCreateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing mandatory fields or payout review flow is not enabled for this profile"
+          },
+          "404": {
+            "description": "Payout does not exist in the merchant's records"
+          },
+          "422": {
+            "description": "Payout is not in requires_review status"
           }
         },
         "security": [
@@ -20069,6 +20166,22 @@
               }
             ],
             "nullable": true
+          },
+          "jpmorgan": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JpmorganConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "rapyd": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RapydConnectorMetadata"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -27415,6 +27528,17 @@
             "type": "string",
             "description": "The telephone number for Japanese convenience stores",
             "example": "9123456789",
+            "nullable": true
+          }
+        }
+      },
+      "JpmorganConnectorMetadata": {
+        "type": "object",
+        "description": "JPMorgan-specific metadata supplied with a payment request.",
+        "properties": {
+          "request_sca_exemption": {
+            "type": "boolean",
+            "description": "Request an SCA exemption for a subsequent MIT whose initial CIT completed 3D Secure.",
             "nullable": true
           }
         }
@@ -44591,6 +44715,17 @@
           "applied": {
             "type": "boolean",
             "description": "Whether Rapid Dispute Resolution has been applied"
+          }
+        }
+      },
+      "RapydConnectorMetadata": {
+        "type": "object",
+        "description": "Rapyd-specific metadata supplied with a payment request.",
+        "properties": {
+          "ewallet": {
+            "type": "string",
+            "description": "Destination wallet sent as ewallet in the Rapyd payment request.",
+            "nullable": true
           }
         }
       },
