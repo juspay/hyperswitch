@@ -3164,7 +3164,7 @@ pub fn build_unified_connector_service_auth_metadata_without_mca(
     metadata: Option<&serde_json::Value>,
 ) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
     let connector_config =
-        connector_config::build_connector_config_header(connector, auth_type, metadata)
+        connector_config::build_connector_config_header(connector, auth_type, metadata, None)
             .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
             .attach_printable("Failed to build connector config header")?
             .map(Secret::new);
@@ -3239,6 +3239,7 @@ pub fn build_unified_connector_service_auth_metadata(
     #[cfg(feature = "v2")] merchant_connector_account: MerchantConnectorAccountTypeDetails,
     processor_merchant_id: &id_type::MerchantId,
     connector_name: String,
+    connector_account_identifiers: Option<&connector_config::ConnectorAccountIdentifiers>,
 ) -> CustomResult<ConnectorAuthMetadata, UnifiedConnectorServiceError> {
     #[cfg(feature = "v1")]
     let auth_type: ConnectorAuthType = merchant_connector_account
@@ -3265,6 +3266,7 @@ pub fn build_unified_connector_service_auth_metadata(
         connector,
         &auth_type,
         merchant_account_metadata_value.as_ref(),
+        connector_account_identifiers,
     )
     .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
     .attach_printable("Failed to build connector config header")?
@@ -5146,6 +5148,7 @@ pub async fn call_unified_connector_service_for_refund_execute(
         merchant_connector_account,
         processor.get_account().get_id(),
         router_data.connector.clone(),
+        None,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to build UCS auth metadata for refund execute")?;
@@ -5255,6 +5258,7 @@ pub async fn call_unified_connector_service_for_refund_sync(
         merchant_connector_account,
         processor.get_account().get_id(),
         router_data.connector.clone(),
+        None,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to build UCS auth metadata for refund sync")?;
@@ -5350,6 +5354,7 @@ pub async fn call_unified_connector_service_for_refund_void_post_refund(
         merchant_connector_account,
         processor.get_account().get_id(),
         router_data.connector.clone(),
+        None,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to build UCS auth metadata for refund reverse")?;
@@ -5445,6 +5450,7 @@ pub async fn call_unified_connector_service_for_surcharge_calculate(
         merchant_connector_account,
         processor.get_account().get_id(),
         connector_name.clone(),
+        None,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to build UCS auth metadata for surcharge calculate")?;
@@ -5565,6 +5571,7 @@ pub fn build_notify_connector_request(
             merchant_connector_account,
             merchant_id,
             connector_name.clone(),
+            None,
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to build UCS auth metadata for surcharge calculate")?;
@@ -5675,6 +5682,7 @@ pub async fn call_unified_connector_service_for_surcharge_refund_init(
         account,
         processor.get_account().get_id(),
         "interpayments".to_owned(),
+        None,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let headers = state
@@ -5713,6 +5721,7 @@ pub async fn call_unified_connector_service_for_surcharge_refund_complete(
         account,
         merchant_id,
         "interpayments".to_owned(),
+        None,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let headers = state

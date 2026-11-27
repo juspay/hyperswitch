@@ -873,6 +873,7 @@ fn build_ucs_auth_metadata(
                 MerchantConnectorAccountType::DbVal(Box::new(mca.clone())),
                 ctx.platform.get_processor().get_account().get_id(),
                 ctx.connector_name.to_string(),
+                None,
             );
             #[cfg(feature = "v2")]
             let auth_metadata = build_unified_connector_service_auth_metadata(
@@ -881,6 +882,7 @@ fn build_ucs_auth_metadata(
                 )),
                 ctx.platform.get_processor().get_account().get_id(),
                 ctx.connector_name.to_string(),
+                None,
             );
             auth_metadata
                 .change_context(errors::ApiErrorResponse::InternalServerError)

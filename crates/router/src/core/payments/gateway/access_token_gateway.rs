@@ -99,6 +99,7 @@ where
                 merchant_connector_account.clone(),
                 processor.get_account().get_id(),
                 router_data.connector.clone(),
+                None,
             )
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;

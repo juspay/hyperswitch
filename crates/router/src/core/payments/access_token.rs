@@ -374,6 +374,7 @@ async fn fetch_access_token_from_ucs(
             mca_type,
             processor.get_account().get_id(),
             connector_name.to_string(),
+            None,
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to build UCS auth metadata")?;

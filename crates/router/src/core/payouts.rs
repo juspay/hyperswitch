@@ -73,7 +73,7 @@ use crate::{
         },
         payments::{self, customers, helpers as payment_helpers, HeaderPayload},
         payouts::gateway::context as gateway_context,
-        unified_connector_service::should_call_unified_connector_service,
+        unified_connector_service::{self, should_call_unified_connector_service},
         utils as core_utils,
     },
     db::StorageInterface,
@@ -4815,6 +4815,17 @@ async fn decide_normal_payout_gateway<F: Clone>(
         processor: platform.get_processor().clone(),
         header_payload: header_payload.clone(),
         lineage_ids,
+        connector_account_identifiers: payout_data
+            .payout_attempt
+            .merchant_connector_id
+            .as_ref()
+            .map(|merchant_connector_id| {
+                unified_connector_service::connector_config::ConnectorAccountIdentifiers {
+                    merchant_id: payout_data.payouts.merchant_id.clone(),
+                    profile_id: payout_data.profile_id.clone(),
+                    merchant_connector_id: merchant_connector_id.clone(),
+                }
+            }),
         merchant_connector_account,
         execution_path,
         kill_switch_enabled: rollout_result.kill_switch_enabled,

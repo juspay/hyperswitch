@@ -35,16 +35,14 @@ impl<T> From<(StringMajorUnit, T)> for GotymeSanlamRouterData<T> {
 
 pub struct GotymeSanlamAuthType {
     pub(super) api_key: Secret<String>,
-    pub(super) profile_id: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for GotymeSanlamAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
-                profile_id: key1.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }

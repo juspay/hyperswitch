@@ -10,7 +10,6 @@ pub(crate) mod headers {
     pub(crate) const IDEMPOTENCY_KEY: &str = "Idempotency-Key";
     pub(crate) const MESSAGE_SIGNATURE: &str = "Message-Signature";
     pub(crate) const MERCHANT_ID: &str = "Merchant-ID";
-    pub(crate) const PROFILE_ID: &str = "Profile-Id";
     pub(crate) const MERCHANTID: &str = "MerchantID";
     pub(crate) const MERCHANT_TOKEN: &str = "MerchantToken";
     pub(crate) const REQUEST_ID: &str = "request-id";

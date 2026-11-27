@@ -166,6 +166,7 @@ impl ExternalVaultPayout<'_> {
                 payout_data.payouts.merchant_id.clone(),
                 payout_data.profile_id.clone(),
             ),
+            connector_account_identifiers: None,
             merchant_connector_account,
             execution_path: ExecutionPath::UnifiedConnectorService,
             execution_mode: ExecutionMode::Primary,

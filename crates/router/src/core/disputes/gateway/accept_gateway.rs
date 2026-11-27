@@ -107,6 +107,7 @@ async fn call_unified_connector_service_for_dispute_accept(
             merchant_connector_account,
             processor.get_account().get_id(),
             router_data.connector.clone(),
+            None,
         )
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to build UCS auth metadata for dispute accept")?;

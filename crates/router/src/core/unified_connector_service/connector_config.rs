@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 
 use common_enums::{connector_enums::Connector, enums::Currency};
-use common_utils::ext_traits::ValueExt;
+use common_utils::{ext_traits::ValueExt, id_type};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -16,6 +16,14 @@ use crate::{
     core::errors::{self, RouterResult},
     types::transformers::ForeignTryFrom,
 };
+
+/// Identifiers for the merchant connector account selected for a connector call.
+#[derive(Debug, Clone)]
+pub struct ConnectorAccountIdentifiers {
+    pub merchant_id: id_type::MerchantId,
+    pub profile_id: id_type::ProfileId,
+    pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+}
 
 /// Connector-specific configuration wrapper for UCS.
 /// Serializes as: `{"config": {"ConnectorName": {...}}}`
@@ -899,7 +907,9 @@ pub enum ConnectorSpecificConfig {
     /// GotymeSanlam connector configuration
     GotymeSanlam {
         api_key: Secret<String>,
+        merchant_id: String,
         profile_id: String,
+        connector_id: String,
     },
     /// InterPayments surcharge connector configuration
     Interpayments {
@@ -963,13 +973,23 @@ pub enum ConnectorSpecificConfig {
     },
 }
 
-impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
-    for ConnectorSpecificConfig
+impl
+    ForeignTryFrom<(
+        Connector,
+        &ConnectorAuthType,
+        Option<&serde_json::Value>,
+        Option<&ConnectorAccountIdentifiers>,
+    )> for ConnectorSpecificConfig
 {
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn foreign_try_from(
-        (connector, auth, metadata): (Connector, &ConnectorAuthType, Option<&serde_json::Value>),
+        (connector, auth, metadata, connector_account_identifiers): (
+            Connector,
+            &ConnectorAuthType,
+            Option<&serde_json::Value>,
+            Option<&ConnectorAccountIdentifiers>,
+        ),
     ) -> Result<Self, Self::Error> {
         let err = |msg: &str| {
             error_stack::report!(errors::ApiErrorResponse::InternalServerError)
@@ -2240,12 +2260,28 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("AbsaSanlam requires BodyKey auth type")),
             },
-            Connector::GotymeSanlam => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::GotymeSanlam {
-                    api_key: api_key.clone(),
-                    profile_id: key1.peek().clone(),
-                }),
-                _ => Err(err("GotymeSanlam requires BodyKey auth type")),
+            Connector::GotymeSanlam =>{
+                match connector_account_identifiers {
+                    Some(connector_account_identifiers) => {
+                        match auth {
+                            ConnectorAuthType::HeaderKey { api_key } => Ok(Self::GotymeSanlam {
+                                api_key: api_key.clone(),
+                                merchant_id: connector_account_identifiers.merchant_id.get_string_repr().to_owned(),
+                                profile_id: connector_account_identifiers.profile_id.get_string_repr().to_owned(),
+                                connector_id: connector_account_identifiers.merchant_connector_id.get_string_repr().to_owned(),
+                            }),
+                            // GotymeSanlam requires HeaderKey auth type, but BodyKey support is also kept for backward compatibility
+                            ConnectorAuthType::BodyKey { api_key,  .. } => Ok(Self::GotymeSanlam {
+                                api_key: api_key.clone(),
+                                merchant_id: connector_account_identifiers.merchant_id.get_string_repr().to_owned(),
+                                profile_id: connector_account_identifiers.profile_id.get_string_repr().to_owned(),
+                                connector_id: connector_account_identifiers.merchant_connector_id.get_string_repr().to_owned(),
+                            }),
+                            _ => Err(err("GotymeSanlam requires HeaderKey auth type")),
+                        }
+                    }
+                    None => Err(err("Connector account identifiers are required to construct GotymeSanlam connector config")),
+                }
             },
             Connector::Payconex => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payconex {
@@ -2414,6 +2450,7 @@ pub fn build_connector_config_header(
     connector: Connector,
     auth_type: &ConnectorAuthType,
     merchant_account_metadata: Option<&serde_json::Value>,
+    connector_account_identifiers: Option<&ConnectorAccountIdentifiers>,
 ) -> RouterResult<Option<String>> {
     // Netcetera has no connector-specific config on the wire: connector-service's
     // `ConnectorSpecificConfig` oneof has no `netcetera` case at all, so sending
@@ -2428,6 +2465,7 @@ pub fn build_connector_config_header(
         connector,
         auth_type,
         merchant_account_metadata,
+        connector_account_identifiers,
     ))?;
 
     let config_json = serde_json::to_value(&config)
