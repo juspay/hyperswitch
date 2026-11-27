@@ -425,7 +425,8 @@ impl GsmValidation for PayoutData {
             | common_enums::PayoutStatus::RequiresCreation
             | common_enums::PayoutStatus::RequiresPayoutMethodData
             | common_enums::PayoutStatus::RequiresVendorAccountCreation
-            | common_enums::PayoutStatus::RequiresFulfillment => false,
+            | common_enums::PayoutStatus::RequiresFulfillment
+            | common_enums::PayoutStatus::RequiresReview => false,
             common_enums::PayoutStatus::Failed => true,
         }
     }

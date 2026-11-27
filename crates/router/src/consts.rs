@@ -52,6 +52,8 @@ pub(crate) const BASE64_ENGINE: base64::engine::GeneralPurpose = consts::BASE64_
 
 pub(crate) const API_KEY_LENGTH: usize = 64;
 
+pub(crate) const PAYMENT_RESPONSE_HASH_KEY_PREFIX_LEN: usize = 4;
+
 // OID (Object Identifier) for the merchant ID field extension.
 pub(crate) const MERCHANT_ID_FIELD_EXTENSION_ID: &str = "1.2.840.113635.100.6.32";
 
@@ -62,6 +64,7 @@ pub const LOCKER_REDIS_PREFIX: &str = "LOCKER_PM_TOKEN";
 pub const LOCKER_REDIS_EXPIRY_SECONDS: u32 = 60 * 15; // 15 minutes
 
 pub const JWT_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24 * 2; // 2 days
+pub const INTERNAL_JWT_HEADER_TYPE: &str = "internal+jwt";
 pub const JWT_EMBEDDED_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 3; // 3 hours
 
 // This should be one day, but it is causing issue while checking token in blacklist.
@@ -76,9 +79,6 @@ pub const ROLE_BLACKLIST_PREFIX: &str = "BR_";
 
 pub const USER_IDLE_SESSION_PREFIX: &str = "IS_";
 pub const MIN_IDLE_SESSION_TIMEOUT_IN_SECS: u32 = 60;
-
-#[cfg(feature = "email")]
-pub const EMAIL_TOKEN_TIME_IN_SECS: u64 = 60 * 60 * 24; // 1 day
 
 #[cfg(feature = "email")]
 pub const EMAIL_TOKEN_BLACKLIST_PREFIX: &str = "BET_";
@@ -310,6 +310,9 @@ pub(crate) const SENDER_ID: &[u8] = b"Google";
 /// recipient from configuration instead of taking it from the merchant.
 pub(crate) const GOOGLE_PAY_GATEWAY_RECIPIENT_PREFIX: &str = "gateway:";
 
+/// Recipient prefix for Google Pay DIRECT merchant tokens.
+pub(crate) const GOOGLE_PAY_MERCHANT_RECIPIENT_PREFIX: &str = "merchant:";
+
 /// Default value for the number of attempts to retry fetching forex rates
 pub const DEFAULT_ANALYTICS_FOREX_RETRY_ATTEMPTS: u64 = 3;
 
@@ -523,8 +526,10 @@ pub mod superposition {
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "payments.enable_extended_card_bin";
     /// Max auto payout retries configuration key
     pub const MAX_AUTO_PAYOUT_RETRIES: &str = "payouts.max_auto_payout_retries";
-    /// Stops payout creation, confirmation, update, cancellation, and fulfillment at OMP scope.
-    pub const PAYOUT_KILL_SWITCH: &str = "payouts.kill_switch";
+    /// Allows payout creation, confirmation, update, cancellation, and fulfillment at OMP scope.
+    pub const SHOULD_ALLOW_PAYOUTS: &str = "payouts.should_allow_payouts";
+    /// Allow payout accept and reject operations for their available OMP dimensions.
+    pub const SHOULD_ALLOW_REVIEW_FLOW: &str = "should_allow_review_flow";
     /// Minimum allowed payout amount configuration key
     pub const PAYOUT_MIN_AMOUNT: &str = "payouts.min_amount";
     /// Maximum allowed payout amount configuration key

@@ -21,7 +21,7 @@ use euclid::{
     backend::BackendInput,
     enums::RoutableConnectors,
     frontend::{
-        ast::{self},
+        ast,
         dir::{self, transformers::IntoDirValue},
     },
 };

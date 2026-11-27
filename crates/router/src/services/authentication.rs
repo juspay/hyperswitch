@@ -335,7 +335,7 @@ impl AuthToken {
     pub async fn new_token(
         user_id: String,
         merchant_id: id_type::MerchantId,
-        role_id: String,
+        role_info: &authorization::roles::RoleInfo,
         settings: &Settings,
         org_id: id_type::OrganizationId,
         profile_id: id_type::ProfileId,
@@ -346,13 +346,17 @@ impl AuthToken {
         let token_payload = Self {
             user_id,
             merchant_id,
-            role_id,
+            role_id: role_info.get_role_id().to_string(),
             exp,
             org_id,
             profile_id,
             tenant_id,
         };
-        jwt::generate_jwt(&token_payload, settings).await
+        if role_info.is_internal() {
+            jwt::generate_internal_jwt(&token_payload, settings).await
+        } else {
+            jwt::generate_jwt(&token_payload, settings).await
+        }
     }
 }
 

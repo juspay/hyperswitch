@@ -1278,24 +1278,26 @@ async fn apply_recovery_request_to_invoice(
             .await
         }
         RecordedAttemptCheck::Record => {
-            let attempt = RevenueRecoveryAttempt::record_recovery_request_attempt(
-                request,
-                state,
-                &req_state,
-                platform,
-                profile,
-                invoice,
-                &RecoveryConnectorDetails::ReportedByMerchant {
-                    connector: tracking_data.connector.into(),
-                },
-                tracking_data.recovery_request_id.clone(),
-            )
-            .await
-            .map_err(|error| recovery_request_step_failed("record", error))?;
+            let (attempt, recorded_invoice) =
+                RevenueRecoveryAttempt::record_recovery_request_attempt(
+                    request,
+                    state,
+                    &req_state,
+                    platform,
+                    profile,
+                    invoice,
+                    &RecoveryConnectorDetails::ReportedByMerchant {
+                        connector: tracking_data.connector.into(),
+                    },
+                    tracking_data.recovery_request_id.clone(),
+                )
+                .await
+                .map_err(|error| recovery_request_step_failed("record", error))?;
             tracing::Span::current().record("attempt_id", attempt.attempt_id.get_string_repr());
             Box::pin(decide_after_recording(
                 context,
                 &invoice.payment_id,
+                recorded_invoice,
                 &attempt,
                 previous_trigger_state.as_ref(),
                 is_existing_invoice,
@@ -1304,9 +1306,14 @@ async fn apply_recovery_request_to_invoice(
             .await
         }
         RecordedAttemptCheck::Recorded(attempt) => {
+            // An earlier run recorded the transaction, so the invoice is read for its latest state.
+            let latest_invoice = read_invoice(state, platform, profile, &invoice.payment_id)
+                .await
+                .map_err(|error| recovery_request_step_failed("invoice", error))?;
             Box::pin(decide_after_recording(
                 context,
                 &invoice.payment_id,
+                latest_invoice,
                 &attempt,
                 previous_trigger_state.as_ref(),
                 is_existing_invoice,
@@ -1360,9 +1367,12 @@ fn check_recorded_attempt(
     }
 }
 
+/// `payment_intent` is the invoice as recording this request's transaction left it, or as read
+/// afresh when an earlier run recorded it.
 async fn decide_after_recording(
     context: RecoveryRequestContext<'_>,
     payment_id: &id_type::GlobalPaymentId,
+    payment_intent: PaymentIntent,
     recovery_attempt: &RecoveryPaymentAttempt,
     previous_trigger_state: Option<&ExternalTriggerState>,
     is_existing_invoice: bool,
@@ -1375,6 +1385,7 @@ async fn decide_after_recording(
             Box::pin(decide_save_and_send(
                 context,
                 payment_id,
+                payment_intent,
                 recovery_attempt,
                 previous_trigger_state,
                 is_existing_invoice,
@@ -1417,6 +1428,7 @@ fn check_retry_eligibility(
 async fn decide_save_and_send(
     context: RecoveryRequestContext<'_>,
     payment_id: &id_type::GlobalPaymentId,
+    payment_intent: PaymentIntent,
     recovery_attempt: &RecoveryPaymentAttempt,
     previous_trigger_state: Option<&ExternalTriggerState>,
     is_existing_invoice: bool,
@@ -1430,9 +1442,6 @@ async fn decide_save_and_send(
         request,
         retry_config,
     } = context;
-    let payment_intent = read_invoice(state, platform, profile, payment_id)
-        .await
-        .map_err(|error| recovery_request_step_failed("invoice", error))?;
     let retry_count = payment_intent
         .get_revenue_recovery_retry_count()
         .ok_or(errors::ApiErrorResponse::InternalServerError)

@@ -116,6 +116,10 @@ describe("OMP Scoping - shared fixtures", () => {
       });
     });
 
+    it("enables payouts for M1 across its profiles", () => {
+      cy.enablePayouts(globalState, globalState.get("merchantIdM1"));
+    });
+
     it("creates business profile PB under M1", () => {
       cy.then(() => {
         globalState.set("merchantId", globalState.get("merchantIdM1"));

@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::{self},
+    utils,
 };
 
 //TODO: Fill the struct with respective fields

@@ -169,6 +169,7 @@ placetopay.base_url = "https://test.placetopay.com/rest/gateway"
 plaid.base_url = "https://sandbox.plaid.com"
 powertranz.base_url = "https://staging.ptranz.com/api/"
 prophetpay.base_url = "https://ccm-thirdparty.cps.golf/"
+rapidconnect.base_url = "https://stg.dw.us.fdcnet.biz/rc"
 rapyd.base_url = "https://sandboxapi.rapyd.net"
 razorpay.base_url = "https://api.razorpay.com/"
 recurly.base_url = "https://v3.recurly.com"
@@ -255,10 +256,19 @@ slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2aw
 [user]
 password_validity_in_days = 90
 two_factor_auth_expiry_in_secs = 300
+email_token_expiry_in_secs = 86400
+password_max_attempts = 5
+password_lock_duration_in_secs = 1800
+forgot_password_max_attempts = 5
+forgot_password_attempts_window_in_secs = 1800
 totp_issuer_name = "Hyperswitch Sandbox"
 base_url = "https://app.hyperswitch.io"
 force_two_factor_auth = false
 force_cookies = false
+signup_disabled = true
+signup_contact_email = "signup@example.com"
+accept_password_on_signup_with_merchant_id = false
+internal_merchant_id = "juspay000"
 
 [debit_routing_config]
 supported_currencies = "USD"
@@ -275,8 +285,8 @@ bank_debit.ach = { connector_list = "gocardless,adyen,payload" }
 bank_debit.becs = { connector_list = "gocardless,adyen" }
 bank_debit.bacs = { connector_list = "gocardless" }
 bank_debit.sepa = { connector_list = "gocardless,adyen" }
-card.credit.connector_list = "checkout,stripe,adyen,zift,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel,tesouro,mollie,fiservcommercehub,imerchantsolutions,peachpayments,tsys_transit,shift4,jpmorgan,elavon_pg,rapyd"
-card.debit.connector_list = "checkout,stripe,adyen,zift,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel,tesouro,mollie,fiservcommercehub,imerchantsolutions,peachpayments,tsys_transit,shift4,jpmorgan,elavon_pg,rapyd"
+card.credit.connector_list = "checkout,stripe,adyen,zift,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel,tesouro,mollie,moneris,fiservcommercehub,imerchantsolutions,peachpayments,tsys_transit,shift4,jpmorgan,elavon,elavon_pg,rapyd"
+card.debit.connector_list = "checkout,stripe,adyen,zift,authorizedotnet,cybersource,datatrans,worldpay,nmi,bankofamerica,wellsfargo,bamboraapac,nexixpay,novalnet,paypal,archipel,tesouro,mollie,moneris,fiservcommercehub,imerchantsolutions,peachpayments,tsys_transit,shift4,jpmorgan,elavon,elavon_pg,rapyd"
 pay_later.klarna.connector_list = "adyen,stripe"
 wallet.apple_pay.connector_list = "aci,checkout,stripe,adyen,cybersource,bankofamerica,novalnet,nuvei,authorizedotnet,nmi,tesouro,worldpaymodular,worldpayxml,imerchantsolutions,datatrans,moneris,shift4,revolv3,jpmorgan,fiservcommercehub"
 wallet.samsung_pay.connector_list = "aci,cybersource"
@@ -296,6 +306,9 @@ bank_redirect.open_banking_uk.connector_list = "adyen"
 bank_transfer.pix_automatico_push = { connector_list = "santander" }
 bank_transfer.pix_automatico_qr = { connector_list = "santander" }
 network_token.network_token.connector_list = "peachpayments"
+
+[mandates.cross_currency_mit_supported_connectors]
+connector_list = ["datatrans", "stripe"]
 
 [mandates.supported_payment_methods]
 bank_debit.ach = { connector_list = "gocardless,adyen,stripe,payload" }
@@ -340,7 +353,7 @@ card.debit = "adyen"
 adyen = "BRL,MXN,JPY"
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan,worldpayraft"
+connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan,worldpayraft,paypal"
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
