@@ -1184,6 +1184,7 @@ impl
         )?;
 
         Ok(Self {
+            merchant_details: None,
             risk_assessment_data: None,
             split_settlement: None,
             split_payments: router_data
@@ -1519,6 +1520,7 @@ impl
         )?;
 
         Ok(Self {
+            merchant_details: None,
             mit_category: None,
             surcharge_amount: None,
             amount: Some(payments_grpc::Money {
@@ -2130,6 +2132,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            merchant_details: None,
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: router_data
                 .request
@@ -2260,6 +2263,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            merchant_details: None,
             merchant_order_id: Some(router_data.connector_request_reference_id.clone()),
             amount: router_data
                 .request
@@ -2990,6 +2994,7 @@ impl
         )?;
 
         Ok(Self {
+            merchant_details: None,
             risk_assessment_data: None,
             split_settlement: None,
             split_payments: None,
@@ -3207,6 +3212,7 @@ impl
         )?;
 
         Ok(Self {
+            merchant_details: None,
             risk_assessment_data: None,
             split_settlement: None,
             split_payments: router_data
@@ -3444,6 +3450,7 @@ impl
             .transpose()?;
 
         Ok(Self {
+            merchant_details: None,
             risk_assessment_data: None,
             is_account_funding_transaction: None,
             sender_details: None,
@@ -12402,6 +12409,7 @@ impl
         let merchant_details = Some(payments_grpc::MerchantDetails {
             merchant_id: Some(router_data.merchant_id.get_string_repr().to_owned()),
             merchant_category_code: None,
+            merchant_country_code: None,
         });
 
         // Same converter the payments flows use, so the provider gets the full
