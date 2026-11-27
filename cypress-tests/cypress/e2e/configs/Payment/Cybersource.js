@@ -166,6 +166,9 @@ export const connectorDetails = {
       },
     },
     SessionToken: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Response: {
         status: 200,
         body: {
