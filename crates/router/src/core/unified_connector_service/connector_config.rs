@@ -2255,6 +2255,13 @@ impl
                                 profile_id: connector_account_identifiers.profile_id.get_string_repr().to_owned(),
                                 connector_id: connector_account_identifiers.merchant_connector_id.get_string_repr().to_owned(),
                             }),
+                            // GotymeSanlam requires HeaderKey auth type, but BodyKey support is also kept for backward compatibility
+                            ConnectorAuthType::BodyKey { api_key,  .. } => Ok(Self::GotymeSanlam {
+                                api_key: api_key.clone(),
+                                merchant_id: connector_account_identifiers.merchant_id.get_string_repr().to_owned(),
+                                profile_id: connector_account_identifiers.profile_id.get_string_repr().to_owned(),
+                                connector_id: connector_account_identifiers.merchant_connector_id.get_string_repr().to_owned(),
+                            }),
                             _ => Err(err("GotymeSanlam requires HeaderKey auth type")),
                         }
                     }
