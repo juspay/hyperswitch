@@ -1,0 +1,9 @@
+{
+  "client_secret": "",
+  "payment_method_type": "card",
+  "payment_method_data": {
+    "card_bin": {
+      "card_bin": ""
+    }
+  }
+}
