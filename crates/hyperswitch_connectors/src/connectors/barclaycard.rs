@@ -1557,7 +1557,8 @@ impl ConnectorSpecifications for Barclaycard {
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
             | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
-            | api::CurrentFlowInfo::Execute => false,
+            | api::CurrentFlowInfo::Execute
+            | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
     /// Check if authentication flow is required
@@ -1583,7 +1584,8 @@ impl ConnectorSpecifications for Barclaycard {
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
             | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
-            | api::CurrentFlowInfo::Execute => false,
+            | api::CurrentFlowInfo::Execute
+            | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
     /// Check if post-authentication flow is required
@@ -1609,7 +1611,8 @@ impl ConnectorSpecifications for Barclaycard {
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
             | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
-            | api::CurrentFlowInfo::Execute => false,
+            | api::CurrentFlowInfo::Execute
+            | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

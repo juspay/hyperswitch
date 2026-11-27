@@ -162,7 +162,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::DefaultPaymentMethodsSet
             | Flow::PaymentMethodSave
             | Flow::TotalPaymentMethodCount
-            | Flow::PaymentMethodGetTokenDetails => Self::PaymentMethods,
+            | Flow::PaymentMethodGetTokenDetails
+            | Flow::PaymentMethodsConnectorMandateRevoke => Self::PaymentMethods,
             Flow::PmAuthLinkTokenCreate | Flow::PmAuthExchangeToken => Self::PaymentMethodAuth,
             Flow::PaymentsCreate
             | Flow::PaymentsRetrieve

@@ -8183,7 +8183,6 @@ default_imp_for_revoking_mandates!(
     connectors::TsysTransit,
     connectors::Riskified,
     connectors::SanlamPayshield,
-    connectors::Santander,
     connectors::Shift4,
     connectors::Sift,
     connectors::Silverflow,

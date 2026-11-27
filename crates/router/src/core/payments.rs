@@ -13070,6 +13070,10 @@ where
             validate_connector_mandate_status_for_mit(
                 &connector_routing_data.connector_data,
                 mandate_reference_record,
+                hyperswitch_interfaces::api::CurrentFlowInfo::ConnectorMandateRevoke {
+                    payment_method_type: mandate_reference_record.payment_method_type,
+                    payment_method_id: Some(payment_method_info.get_id().clone()),
+                },
             )?;
 
             helpers::validate_connector_mandate_currency(
@@ -13151,6 +13155,10 @@ where
                             validate_connector_mandate_status_for_mit(
                                 &connector_data,
                                 mandate_reference_record,
+                                hyperswitch_interfaces::api::CurrentFlowInfo::ConnectorMandateRevoke {
+                                    payment_method_type: mandate_reference_record.payment_method_type,
+                                    payment_method_id: Some(payment_method_info.get_id().clone()),
+                                },
                             )?;
 
                             helpers::validate_connector_mandate_currency(
@@ -13234,22 +13242,21 @@ where
 fn validate_connector_mandate_status_for_mit(
     connector_data: &api::ConnectorData,
     mandate_reference_record: &mandates::PaymentsMandateReferenceRecord,
+    current_flow: hyperswitch_interfaces::api::CurrentFlowInfo,
 ) -> RouterResult<()> {
-    let should_allow_inactive_connector_mandate = connector_data
-        .connector
-        .should_allow_mit_when_connector_mandate_status_is_inactive()
-        .unwrap_or(true);
-
-    common_utils::fp_utils::when(
-        !should_allow_inactive_connector_mandate
-            && mandate_reference_record.connector_mandate_status
-                == Some(common_enums::ConnectorMandateStatus::Inactive),
-        || {
+    match mandate_reference_record.connector_mandate_status {
+        Some(mandate_status)
+            if !connector_data
+                .connector
+                .should_allow_mit(mandate_status, current_flow)
+                .unwrap_or(true) =>
+        {
             Err(report!(errors::ApiErrorResponse::MandateValidationFailed {
-                reason: "connector mandate is inactive".into(),
+                reason: format!("connector mandate is {mandate_status}"),
             }))
-        },
-    )
+        }
+        _ => Ok(()),
+    }
 }
 
 pub fn filter_ntid_supported_connectors(

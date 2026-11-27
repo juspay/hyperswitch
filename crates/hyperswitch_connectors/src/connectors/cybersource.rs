@@ -2419,7 +2419,8 @@ impl ConnectorSpecifications for Cybersource {
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
             | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
-            | api::CurrentFlowInfo::Execute => None,
+            | api::CurrentFlowInfo::Execute
+            | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => None,
         }
     }
     fn get_alternate_flow_if_needed(
@@ -2445,7 +2446,8 @@ impl ConnectorSpecifications for Cybersource {
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
             | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
-            | api::CurrentFlowInfo::Execute => None,
+            | api::CurrentFlowInfo::Execute
+            | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => None,
         }
     }
     fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
@@ -2462,7 +2464,8 @@ impl ConnectorSpecifications for Cybersource {
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
             | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
-            | api::CurrentFlowInfo::Execute => false,
+            | api::CurrentFlowInfo::Execute
+            | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
     /// Check if authentication flow is required
@@ -2488,7 +2491,8 @@ impl ConnectorSpecifications for Cybersource {
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
             | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
-            | api::CurrentFlowInfo::Execute => false,
+            | api::CurrentFlowInfo::Execute
+            | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
     /// Check if post-authentication flow is required
@@ -2514,7 +2518,8 @@ impl ConnectorSpecifications for Cybersource {
             | api::CurrentFlowInfo::UpdatePostConfirm { .. }
             | api::CurrentFlowInfo::PreAuthorizeVoid { .. }
             | api::CurrentFlowInfo::ConnectorWebhookRegister { .. }
-            | api::CurrentFlowInfo::Execute => false,
+            | api::CurrentFlowInfo::Execute
+            | api::CurrentFlowInfo::ConnectorMandateRevoke { .. } => false,
         }
     }
 }

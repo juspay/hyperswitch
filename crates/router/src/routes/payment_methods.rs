@@ -39,6 +39,7 @@ use crate::{
         payment_methods::{self as payment_methods_routes, cards, migration as update_migration},
     },
     headers,
+    routes::lock_utils,
     services::{self, api, authentication as auth, authorization::permissions::Permission},
     types::{
         api::payment_methods::{self, PaymentMethodId},
@@ -1225,6 +1226,67 @@ pub async fn payment_method_update_api(
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// PaymentMethods - Revoke connector mandates
+/// Revokes the connector-level mandates stored on the payment method
+/// (`connector_mandate_details.payments[<merchant_connector_id>]`) for each listed merchant
+/// connector account, by calling the connector's mandate revoke flow
+/// Always returns 200 for a valid request; per-item outcomes ride in `results`.
+#[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentMethodsConnectorMandateRevoke))]
+pub async fn connector_mandate_revoke(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+    json_payload: web::Json<payment_methods::ConnectorMandateRevokeRequest>,
+) -> HttpResponse {
+    let flow = Flow::PaymentMethodsConnectorMandateRevoke;
+    let payment_method_id = path.into_inner();
+    let payload = json_payload.into_inner();
+    let locking_action = api_locking::LockAction::Hold {
+        input: api_locking::LockingInput {
+            unique_locking_key: payment_method_id.clone(),
+            api_identifier: lock_utils::ApiIdentifier::from(flow.clone()),
+            override_lock_retries: None,
+        },
+    };
+
+    let profile_id = match auth::HeaderMapStruct::new(req.headers())
+        .get_id_type_from_header::<id_type::ProfileId>(headers::X_PROFILE_ID)
+    {
+        Ok(profile_id) => profile_id,
+        Err(error) => return api::log_and_return_error_response(error),
+    };
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        move |state, auth: auth::AuthenticationData, req, _| {
+            let payment_method_id = payment_method_id.clone();
+            let profile_id = profile_id.clone();
+            Box::pin(async move {
+                Box::pin(
+                    payment_methods_routes::connector_mandate_revoke::revoke_connector_mandates(
+                        state,
+                        auth.platform,
+                        profile_id,
+                        payment_method_id,
+                        req,
+                    ),
+                )
+                .await
+            })
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            allow_connected_scope_operation: false,
+            allow_platform_self_operation: false,
+        }),
+        locking_action,
     ))
     .await
 }
