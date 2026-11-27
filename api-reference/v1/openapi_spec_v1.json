@@ -10505,7 +10505,7 @@
           }
         ],
         "requestBody": {
-          "description": "The provider's request. Shown here in Twilio's Generic Pay Connector shape.",
+          "description": "The provider's request. Shown here in Twilio's Generic Pay Connector shape. `method` follows the `<Pay>` verb's `chargeAmount`: `0` or absent makes it a `tokenize`. Storing a card is asked for by `parameters.setup_future_usage`, which is never assumed, and needs `parameters.customer_id` and `parameters.customer_acceptance` with it. A `<Parameter>` value is always a string, so the structured parameters — `customer_acceptance` and `billing` — carry their JSON as text.",
           "content": {
             "application/json": {
               "schema": {
@@ -10541,10 +10541,7 @@
                     "expiry_year": "28",
                     "method": "charge",
                     "parameters": {
-                      "customer_acceptance": {
-                        "acceptance_type": "offline",
-                        "accepted_at": "2026-11-26T10:11:12Z"
-                      },
+                      "customer_acceptance": "{\"acceptance_type\":\"offline\",\"accepted_at\":\"2026-11-26T10:11:12Z\"}",
                       "customer_id": "cus_1234",
                       "setup_future_usage": "off_session"
                     },
@@ -10559,22 +10556,9 @@
                     "expiry_year": "28",
                     "method": "tokenize",
                     "parameters": {
-                      "billing": {
-                        "address": {
-                          "city": "San Francisco",
-                          "country": "US",
-                          "first_name": "John",
-                          "last_name": "Doe",
-                          "line1": "1467 Harrison Street",
-                          "state": "CA"
-                        },
-                        "email": "caller@example.com"
-                      },
+                      "billing": "{\"email\":\"caller@example.com\",\"address\":{\"first_name\":\"John\",\"last_name\":\"Doe\",\"line1\":\"1467 Harrison Street\",\"city\":\"San Francisco\",\"state\":\"CA\",\"country\":\"US\"}}",
                       "currency": "USD",
-                      "customer_acceptance": {
-                        "acceptance_type": "offline",
-                        "accepted_at": "2026-11-26T10:11:12Z"
-                      },
+                      "customer_acceptance": "{\"acceptance_type\":\"offline\",\"accepted_at\":\"2026-11-26T10:11:12Z\"}",
                       "customer_id": "cus_1234",
                       "setup_future_usage": "off_session"
                     },
@@ -49713,7 +49697,7 @@
             }
           }
         ],
-        "description": "The IVR's `<Parameter>` tags. The ones read by Hyperswitch are named below; the rest ride along\ninto the payment's `metadata`. Keys must be lowercase — Twilio lowercases parameter names, so a\ncamelCase one lands in the passthrough instead. A tag's value is always a string, so the\nstructured keys — `customer_acceptance` and `billing` — carry their JSON as text for the core\nto parse."
+        "description": "The IVR's `<Parameter>` tags. The ones read by Hyperswitch are named below; the rest ride along\ninto the payment's `metadata`. Keys must be lowercase — Twilio lowercases parameter names, so a\ncamelCase one lands in the passthrough instead. A tag's value is always a string, so the\nstructured keys — `customer_acceptance` and `billing` — carry their JSON as text, which\n`JsonString` reads back into the type."
       },
       "ThirdPartySdkSessionResponse": {
         "type": "object",
