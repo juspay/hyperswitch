@@ -1,9 +1,16 @@
 use std::{borrow::Cow, collections::HashMap};
 
+#[cfg(feature = "v1")]
+use common_utils::{
+    fp_utils,
+    types::{AmountConvertor, MinorUnit, StringMajorUnitForConnector},
+};
 use hyperswitch_masking::Secret;
 use utoipa::ToSchema;
 
 use crate::telephone_order::response_parameters;
+#[cfg(feature = "v1")]
+use crate::telephone_order::{error_codes, Context, Failure};
 
 /// The operation Twilio is asking us to perform. Set by the `<Pay>` verb's `chargeAmount`: `0` or
 /// absent makes it a `tokenize`, any other value a `charge`.
@@ -70,6 +77,143 @@ pub struct TwilioGenericPayRequest {
     /// Values from the IVR's `<Parameter>` tags, stored unmasked in the payment's `metadata`.
     #[schema(value_type = Option<TelephoneOrderParameters>)]
     pub parameters: Option<crate::telephone_order::TelephoneOrderParameters>,
+}
+
+// Mapping onto a `PaymentsRequest` is v1 only, as is the endpoint that asks for it.
+
+/// The card the `<Pay>` verb collected, once it is known to be complete.
+#[cfg(feature = "v1")]
+struct TwilioCardDetails {
+    card_number: cards::CardNumber,
+    card_exp_month: Secret<String>,
+    card_exp_year: Secret<String>,
+    card_cvc: Secret<String>,
+}
+
+#[cfg(feature = "v1")]
+impl TwilioGenericPayRequest {
+    /// Moves money. Keeps the card too when the IVR passed `setup_future_usage`.
+    pub fn build_charge(
+        &self,
+        context: Context,
+    ) -> Result<crate::payments::PaymentsRequest, Failure> {
+        let currency = self
+            .currency_code
+            .ok_or_else(|| invalid_request("currency_code is required"))?;
+
+        let amount = self
+            .amount
+            .clone()
+            .ok_or_else(|| invalid_request("amount is required"))?;
+
+        let amount = StringMajorUnitForConnector
+            .convert_back(amount, currency)
+            .map_err(|error| invalid_request(format!("amount could not be parsed: {error}")))?;
+
+        // Rejected here rather than at the connector, which declines it with a minimum-amount
+        // message naming neither the cause nor the fix.
+        fp_utils::when(amount == MinorUnit::zero(), || {
+            Err(invalid_request(
+                "amount must be greater than zero for a charge. Set chargeAmount to 0 on the \
+                 <Pay> verb to store a card without charging it",
+            ))
+        })?;
+
+        let billing = context.billing_address(self.postal_code.clone());
+
+        Ok(crate::payments::PaymentsRequest {
+            amount: Some(amount.into()),
+            currency: Some(currency),
+            payment_method: Some(common_enums::PaymentMethod::Card),
+            payment_method_data: Some(self.payment_method_data(billing.clone())?),
+            billing,
+            description: self.description.clone(),
+            merchant_order_reference_id: Some(self.transaction_id.clone()),
+            ..context.payments_request()
+        })
+    }
+
+    /// Stores the card and moves no money: a zero-amount verification at the connector.
+    pub fn build_tokenize(
+        &self,
+        context: Context,
+    ) -> Result<crate::payments::PaymentsRequest, Failure> {
+        // Twilio sends no `currency_code` on a tokenize, so the IVR supplies it. Read from
+        // `currency_code` first all the same, for a provider configuration that does send one.
+        let currency = self
+            .currency_code
+            .or_else(|| {
+                self.parameters
+                    .as_ref()
+                    .and_then(|parameters| parameters.currency)
+            })
+            .ok_or_else(|| {
+                invalid_request("currency is required to store a card. Pass it as a <Parameter>")
+            })?;
+
+        let billing = context.billing_address(self.postal_code.clone());
+
+        Ok(crate::payments::PaymentsRequest {
+            amount: Some(crate::payments::Amount::Zero),
+            currency: Some(currency),
+            // Nothing is captured here, so a `capture_method` `<Parameter>` has no bearing.
+            capture_method: Some(common_enums::CaptureMethod::Automatic),
+            payment_method: Some(common_enums::PaymentMethod::Card),
+            payment_method_data: Some(self.payment_method_data(billing.clone())?),
+            billing,
+            description: self.description.clone(),
+            merchant_order_reference_id: Some(self.transaction_id.clone()),
+            ..context.payments_request()
+        })
+    }
+
+    fn payment_method_data(
+        &self,
+        billing: Option<crate::payments::Address>,
+    ) -> Result<crate::payments::PaymentMethodDataRequest, Failure> {
+        let card = self.card_details()?;
+
+        Ok(crate::payments::PaymentMethodDataRequest {
+            payment_method_data: Some(crate::payments::PaymentMethodData::Card(
+                crate::payments::Card {
+                    card_number: card.card_number,
+                    card_exp_month: card.card_exp_month,
+                    card_exp_year: card.card_exp_year,
+                    card_cvc: card.card_cvc,
+                    ..Default::default()
+                },
+            )),
+            billing,
+        })
+    }
+
+    /// All four card fields or none: a half-collected card is rejected here rather than declined
+    /// at the connector.
+    fn card_details(&self) -> Result<TwilioCardDetails, Failure> {
+        let missing =
+            |field: &str| invalid_request(format!("{field} is required for a card payment"));
+
+        Ok(TwilioCardDetails {
+            card_number: self
+                .cardnumber
+                .clone()
+                .ok_or_else(|| missing("cardnumber"))?,
+            card_exp_month: self
+                .expiry_month
+                .clone()
+                .ok_or_else(|| missing("expiry_month"))?,
+            card_exp_year: self
+                .expiry_year
+                .clone()
+                .ok_or_else(|| missing("expiry_year"))?,
+            card_cvc: self.cvv.clone().ok_or_else(|| missing("cvv"))?,
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+fn invalid_request(message: impl Into<String>) -> Failure {
+    Failure::new(error_codes::INVALID_REQUEST, message)
 }
 
 /// Body Twilio expects back. It reads `error_code` to decide the outcome, so a decline is a `200` with that set.

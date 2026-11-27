@@ -24,23 +24,11 @@ use crate::{
     types::api,
 };
 
-/// Codes shared by every adapter. An adapter adds its own for what it rejects on its way in.
-pub mod error_codes {
-    pub const INVALID_REQUEST: &str = "INVALID_REQUEST";
-    pub const PROFILE_NOT_FOUND: &str = "PROFILE_NOT_FOUND";
-    pub const PAYMENT_NOT_COMPLETED: &str = "PAYMENT_NOT_COMPLETED";
-    pub const PROCESSING_ERROR: &str = "PROCESSING_ERROR";
-    pub const DUPLICATE_TRANSACTION: &str = "DUPLICATE_TRANSACTION";
-    /// The charge reached the connector with no final outcome. Kept apart from a decline so an
-    /// IVR can be told not to ask for another card: the first authorization may be standing.
-    pub const PAYMENT_PENDING: &str = "PAYMENT_PENDING";
-    /// A card cannot be stored against nobody. Named apart so the IVR fix is unambiguous.
-    pub const CUSTOMER_REQUIRED: &str = "CUSTOMER_REQUIRED";
-    /// A card cannot be stored without consent, and the IVR has to ask before it can send one.
-    pub const ACCEPTANCE_REQUIRED: &str = "ACCEPTANCE_REQUIRED";
-    /// Verified card, nothing stored. Not a decline — another card would fail the same way.
-    pub const TOKENIZE_FAILED: &str = "TOKENIZE_FAILED";
-}
+/// The shared half of a provider's mapping, defined in `api_models` next to the request types
+/// that map themselves onto a payment with it.
+pub use api_models::telephone_order::{
+    error_codes, Context, Failure, ResponseParameters, TelephoneOrderParameters as Parameters,
+};
 
 /// What to do with the collected card. Each maps to a different payments flow.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -86,42 +74,6 @@ impl Intent {
     }
 }
 
-pub use api_models::telephone_order::TelephoneOrderParameters as Parameters;
-
-/// Why a charge failed, in terms the provider can read back to the caller.
-#[derive(Debug)]
-pub struct Failure {
-    pub code: String,
-    pub message: String,
-    pub parameters: ResponseParameters,
-}
-
-impl Failure {
-    pub fn new(code: impl Into<String>, message: impl Into<String>) -> Self {
-        Self {
-            code: code.into(),
-            message: message.into(),
-            parameters: ResponseParameters::new(),
-        }
-    }
-
-    /// Only for a failure with a payment behind it; one rejected earlier has nothing to point at.
-    fn with_parameters(mut self, parameters: ResponseParameters) -> Self {
-        self.parameters = parameters;
-        self
-    }
-
-    /// A failure of ours: reported without detail, investigated from the logs.
-    fn processing_error() -> Self {
-        Self::new(
-            error_codes::PROCESSING_ERROR,
-            "Payment could not be processed",
-        )
-    }
-}
-
-pub type ResponseParameters = HashMap<String, String>;
-
 /// How a finished payment reads to the caller. Three outcomes, not two: a payment that is not yet
 /// paid is not thereby declined, and the difference decides whether the IVR asks for another card.
 #[derive(Debug)]
@@ -133,82 +85,6 @@ pub enum Outcome {
     /// We do not know, or money is held in a state that cannot be read back. Carries
     /// [`error_codes::PAYMENT_PENDING`] so a provider can tell it from a decline.
     Indeterminate(Failure),
-}
-
-/// The half of the payment every adapter fills in the same way, read out of [`Parameters`].
-pub struct Context {
-    /// `None` falls back to the merchant's default profile.
-    pub profile_id: Option<common_utils::id_type::ProfileId>,
-    /// What makes a provider's retry idempotent: it collides on `(payment_id, merchant_id)`
-    /// instead of charging again. Settled by [`TelephoneOrderAdapter::resolve_payment_id`].
-    pub payment_id: Option<common_utils::id_type::PaymentId>,
-    pub customer_id: Option<common_utils::id_type::CustomerId>,
-    /// `None` auto-captures. `Manual` leaves the capture to the merchant.
-    pub capture_method: Option<common_enums::CaptureMethod>,
-    /// `Some` keeps the card against the customer. Never defaulted — unattended charging is
-    /// authority the merchant claims, not something we assume.
-    pub setup_future_usage: Option<common_enums::FutureUsage>,
-    /// The caller's agreement to that, as the IVR reported it. Never synthesised.
-    pub customer_acceptance: Option<common_types::payments::CustomerAcceptance>,
-    /// Whether the connector mints its own token. `None` leaves it to Hyperswitch; see
-    /// [`Parameters::tokenization`].
-    pub tokenization: Option<common_enums::Tokenization>,
-    /// What the IVR knows about the caller. Merged with the provider's postal code by
-    /// [`Context::billing_address`].
-    pub billing: Option<api_models::payments::Address>,
-    pub metadata: Option<serde_json::Value>,
-}
-
-impl Context {
-    /// The IVR's address, with the postal code the provider collected written over its `zip`. The
-    /// caller keyed that in on this call, so it beats a `<Parameter>` address built from whatever
-    /// the merchant's records hold.
-    pub fn billing_address(
-        &self,
-        postal_code: Option<hyperswitch_masking::Secret<String>>,
-    ) -> Option<api_models::payments::Address> {
-        if self.billing.is_none() && postal_code.is_none() {
-            return None;
-        }
-
-        let mut billing = self.billing.clone().unwrap_or_default();
-        // Only when there is one: assigning `None` would clear a zip the IVR sent.
-        if let Some(postal_code) = postal_code {
-            billing.address.get_or_insert_with(Default::default).zip = Some(postal_code);
-        }
-        Some(billing)
-    }
-
-    /// The shared fields, for an adapter to fill the rest in with `..context.payments_request()`.
-    /// Confirmed, flagged a telephone order, never 3DS — a caller has no browser. Auto-captured
-    /// unless the IVR asked otherwise.
-    pub fn payments_request(self) -> api_models::payments::PaymentsRequest {
-        api_models::payments::PaymentsRequest {
-            confirm: Some(true),
-            capture_method: Some(
-                self.capture_method
-                    .unwrap_or(common_enums::CaptureMethod::Automatic),
-            ),
-            authentication_type: Some(common_enums::AuthenticationType::NoThreeDs),
-            payment_channel: Some(common_enums::PaymentChannel::TelephoneOrder),
-            profile_id: self.profile_id,
-            payment_id: self
-                .payment_id
-                .map(api_models::payments::PaymentIdType::PaymentIntentId),
-            customer_id: self.customer_id,
-            setup_future_usage: self.setup_future_usage,
-            customer_acceptance: self.customer_acceptance,
-            tokenization: self.tokenization,
-            // Also on the billing address, which is where connectors look first.
-            email: self
-                .billing
-                .as_ref()
-                .and_then(|billing| billing.email.clone()),
-            metadata: self.metadata,
-            // `connector` is left unset so the merchant's configured routing decides.
-            ..Default::default()
-        }
-    }
 }
 
 /// The providers this endpoint serves, as they appear in the `{provider}` path segment. These are
