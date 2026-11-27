@@ -54,6 +54,15 @@ function buildOmpHeaders(auth = {}) {
     headers["X-Profile-Id"] = auth.profileId;
   }
 
+  // lib.rs:171 headers::X_CONNECTED_MERCHANT_ID - lets a platform-type
+  // merchant act "as" one of its own org's connected-type merchants.
+  // Resolved server-side in resolve_platform()/validate_connected_merchant_account()
+  // (services/authentication.rs) - same organization_id AND target
+  // merchant_account_type == Connected, or it's rejected.
+  if (auth.connectedMerchantId) {
+    headers["x-connected-merchant-id"] = auth.connectedMerchantId;
+  }
+
   return headers;
 }
 
@@ -428,6 +437,10 @@ Cypress.Commands.add(
     )
 );
 
+Cypress.Commands.add("ompAcceptDispute", (disputeId, auth, globalState) =>
+  ompCall("POST", `/disputes/accept/${disputeId}`, auth, {}, globalState)
+);
+
 Cypress.Commands.add(
   "ompFetchDisputesFromConnector",
   (connectorId, auth, globalState, fetchWindow = {}) => {
@@ -520,6 +533,30 @@ Cypress.Commands.add(
       `/account/${accountId}/business_profile/${profileId}`,
       auth,
       undefined,
+      globalState
+    )
+);
+
+Cypress.Commands.add(
+  "ompDeleteBusinessProfile",
+  (accountId, profileId, auth, globalState) =>
+    ompCall(
+      "DELETE",
+      `/account/${accountId}/business_profile/${profileId}`,
+      auth,
+      undefined,
+      globalState
+    )
+);
+
+Cypress.Commands.add(
+  "ompCreateBusinessProfileRaw",
+  (accountId, auth, body, globalState) =>
+    ompCall(
+      "POST",
+      `/account/${accountId}/business_profile`,
+      auth,
+      body,
       globalState
     )
 );
@@ -755,6 +792,103 @@ Cypress.Commands.add("ompDeactivateRouting", (auth, body, globalState) => {
   });
 });
 
+// --- OMP scoping: Dynamic routing strategies (cypress/e2e/spec/Security/OMPScoping/25-DynamicRouting.cy.js) ---
+// A separate route tree from the generic /routing endpoints above - gated
+// behind the "dynamic_routing" cargo feature, path /account/{account_id}/
+// business_profile/{profile_id}/dynamic_routing/* (app.rs:2722,2734), and
+// accepting EITHER a plain api-key (HeaderAuth(ApiKeyAuth)) OR
+// JWTAuthProfileFromRoute - not the JWTAuthMerchantAndProfileFromRoute used
+// by the rest of Business Profile (routing.rs:1360-1366 et al).
+
+Cypress.Commands.add(
+  "ompCreateSuccessBasedRouting",
+  (accountId, profileId, enable, auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url:
+        `${baseUrl}/account/${accountId}/business_profile/${profileId}` +
+        `/dynamic_routing/success_based/create?enable=${enable}`,
+      auth,
+      body,
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ompCreateEliminationRouting",
+  (accountId, profileId, enable, auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url:
+        `${baseUrl}/account/${accountId}/business_profile/${profileId}` +
+        `/dynamic_routing/elimination/create?enable=${enable}`,
+      auth,
+      body,
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ompContractBasedRoutingToggle",
+  (accountId, profileId, enable, auth, body, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url:
+        `${baseUrl}/account/${accountId}/business_profile/${profileId}` +
+        `/dynamic_routing/contracts/toggle?enable=${enable}`,
+      auth,
+      body,
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ompSetDynamicRoutingVolumeSplit",
+  (accountId, profileId, split, auth, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url:
+        `${baseUrl}/account/${accountId}/business_profile/${profileId}` +
+        `/dynamic_routing/set_volume_split?split=${split}`,
+      auth,
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "ompGetDynamicRoutingVolumeSplit",
+  (accountId, profileId, auth, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "GET",
+      url:
+        `${baseUrl}/account/${accountId}/business_profile/${profileId}` +
+        `/dynamic_routing/get_volume_split`,
+      auth,
+    });
+  }
+);
+
+// --- OMP scoping: Platform/connected-merchant header (cypress/e2e/spec/Security/OMPScoping/26-PlatformConnectedMerchant.cy.js) ---
+// X-Connected-Merchant-Id (lib.rs:171) - lets a platform-type merchant act
+// as one of its own org's connected-type merchants. Resolved via
+// resolve_platform()/validate_connected_merchant_account()
+// (services/authentication.rs) - cross-org or non-Connected targets must be
+// rejected. GET /payments/list is one of the openapi-documented routes that
+// accepts this header and needs no pre-existing payment to exercise.
+Cypress.Commands.add("ompListPayments", (auth, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "GET",
+    url: `${baseUrl}/payments/list?limit=1`,
+    auth,
+  });
+});
+
 // --- OMP scoping: Analytics (cypress/e2e/spec/Security/OMPScoping/17-Analytics.cy.js) ---
 
 // get_merchant_payment_metrics (crates/router/src/analytics.rs) deserializes
@@ -848,6 +982,16 @@ Cypress.Commands.add("ompRetrieveRelay", (relayId, auth, globalState) => {
   });
 });
 
+Cypress.Commands.add("ompCreateRelay", (auth, body, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "POST",
+    url: `${baseUrl}/relay`,
+    auth,
+    body,
+  });
+});
+
 // --- OMP scoping: Payment Link / Payout Link retrieve
 // (cypress/e2e/spec/Security/OMPScoping/19-PaymentLink.cy.js, 20-PayoutLink.cy.js) ---
 
@@ -919,6 +1063,45 @@ Cypress.Commands.add("ompCreatePayment", (auth, body, globalState) => {
   });
 });
 
+// --- OMP scoping: generic payout/routing create
+// (cypress/e2e/spec/Security/OMPScoping/27-ReferenceFields.cy.js) ---
+
+Cypress.Commands.add("ompCreatePayout", (auth, body, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "POST",
+    url: `${baseUrl}/payouts/create`,
+    auth,
+    body,
+  });
+});
+
+Cypress.Commands.add("ompListPayouts", (auth, globalState) =>
+  ompCall("GET", "/payouts/list", auth, undefined, globalState)
+);
+
+// Mirrors commands.js's addRoutingConfig body shape (routing-config-body.json
+// + algorithm.type/data) but as a raw request, so it can be sent under an
+// arbitrary auth identity without touching the shared globalState.apiKey the
+// non-security addRoutingConfig command reads from.
+Cypress.Commands.add(
+  "ompCreateRoutingConfig",
+  (auth, profileId, routingData, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    return cy.ompRequest({
+      method: "POST",
+      url: `${baseUrl}/routing`,
+      auth,
+      body: {
+        name: "omp scoping reference-field test",
+        description: "created by 27-ReferenceFields.cy.js",
+        profile_id: profileId,
+        algorithm: { type: "priority", data: routingData },
+      },
+    });
+  }
+);
+
 Cypress.Commands.add(
   "ompExtendPaymentAuthorization",
   (paymentId, auth, body, globalState) => {
@@ -956,6 +1139,10 @@ Cypress.Commands.add("ompDeleteMca", (merchantId, mcaId, auth, globalState) =>
     undefined,
     globalState
   )
+);
+
+Cypress.Commands.add("ompCreateMcaRaw", (merchantId, auth, body, globalState) =>
+  ompCall("POST", `/account/${merchantId}/connectors`, auth, body, globalState)
 );
 
 Cypress.Commands.add("ompListMca", (merchantId, auth, globalState) =>
@@ -1040,4 +1227,106 @@ Cypress.Commands.add(
   "ompUpdateMerchantAccount",
   (merchantId, auth, body, globalState) =>
     ompCall("POST", `/accounts/${merchantId}`, auth, body, globalState)
+);
+
+// v1 POST /accounts is PlatformOrgAdminAuth{is_admin_auth_allowed:true} -
+// admin.rs:242-245 - NOT a plain merchant API key route at all.
+Cypress.Commands.add("ompCreateMerchantAccountRaw", (auth, body, globalState) =>
+  ompCall("POST", "/accounts", auth, body, globalState)
+);
+
+// --- OMP scoping: Admin Theme (cypress/e2e/spec/Security/OMPScoping/29-Theme.cy.js) ---
+// GET/POST /admin/theme - ThemeLineage is internally tagged on `entity_type`
+// (common_utils/types/user/theme.rs:10-13) and deserialized via web::Query
+// on GET, so it's sent as flat query params here.
+
+Cypress.Commands.add("ompGetAdminTheme", (auth, lineageParams, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  const qs = new URLSearchParams(lineageParams).toString();
+  return cy.ompRequest({
+    method: "GET",
+    // Nested under the OUTER /user scope (app.rs:2992,3294-3300) - the real
+    // path is /user/admin/theme, not /admin/theme. Confirmed live
+    // 2026-11-19: hitting /admin/theme directly gave a uniform 404 across
+    // every credential type (including a valid admin key), which is
+    // actix's own "no matching route" response, not an auth decision -
+    // same doubly-nested-scope trap as /user/user/invite_multiple found
+    // earlier this session.
+    url: `${baseUrl}/user/admin/theme?${qs}`,
+    auth,
+  });
+});
+
+Cypress.Commands.add("ompGetThemeVersion", (themeId, auth, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "GET",
+    // Also nested under /user (app.rs:3310+) - real path is
+    // /user/theme/{theme_id}/version. Handler uses auth::NoAuth
+    // (theme.rs:343) - literally no auth guard at all.
+    url: `${baseUrl}/user/theme/${themeId}/version`,
+    auth,
+  });
+});
+
+// POST /user/admin/theme - create_theme (theme.rs:81-96), AdminApiAuth
+// only, body carries an arbitrary ThemeLineage directly (admin.rs's own
+// priority finding). Used here to seed a REAL theme for the safe,
+// user-scoped GET /theme/{theme_id} cross-org test, since nothing else
+// in this suite creates one.
+Cypress.Commands.add("ompCreateAdminTheme", (auth, body, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "POST",
+    url: `${baseUrl}/user/admin/theme`,
+    auth,
+    body,
+  });
+});
+
+// GET /user/theme/{theme_id} - get_user_theme_using_theme_id
+// (theme.rs:166), JWTAuth{OrganizationThemeRead} + the real
+// can_user_access_theme cross-match (utils/user/theme.rs:295).
+Cypress.Commands.add("ompGetUserTheme", (themeId, auth, globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+  return cy.ompRequest({
+    method: "GET",
+    url: `${baseUrl}/user/theme/${themeId}`,
+    auth,
+  });
+});
+
+// --- OMP scoping: Webhook delivery attempts (cypress/e2e/spec/Security/OMPScoping/30-WebhookEvents.cy.js) ---
+// POST /events/{merchant_id} (list), GET/POST .../{event_id}/attempts,/retry
+// - event_id ("initial_attempt_id") is a plain String, not a branded ID
+// type (webhook_events.rs) - see Sheet 3/4 flag from the 2026-11-18 pass.
+
+Cypress.Commands.add(
+  "ompListWebhookDeliveryAttempts",
+  (merchantId, auth, body, globalState) =>
+    ompCall("POST", `/events/${merchantId}`, auth, body ?? {}, globalState)
+);
+
+Cypress.Commands.add(
+  "ompGetWebhookDeliveryAttempts",
+  (merchantId, eventId, auth, globalState) =>
+    ompCall(
+      "GET",
+      `/events/${merchantId}/${eventId}/attempts`,
+      auth,
+      undefined,
+      globalState
+    )
+);
+
+Cypress.Commands.add(
+  "ompRetryWebhookDeliveryAttempt",
+  (merchantId, eventId, auth, globalState) =>
+    ompCall(
+      "POST",
+      `/events/${merchantId}/${eventId}/retry`,
+      auth,
+      {},
+      globalState
+    )
 );

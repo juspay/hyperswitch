@@ -60,7 +60,7 @@ describe("OMP Scoping - Surcharge Config", () => {
       },
       globalState
     ).then((writeRes) => {
-      if (writeRes.status === 200) {
+      if (writeRes.status === 200 && jwtPA) {
         // Even if M2's own write succeeds, it must only ever have written
         // M2's own key - confirm M1's config is untouched.
         cy.ompGetSurchargeConfig(
@@ -74,7 +74,8 @@ describe("OMP Scoping - Surcharge Config", () => {
     });
   });
 
-  it("M1 reads its own surcharge config (positive)", () => {
+  it("M1 reads its own surcharge config (positive)", function () {
+    if (!jwtPA) this.skip();
     cy.ompGetSurchargeConfig({ type: "jwt", token: jwtPA }, globalState).then(
       (res) => {
         expect(res.status).to.eq(200);

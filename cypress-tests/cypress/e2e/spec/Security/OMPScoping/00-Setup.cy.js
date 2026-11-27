@@ -90,17 +90,24 @@ describe("OMP Scoping - shared fixtures", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("M1 / PA via dashboard signup", () => {
-    it("signs up a dashboard user, creating M1 with default profile PA", () => {
-      cy.signupUserWithMerchant("OmpScopingM1", globalState);
-      cy.userLogin(globalState);
-      cy.terminate2Fa(globalState);
-      cy.userInfo(globalState);
+  context("M1 / PA via admin-api-key merchant create", () => {
+    // integ/sbx environments enforce magic-link signin for all dashboard
+    // users (core/user.rs's connect_account only ever emails a link, never
+    // returns a usable token), so M1 is bootstrapped via plain
+    // admin-api-key merchant creation instead - every JWT-dependent test
+    // downstream gates on `if (!jwtPA) this.skip()`.
+    it("creates M1 with default profile PA via admin api key", () => {
+      cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState, {
+        merchantIdStateKey: "merchantIdM1",
+        profileIdStateKey: "profileIdPA",
+        publishableKeyStateKey: "publishableKeyM1",
+      });
 
+      // Same dedicated-key capture as M2 below - the generic
+      // "organizationId" gets clobbered by every merchant-create call
+      // after this one.
       cy.then(() => {
-        globalState.set("merchantIdM1", globalState.get("merchantId"));
-        globalState.set("profileIdPA", globalState.get("profileId"));
-        globalState.set("userInfoTokenPA", globalState.get("userInfoToken"));
+        globalState.set("organizationIdM1", globalState.get("organizationId"));
       });
     });
 
@@ -144,6 +151,14 @@ describe("OMP Scoping - shared fixtures", () => {
         merchantIdStateKey: "merchantIdM2",
         profileIdStateKey: "profileIdM2Default",
         publishableKeyStateKey: "publishableKeyM2",
+      });
+
+      // Capture M2's own org under a dedicated key immediately - the
+      // generic "organizationId" gets clobbered by every merchant-create
+      // call after this one (M2J, platform/connected/standard), same
+      // class of bug as M1's "organizationIdM1" fix above.
+      cy.then(() => {
+        globalState.set("organizationIdM2", globalState.get("organizationId"));
       });
     });
 
@@ -605,6 +620,13 @@ describe("OMP Scoping - shared fixtures", () => {
         },
       };
 
+      // createSurchargeDSLConfig reads the generic "userInfoToken" key
+      // directly, falling back to api-key only if that's unset. M2J (the
+      // only thing that used to clobber this key) is gone (2026-11-26,
+      // see the comment on M1's own creation above), and no dashboard
+      // signup runs anywhere in this file anymore, so "userInfoToken"
+      // stays unset throughout and this falls back to api-key cleanly -
+      // no explicit reset needed.
       cy.createSurchargeDSLConfig(
         surchargeBody,
         { Response: { body: {} } },
@@ -799,9 +821,28 @@ describe("OMP Scoping - shared fixtures", () => {
         globalState
       );
 
+      // Forced to the normal/default credential (connector_1) instead of
+      // this fixture's own Configs.CONNECTOR_CREDENTIAL (specName:
+      // ["incrementalAuth"], value: "connector_2") - that selector only
+      // activates when run from a spec file named like
+      // "...incrementalAuth..." (featureFlags.js matchesSpecName), which
+      // this suite never matches, so it already fell back to connector_1
+      // in practice; this override just makes that explicit instead of
+      // relying on the spec-name fallthrough, and avoids depending on
+      // whatever connector_2 credentials this environment may or may not
+      // have configured.
+      const saveCardOffSessionWithDefaultCredential = {
+        ...cybersourceCardPm["SaveCardUseNo3DSManualCaptureOffSession"],
+        Configs: {
+          ...cybersourceCardPm["SaveCardUseNo3DSManualCaptureOffSession"]
+            .Configs,
+          CONNECTOR_CREDENTIAL: { value: "connector_1" },
+        },
+      };
+
       cy.confirmCallTest(
         fixtures.confirmBody,
-        cybersourceCardPm["SaveCardUseNo3DSManualCaptureOffSession"],
+        saveCardOffSessionWithDefaultCredential,
         true,
         globalState
       );
@@ -849,7 +890,11 @@ describe("OMP Scoping - shared fixtures", () => {
       // CreateOrValidateOrganization validates/reuses that org instead of
       // minting a new one (core/admin.rs:505-523, 708-719).
       it("creates M3, a second merchant in M1's own organization", () => {
-        const m1OrganizationId = globalState.get("organizationId");
+        // Read from the dedicated "organizationIdM1" key captured right
+        // after M1's signup, NOT the generic "organizationId" - that one
+        // gets clobbered by every merchant-creation step that runs between
+        // here and M1's signup (M2, and now M2J).
+        const m1OrganizationId = globalState.get("organizationIdM1");
         const m3Body = {
           ...structuredClone(fixtures.merchantCreateBody),
           organization_id: m1OrganizationId,
@@ -887,7 +932,11 @@ describe("OMP Scoping - shared fixtures", () => {
       // on jwtMerchantAdminM1 being present and skip themselves when it's
       // not; the org_admin-vs-sibling tests there don't depend on this
       // user at all and still run for real.
-      it("invites a merchant_admin user scoped to M1 (best effort - see GAP above)", () => {
+      it("invites a merchant_admin user scoped to M1 (best effort - see GAP above)", function () {
+        if (!globalState.get("userInfoTokenPA")) {
+          this.skip();
+        }
+
         const inviteEmail = `omp_scoping_merchant_admin_${Date.now()}@example.com`;
 
         cy.ompInviteUser(
@@ -922,4 +971,107 @@ describe("OMP Scoping - shared fixtures", () => {
       });
     }
   );
+
+  // Platform + connected + standard merchant pair, shared by every
+  // platform/connected-axis test across resources (Payments, Payouts,
+  // Dispute, Authentication, Blocklist, Webhook, Relay, Payment Link -
+  // see Sheet 2's processor_merchant_id/platform_merchant_id columns).
+  // Moved here from 26-PlatformConnectedMerchant.cy.js (which now just
+  // reads these globalState keys) so specs numbered BEFORE 26 can use the
+  // same fixtures instead of each building their own throwaway pair.
+  context("Platform + connected merchant pair (shared fixture)", () => {
+    it("creates a platform merchant, a connected merchant, and a standard merchant in a fresh org", () => {
+      // Dedicated key, not the generic "organizationId" - see the
+      // CONFIRMED BUG comment on M1's own signup step for why.
+      const organizationIdM1 = globalState.get("organizationIdM1");
+
+      // No organization_id here - a Platform-type merchant can only be
+      // created inside an org that's ALREADY Platform-type, or as the
+      // FIRST merchant in a brand-new org, which auto-promotes that org to
+      // Platform type (core/admin.rs:539-543). M1's org is Standard-type
+      // (confirmed live: requesting merchant_account_type "platform"
+      // inside it returns 422), so this mints its own fresh org.
+      const platformBody = {
+        ...structuredClone(fixtures.merchantCreateBody),
+        merchant_account_type: "platform",
+      };
+
+      cy.merchantCreateCallTest(platformBody, globalState, {
+        expectedMerchantAccountType: "platform",
+        merchantIdStateKey: "platformMerchantId",
+        profileIdStateKey: "platformProfileId",
+        publishableKeyStateKey: "platformPublishableKey",
+      });
+
+      cy.then(() => {
+        // merchantCreateCallTest unconditionally overwrites globalState
+        // "organizationId" with whatever the server echoes back - capture
+        // the freshly-minted Platform org id, then restore M1's own org
+        // id so later specs reading "organizationId" aren't affected.
+        globalState.set("platformOrgId", globalState.get("organizationId"));
+        globalState.set("organizationId", organizationIdM1);
+      });
+
+      cy.then(() => {
+        const savedMerchantId = globalState.get("merchantId");
+        const savedApiKey = globalState.get("apiKey");
+        globalState.set("merchantId", globalState.get("platformMerchantId"));
+        return cy
+          .apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState)
+          .then(() => {
+            globalState.set("platformApiKey", globalState.get("apiKey"));
+            globalState.set("merchantId", savedMerchantId);
+            // apiKeyCreateTest overwrites the generic "apiKey" key with the
+            // platform merchant's own key - restore it too, not just
+            // merchantId, or every later spec that reads globalState.apiKey
+            // generically (rather than apiKeyM1 explicitly) silently picks
+            // up the platform key instead. Confirmed live: this exact bug
+            // caused "API does not support platform account operation"
+            // (IR_43) on 02-Payouts.cy.js's positive update test.
+            globalState.set("apiKey", savedApiKey);
+          });
+      });
+
+      cy.then(() => {
+        const connectedBody = {
+          ...structuredClone(fixtures.merchantCreateBody),
+          merchant_account_type: "connected",
+          merchant_id: `omp_scoping_connected_${Date.now()}`,
+          organization_id: globalState.get("platformOrgId"),
+        };
+        return cy.merchantCreateCallTest(connectedBody, globalState, {
+          expectedMerchantAccountType: "connected",
+          merchantIdStateKey: "connectedMerchantId",
+          profileIdStateKey: "connectedProfileId",
+        });
+      }).then(() => {
+        globalState.set("organizationId", organizationIdM1);
+      });
+
+      cy.then(() => {
+        const standardBody = {
+          ...structuredClone(fixtures.merchantCreateBody),
+          merchant_account_type: "standard",
+          merchant_id: `omp_scoping_standard_${Date.now()}`,
+          organization_id: globalState.get("platformOrgId"),
+        };
+        return cy.merchantCreateCallTest(standardBody, globalState, {
+          expectedMerchantAccountType: "standard",
+          merchantIdStateKey: "standardMerchantId",
+          profileIdStateKey: "standardProfileId",
+        });
+      }).then(() => {
+        globalState.set("organizationId", organizationIdM1);
+      });
+
+      // Defensive final reset, matching every other step in this file -
+      // explicitly land back on M1's own identity regardless of whatever
+      // ran in between, rather than relying on each intermediate step
+      // having restored it correctly.
+      cy.then(() => {
+        globalState.set("merchantId", globalState.get("merchantIdM1"));
+        globalState.set("apiKey", globalState.get("apiKeyM1"));
+      });
+    });
+  });
 });

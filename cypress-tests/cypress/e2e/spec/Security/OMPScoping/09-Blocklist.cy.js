@@ -53,7 +53,8 @@ describe("OMP Scoping - Blocklist", () => {
     });
   });
 
-  it("JWT + conflicting X-Profile-Id never returns the other profile's entries", () => {
+  it("JWT + conflicting X-Profile-Id never returns the other profile's entries", function () {
+    if (!jwtPA) this.skip();
     // Must be unique per run - the server rejects re-blocking a bin that's
     // already blocked (IR_16 "provided bin is already blocked"), so a fixed
     // value collides across repeated test runs.
@@ -85,7 +86,8 @@ describe("OMP Scoping - Blocklist", () => {
     });
   });
 
-  it("create with JWT-PA + conflicting X-Profile-Id uses the JWT's own profile, not the header", () => {
+  it("create with JWT-PA + conflicting X-Profile-Id uses the JWT's own profile, not the header", function () {
+    if (!jwtPA) this.skip();
     // Mirrors the GET test above for the write path: the fix must use the
     // JWT's own profile (PA) to scope where the entry is created, never the
     // conflicting header value (PB).

@@ -17,6 +17,7 @@ let merchantIdM2;
 let profileIdPA;
 let profileIdPB;
 let jwtPA;
+let adminApiKey;
 
 describe("OMP Scoping - Business Profile", () => {
   before("seed global state", () => {
@@ -29,6 +30,7 @@ describe("OMP Scoping - Business Profile", () => {
       profileIdPA = globalState.get("profileIdPA");
       profileIdPB = globalState.get("profileIdPB");
       jwtPA = globalState.get("userInfoTokenPA");
+      adminApiKey = globalState.get("adminApiKey");
     });
   });
 
@@ -82,7 +84,8 @@ describe("OMP Scoping - Business Profile", () => {
     });
   });
 
-  it("update rejects cross-profile path, PB unchanged (JWT, same merchant)", () => {
+  it("update rejects cross-profile path, PB unchanged (JWT, same merchant)", function () {
+    if (!jwtPA) this.skip();
     // Everything above is M1-vs-M2 (cross-merchant, API key). This is the
     // PA-vs-PB case within the SAME merchant - JWTAuthMerchantAndProfileFromRoute
     // requires the JWT's own profile to equal the path profile_id, so PA's
@@ -110,7 +113,8 @@ describe("OMP Scoping - Business Profile", () => {
     });
   });
 
-  it("PA can update its own business profile (JWT, positive)", () => {
+  it("PA can update its own business profile (JWT, positive)", function () {
+    if (!jwtPA) this.skip();
     cy.ompUpdateBusinessProfile(
       merchantIdM1,
       profileIdPA,
@@ -162,6 +166,49 @@ describe("OMP Scoping - Business Profile", () => {
       globalState
     ).then((res) => {
       expect(res.status).to.eq(401);
+    });
+  });
+
+  context("Authorization over time (R6) - deleted profile", () => {
+    it("a deleted profile is rejected via api-key + X-Profile-Id, not silently defaulted", () => {
+      // Create a throwaway profile, delete it, then confirm the auth
+      // layer itself (not just the resource lookup) correctly rejects
+      // the deleted profile id rather than silently falling back to the
+      // merchant's default profile or another profile.
+      cy.ompCreateBusinessProfileRaw(
+        merchantIdM1,
+        { type: "apiKey", apiKey: apiKeyM1 },
+        { profile_name: `omp_scoping_throwaway_${Date.now()}` },
+        globalState
+      ).then((createRes) => {
+        expect(createRes.status, "throwaway profile create").to.eq(200);
+        const throwawayProfileId = createRes.body?.profile_id;
+
+        cy.ompDeleteBusinessProfile(
+          merchantIdM1,
+          throwawayProfileId,
+          // profile_delete is &auth::AdminApiAuth ONLY (profiles.rs:380) -
+          // a plain merchant api key isn't accepted at all. Confirmed
+          // live: using apiKeyM1 here returned 400, not the 200 this
+          // setup step needs.
+          { type: "adminApiKey", apiKey: adminApiKey },
+          globalState
+        ).then((deleteRes) => {
+          expect(deleteRes.status, "throwaway profile delete").to.eq(200);
+
+          cy.ompRetrieveBusinessProfile(
+            merchantIdM1,
+            throwawayProfileId,
+            { type: "apiKey", apiKey: apiKeyM1, profileId: throwawayProfileId },
+            globalState
+          ).then((res) => {
+            expect(
+              res.status,
+              "a deleted profile id in X-Profile-Id must be rejected, not silently defaulted"
+            ).to.be.within(400, 499);
+          });
+        });
+      });
     });
   });
 });

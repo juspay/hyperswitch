@@ -61,7 +61,8 @@ describe("OMP Scoping - Connector Onboarding", () => {
       );
   }
 
-  it("sync rejects connector/profile mismatch, MCA_PAYPAL_PB unchanged", () => {
+  it("sync rejects connector/profile mismatch, MCA_PAYPAL_PB unchanged", function () {
+    if (!jwtPA) this.skip();
     // Not OMP_ERRORS.PROFILE_ID_AUTH_MISMATCH (configs/Security/Commons.js):
     // that constant is the generic "JWT's own profile vs. the resource's
     // own stored profile" check (validate_profile_id_from_auth_layer,
@@ -86,7 +87,8 @@ describe("OMP Scoping - Connector Onboarding", () => {
     });
   });
 
-  it("sync with matching profile succeeds (positive)", () => {
+  it("sync with matching profile succeeds (positive)", function () {
+    if (!jwtPA) this.skip();
     cy.ompConnectorOnboardingSync(
       { type: "jwt", token: jwtPA, profileId: profileIdPA },
       {
@@ -100,7 +102,8 @@ describe("OMP Scoping - Connector Onboarding", () => {
     });
   });
 
-  it("sync on a non-existent connector_id returns 404", () => {
+  it("sync on a non-existent connector_id returns 404", function () {
+    if (!jwtPA) this.skip();
     cy.ompConnectorOnboardingSync(
       { type: "jwt", token: jwtPA, profileId: profileIdPA },
       {
@@ -114,7 +117,8 @@ describe("OMP Scoping - Connector Onboarding", () => {
     });
   });
 
-  it("malformed profile_id in sync body returns 4xx, not 500", () => {
+  it("malformed profile_id in sync body returns 4xx, not 500", function () {
+    if (!jwtPA) this.skip();
     cy.ompConnectorOnboardingSync(
       { type: "jwt", token: jwtPA, profileId: profileIdPA },
       {
@@ -145,7 +149,8 @@ describe("OMP Scoping - Connector Onboarding", () => {
   context(
     "Unchanged by design - informational only, not a security assertion",
     () => {
-      it("action URL retrieval remains merchant-only", () => {
+      it("action URL retrieval remains merchant-only", function () {
+        if (!jwtPA) this.skip();
         cy.ompConnectorOnboardingActionUrl(
           { type: "jwt", token: jwtPA },
           {
@@ -159,13 +164,75 @@ describe("OMP Scoping - Connector Onboarding", () => {
         });
       });
 
-      it("tracking-ID reset remains merchant-only", () => {
+      it("tracking-ID reset remains merchant-only", function () {
+        if (!jwtPA) this.skip();
         cy.ompConnectorOnboardingResetTrackingId(
           { type: "jwt", token: jwtPA },
           { connector: "paypal", connector_id: mcaPaypalPaId },
           globalState
         ).then((res) => {
           expect(res.status).to.eq(200);
+        });
+      });
+
+      // Both routes are JWTAuth(MerchantAccountWrite) ONLY, no ApiKeyAuth
+      // alternative. jwtOrgAdminM2 (00-Setup.cy.js's "M2J" dashboard
+      // signup, added 2026-11-20) gives a real second merchant's JWT to
+      // test this with - the earlier assumption that this needed the
+      // email-invite flow was wrong; that flow is only for inviting a
+      // SECOND user under an EXISTING merchant, not for a brand-new
+      // merchant's own self-service signup.
+      it("M2's own JWT cannot retrieve an action URL for M1's connector", function () {
+        const jwtOrgAdminM2 = globalState.get("jwtOrgAdminM2");
+        if (!jwtOrgAdminM2) this.skip();
+
+        cy.ompConnectorOnboardingActionUrl(
+          { type: "jwt", token: jwtOrgAdminM2 },
+          {
+            connector: "paypal",
+            connector_id: mcaPaypalPaId,
+            return_url: "https://example.com",
+          },
+          globalState
+        ).then((res) => {
+          expect(res.status).to.be.within(400, 499);
+        });
+      });
+
+      it("M2's own JWT cannot reset the tracking ID for M1's connector", function () {
+        const jwtOrgAdminM2 = globalState.get("jwtOrgAdminM2");
+        if (!jwtOrgAdminM2) this.skip();
+
+        cy.ompConnectorOnboardingResetTrackingId(
+          { type: "jwt", token: jwtOrgAdminM2 },
+          { connector: "paypal", connector_id: mcaPaypalPaId },
+          globalState
+        ).then((res) => {
+          expect(res.status).to.be.within(400, 499);
+        });
+      });
+
+      it("invalid credential on action URL retrieval is rejected", () => {
+        cy.ompConnectorOnboardingActionUrl(
+          { type: "invalid" },
+          {
+            connector: "paypal",
+            connector_id: mcaPaypalPaId,
+            return_url: "https://example.com",
+          },
+          globalState
+        ).then((res) => {
+          expect(res.status).to.eq(401);
+        });
+      });
+
+      it("invalid credential on tracking-ID reset is rejected", () => {
+        cy.ompConnectorOnboardingResetTrackingId(
+          { type: "invalid" },
+          { connector: "paypal", connector_id: mcaPaypalPaId },
+          globalState
+        ).then((res) => {
+          expect(res.status).to.eq(401);
         });
       });
     }

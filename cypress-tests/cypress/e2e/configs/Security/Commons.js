@@ -8,6 +8,19 @@
 import { getCustomExchange as getPaymentCustomExchange } from "../Payment/Modifiers";
 import { getCustomExchange as getPayoutCustomExchange } from "../Payout/Modifiers";
 
+// A valid minimal card body, shared by every OMPScoping test that only
+// needs payment_method_data to pass deserialization/validation (e.g. 3DS
+// eligibility, routing-connector checks) rather than to exercise a real
+// card payment end-to-end.
+export const CARD_PAYMENT_METHOD_DATA = {
+  card: {
+    card_number: "4242424242424242",
+    card_exp_month: "12",
+    card_exp_year: "28",
+    card_cvc: "123",
+  },
+};
+
 // PI_PA / PI_PB creation in 00-Setup.cy.js. Matches the shape
 // configs/Payment/Commons.js's own PaymentIntent getter uses.
 export const PaymentIntent = () =>
