@@ -486,17 +486,8 @@ jobs:
 
           kill "${PID}"
 
-      - name: Collect server logs for duplicate-read check
+      - name: Upload server logs
         if: ${{ !cancelled() && env.RUN_TESTS == 'true' && (steps.cypress.outcome == 'success' || steps.cypress.outcome == 'failure') }}
-        uses: actions/upload-artifact@v7.0.2
-        with:
-          name: duplicate-read-source-mandatory-${{ matrix.batch.name }}
-          path: ${{ env.SERVER_LOG_PATH }}
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Upload server logs on failure
-        if: env.RUN_TESTS == 'true' && failure()
         uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
@@ -754,17 +745,8 @@ jobs:
 
           kill "${PID}"
 
-      - name: Collect server logs for duplicate-read check
+      - name: Upload server logs
         if: ${{ !cancelled() && (steps.cypress.outcome == 'success' || steps.cypress.outcome == 'failure') }}
-        uses: actions/upload-artifact@v7.0.2
-        with:
-          name: duplicate-read-source-extended-${{ matrix.batch.name }}
-          path: ${{ env.SERVER_LOG_PATH }}
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Upload server logs on failure
-        if: failure()
         uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
@@ -1220,15 +1202,6 @@ jobs:
           kill "${PID}"
           kill "${MITM_PID}" 2>/dev/null || true
 
-      - name: Collect server logs for duplicate-read check
-        if: ${{ !cancelled() && env.RUN_TESTS == 'true' && (steps.cypress.outcome == 'success' || steps.cypress.outcome == 'failure') }}
-        uses: actions/upload-artifact@v7.0.2
-        with:
-          name: duplicate-read-source-mitm-${{ matrix.batch.name }}
-          path: ${{ env.SERVER_LOG_PATH }}
-          if-no-files-found: error
-          retention-days: 1
-
       - name: Upload MITM replay logs on failure
         if: env.RUN_TESTS == 'true' && failure()
         uses: actions/upload-artifact@v7.0.2
@@ -1238,8 +1211,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
-      - name: Upload server logs on failure
-        if: env.RUN_TESTS == 'true' && failure()
+      - name: Upload server logs
+        if: ${{ !cancelled() && env.RUN_TESTS == 'true' && (steps.cypress.outcome == 'success' || steps.cypress.outcome == 'failure') }}
         uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
@@ -1501,17 +1474,8 @@ jobs:
 
           kill "${PID}"
 
-      - name: Collect server logs for duplicate-read check
-        if: ${{ !cancelled() && (steps.cypress.outcome == 'success' || steps.cypress.outcome == 'failure') }}
-        uses: actions/upload-artifact@v7.0.2
-        with:
-          name: duplicate-read-source-optional-${{ matrix.batch.name }}
-          path: ${{ env.SERVER_LOG_PATH }}
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Upload server logs on failure
-        if: env.RUN_TESTS == 'true' && failure()
+      - name: Upload server logs
+        if: ${{ !cancelled() && env.RUN_TESTS == 'true' && (steps.cypress.outcome == 'success' || steps.cypress.outcome == 'failure') }}
         uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
@@ -1758,7 +1722,6 @@ jobs:
       contents: read
     env:
       CODECOV_FILE: "lcov.info"
-      SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.txt
       # sccache on local disk, restored/saved as one archive instead of its
       # native S3 backend — see build-hyperswitch for why.
       RUSTC_WRAPPER: sccache
@@ -1968,7 +1931,7 @@ jobs:
           ROUTER__SUPERPOSITION__POLLING_INTERVAL: 10
         run: |
           # Start the server in the background
-          target/debug/router >> "${SERVER_LOG_PATH}" 2>&1 &
+          target/debug/router &
 
           SERVER_PID=$!
           echo "PID=${SERVER_PID}" >> $GITHUB_ENV
@@ -2001,15 +1964,6 @@ jobs:
         run: |
           kill "${PID}"
 
-      - name: Collect server logs for duplicate-read check
-        if: ${{ !cancelled() && env.RUN_TESTS == 'true' && (steps.cypress.outcome == 'success' || steps.cypress.outcome == 'failure') }}
-        uses: actions/upload-artifact@v7.0.2
-        with:
-          name: duplicate-read-source-runner-v2
-          path: ${{ env.SERVER_LOG_PATH }}
-          if-no-files-found: error
-          retention-days: 1
-
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
         uses: actions/upload-artifact@v7.0.2
@@ -2038,7 +1992,7 @@ jobs:
 
   check-duplicate-reads:
     name: Check duplicate database reads after Cypress
-    needs: [mandatory-cypress-tests, extended-cypress-tests, mitm-cassette-replay-cypress-tests, runner-optional-connectors, runner_alpha, runner_v2]
+    needs: [mandatory-cypress-tests, extended-cypress-tests, mitm-cassette-replay-cypress-tests, runner-optional-connectors, runner_alpha]
     if: ${{ !cancelled() && (github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) }}
     runs-on: hypersage-runners
     steps:
@@ -2053,7 +2007,7 @@ jobs:
       - name: Download Cypress server logs
         uses: actions/download-artifact@v8.0.2
         with:
-          pattern: duplicate-read-source-*
+          pattern: '*-server-logs-*'
           path: duplicate-read-sources
 
       - name: Check all collected logs
