@@ -482,6 +482,28 @@ pub enum RevenueRecoveryABAlgorithm {
     SystematicKMaxAtScore,
 }
 
+/// How a retry decision scores days by the time since the card's last failure, mixed into the
+/// calendar's per-day weights by the error code's weights.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RevenueRecoveryDeltaAlgorithm {
+    /// The calendar alone.
+    Off,
+    /// Pools the card's hours since its last failure into calendar days and ranks the days.
+    DailyPooled,
+}
+
 #[derive(
     Default,
     Clone,
