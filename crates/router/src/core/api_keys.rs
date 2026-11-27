@@ -443,25 +443,25 @@ pub async fn revoke_api_key(
     let api_key = store
         .find_api_key_by_merchant_id_key_id_optional(&merchant_id, key_id)
         .await
-        .to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound)?;
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to retrieve API key")?
+        .ok_or(report!(errors::ApiErrorResponse::ApiKeyNotFound))?;
 
     let revoked = store
-        .revoke_api_key(&merchant_id, key_id)
+        .revoke_api_key(&api_key)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ApiKeyNotFound)?;
 
-    if let Some(api_key) = api_key {
-        let hashed_api_key = api_key.hashed_api_key;
-        let state = state.clone();
+    let hashed_api_key = api_key.hashed_api_key;
+    let state = state.clone();
 
-        authentication::decision::spawn_tracked_job(
-            async move {
-                authentication::decision::revoke_api_key(&state, hashed_api_key.into_inner().into())
-                    .await
-            },
-            authentication::decision::REVOKE,
-        );
-    }
+    authentication::decision::spawn_tracked_job(
+        async move {
+            authentication::decision::revoke_api_key(&state, hashed_api_key.into_inner().into())
+                .await
+        },
+        authentication::decision::REVOKE,
+    );
 
     metrics::API_KEY_REVOKED.add(1, &[]);
 

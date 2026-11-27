@@ -547,8 +547,9 @@ pub async fn get_token_pm_type_mandate_details(
     payment_method_id: Option<String>,
     payment_intent_customer_id: Option<&id_type::CustomerId>,
     pm_info: Option<domain::PaymentMethod>,
-) -> RouterResult<MandateGenericData> {
+) -> RouterResult<(MandateGenericData, Option<storage::Mandate>)> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
+    let mut fetched_mandate = None;
     let (
         payment_token,
         payment_method,
@@ -622,13 +623,15 @@ pub async fn get_token_pm_type_mandate_details(
                         }
                     }
                     RecurringDetails::MandateId(mandate_id) => {
-                        let mandate_generic_data = Box::pin(get_token_for_recurring_mandate(
-                            state,
-                            request,
-                            platform,
-                            mandate_id.to_owned(),
-                        ))
-                        .await?;
+                        let (mandate_generic_data, mandate) =
+                            Box::pin(get_token_for_recurring_mandate(
+                                state,
+                                request,
+                                platform,
+                                mandate_id.to_owned(),
+                            ))
+                            .await?;
+                        fetched_mandate = Some(mandate);
 
                         (
                             mandate_generic_data.token,
@@ -721,10 +724,11 @@ pub async fn get_token_pm_type_mandate_details(
                 },
                 None => {
                     if let Some(mandate_id) = request.mandate_id.clone() {
-                        let mandate_generic_data = Box::pin(get_token_for_recurring_mandate(
-                            state, request, platform, mandate_id,
-                        ))
+                        let (mandate_generic_data, mandate) = Box::pin(
+                            get_token_for_recurring_mandate(state, request, platform, mandate_id),
+                        )
                         .await?;
+                        fetched_mandate = Some(mandate);
                         (
                             mandate_generic_data.token,
                             mandate_generic_data.payment_method,
@@ -889,15 +893,18 @@ pub async fn get_token_pm_type_mandate_details(
         }
     };
 
-    Ok(MandateGenericData {
-        token: payment_token,
-        payment_method,
-        payment_method_type,
-        mandate_data,
-        recurring_mandate_payment_data: recurring_payment_data,
-        mandate_connector: mandate_connector_details,
-        payment_method_info,
-    })
+    Ok((
+        MandateGenericData {
+            token: payment_token,
+            payment_method,
+            payment_method_type,
+            mandate_data,
+            recurring_mandate_payment_data: recurring_payment_data,
+            mandate_connector: mandate_connector_details,
+            payment_method_info,
+        },
+        fetched_mandate,
+    ))
 }
 
 #[cfg(feature = "v1")]
@@ -906,7 +913,7 @@ pub async fn get_token_for_recurring_mandate(
     req: &api::PaymentsRequest,
     platform: &domain::Platform,
     mandate_id: String,
-) -> RouterResult<MandateGenericData> {
+) -> RouterResult<(MandateGenericData, storage::Mandate)> {
     let db = &*state.store;
 
     let mandate = db
@@ -991,8 +998,8 @@ pub async fn get_token_for_recurring_mandate(
     let token = common_utils::generate_uuid_v4().to_string();
     let payment_method_type = payment_method.get_payment_method_subtype();
     let mandate_connector_details = payments::MandateConnectorDetails {
-        connector: mandate.connector,
-        merchant_connector_id: mandate.merchant_connector_id,
+        connector: mandate.connector.clone(),
+        merchant_connector_id: mandate.merchant_connector_id.clone(),
     };
 
     if let Some(enums::PaymentMethod::Card) = payment_method.get_payment_method_type() {
@@ -1021,35 +1028,41 @@ pub async fn get_token_for_recurring_mandate(
             }
         };
 
-        Ok(MandateGenericData {
-            token: Some(token),
-            payment_method: payment_method.get_payment_method_type(),
-            recurring_mandate_payment_data: Some(RecurringMandatePaymentData {
-                payment_method_type,
-                original_payment_authorized_amount,
-                original_payment_authorized_currency,
-                mandate_metadata: None,
-            }),
-            payment_method_type: payment_method.get_payment_method_subtype(),
-            mandate_connector: Some(mandate_connector_details),
-            mandate_data: None,
-            payment_method_info: Some(payment_method),
-        })
+        Ok((
+            MandateGenericData {
+                token: Some(token),
+                payment_method: payment_method.get_payment_method_type(),
+                recurring_mandate_payment_data: Some(RecurringMandatePaymentData {
+                    payment_method_type,
+                    original_payment_authorized_amount,
+                    original_payment_authorized_currency,
+                    mandate_metadata: None,
+                }),
+                payment_method_type: payment_method.get_payment_method_subtype(),
+                mandate_connector: Some(mandate_connector_details),
+                mandate_data: None,
+                payment_method_info: Some(payment_method),
+            },
+            mandate,
+        ))
     } else {
-        Ok(MandateGenericData {
-            token: None,
-            payment_method: payment_method.get_payment_method_type(),
-            recurring_mandate_payment_data: Some(RecurringMandatePaymentData {
-                payment_method_type,
-                original_payment_authorized_amount,
-                original_payment_authorized_currency,
-                mandate_metadata: None,
-            }),
-            payment_method_type: payment_method.get_payment_method_subtype(),
-            mandate_connector: Some(mandate_connector_details),
-            mandate_data: None,
-            payment_method_info: Some(payment_method),
-        })
+        Ok((
+            MandateGenericData {
+                token: None,
+                payment_method: payment_method.get_payment_method_type(),
+                recurring_mandate_payment_data: Some(RecurringMandatePaymentData {
+                    payment_method_type,
+                    original_payment_authorized_amount,
+                    original_payment_authorized_currency,
+                    mandate_metadata: None,
+                }),
+                payment_method_type: payment_method.get_payment_method_subtype(),
+                mandate_connector: Some(mandate_connector_details),
+                mandate_data: None,
+                payment_method_info: Some(payment_method),
+            },
+            mandate,
+        ))
     }
 }
 

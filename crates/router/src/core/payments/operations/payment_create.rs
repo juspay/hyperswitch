@@ -143,15 +143,18 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             reason: "Expected one out of recurring_details and mandate_data but got both".into(),
         })?;
 
-        let m_helpers::MandateGenericData {
-            token,
-            payment_method,
-            payment_method_type,
-            mandate_data,
-            recurring_mandate_payment_data,
-            mandate_connector,
-            payment_method_info,
-        } = helpers::get_token_pm_type_mandate_details(
+        let (
+            m_helpers::MandateGenericData {
+                token,
+                payment_method,
+                payment_method_type,
+                mandate_data,
+                recurring_mandate_payment_data,
+                mandate_connector,
+                payment_method_info,
+            },
+            fetched_mandate,
+        ) = helpers::get_token_pm_type_mandate_details(
             state,
             request,
             mandate_type,
@@ -439,14 +442,18 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     })
             })
             .async_and_then(|mandate_id| async {
-                let mandate = db
-                    .find_mandate_by_merchant_id_mandate_id(
-                        platform.get_processor().get_account().get_id(),
-                        mandate_id,
-                        platform.get_processor().get_account().storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::MandateNotFound);
+                let mandate =
+                    match fetched_mandate.filter(|mandate| mandate.mandate_id == *mandate_id) {
+                        Some(mandate) => Ok(mandate),
+                        None => db
+                            .find_mandate_by_merchant_id_mandate_id(
+                                platform.get_processor().get_account().get_id(),
+                                mandate_id,
+                                platform.get_processor().get_account().storage_scheme,
+                            )
+                            .await
+                            .to_not_found_response(errors::ApiErrorResponse::MandateNotFound),
+                    };
                 Some(mandate.and_then(|mandate_obj| {
                     match (
                         mandate_obj.network_transaction_id,
@@ -959,6 +966,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         platform: &domain::Platform,
         feature_config: &core_utils::FeatureConfig,
         profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
+        _payment_pre_fetched_info: Option<&operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<operations::PaymentMethodFetchData> {
         let business_profile = core_utils::get_profile_from_business_details(
             req.business_country,

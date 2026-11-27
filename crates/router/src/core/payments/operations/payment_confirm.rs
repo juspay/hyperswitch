@@ -114,7 +114,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_merchant_id = processor_merchant_id.clone();
 
         // Parallel calls - level 0
-        let mut payment_intent = match prefetched_payment_intent.or(pre_fetched_intent) {
+        let mut payment_intent = match pre_fetched_intent.or(prefetched_payment_intent) {
             Some(payment_intent) => {
                 helpers::validate_payment_profile(
                     profile_id_from_auth_layer,
@@ -721,7 +721,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         );
 
         // Parallel calls - level 2
-        let (mandate_details, additional_pm_info, payment_method_billing) = tokio::try_join!(
+        let ((mandate_details, _), additional_pm_info, payment_method_billing) = tokio::try_join!(
             utils::flatten_join_error(mandate_details_fut),
             utils::flatten_join_error(additional_pm_data_fut),
             utils::flatten_join_error(payment_method_billing_future),
@@ -1405,6 +1405,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         platform: &domain::Platform,
         feature_config: &core_utils::FeatureConfig,
         profile_id_from_auth_layer: Option<&common_utils::id_type::ProfileId>,
+        payment_pre_fetched_info: Option<&operations::PaymentPreFetchedInformation>,
     ) -> RouterResult<operations::PaymentMethodFetchData> {
         let payment_id = req
             .payment_id
@@ -1412,16 +1413,27 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             .get_required_value("payment_id")?
             .get_payment_intent_id()
             .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
-        let payment_intent = helpers::find_payment_intent(
-            state.store.as_ref(),
-            &payment_id,
-            &platform.get_processor().get_processor_merchant_id(),
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_storage_scheme(),
-            profile_id_from_auth_layer,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+        let payment_intent = match payment_pre_fetched_info
+            .filter(|info| info.payment_intent.payment_id == payment_id)
+        {
+            Some(info) => {
+                helpers::validate_payment_profile(
+                    profile_id_from_auth_layer,
+                    info.payment_intent.profile_id.as_ref(),
+                )?;
+                info.payment_intent.clone()
+            }
+            None => helpers::find_payment_intent(
+                state.store.as_ref(),
+                &payment_id,
+                &platform.get_processor().get_processor_merchant_id(),
+                platform.get_processor().get_key_store(),
+                platform.get_processor().get_storage_scheme(),
+                profile_id_from_auth_layer,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?,
+        };
         let profile_id = payment_intent
             .profile_id
             .as_ref()

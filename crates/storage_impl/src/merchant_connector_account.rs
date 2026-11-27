@@ -389,14 +389,10 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for kv_router_store::KV
     #[cfg(feature = "v1")]
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+        mca: &domain::MerchantConnectorAccount,
     ) -> CustomResult<bool, Self::Error> {
         self.router_store
-            .delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
-                merchant_id,
-                merchant_connector_id,
-            )
+            .delete_merchant_connector_account_by_merchant_id_merchant_connector_id(mca)
             .await
     }
 
@@ -1103,9 +1099,10 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
     #[cfg(feature = "v1")]
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+        mca: &domain::MerchantConnectorAccount,
     ) -> CustomResult<bool, Self::Error> {
+        let merchant_id = &mca.merchant_id;
+        let merchant_connector_id = &mca.merchant_connector_id;
         let conn = self.pg_accounts_connection_write().await?;
         let delete_call = || async {
             storage::MerchantConnectorAccount::delete_by_merchant_id_merchant_connector_id(
@@ -1119,22 +1116,7 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
 
         #[cfg(feature = "accounts_cache")]
         {
-            // We need to fetch mca here because the key that's saved in cache in
-            // {merchant_id}_{connector_label}.
-            // Used function from storage model to reuse the connection that made here instead of
-            // creating new.
-
-            let mca = storage::MerchantConnectorAccount::find_by_merchant_id_merchant_connector_id(
-                &conn,
-                merchant_id,
-                merchant_connector_id,
-            )
-            .await
-            .map_err(|error| report!(Self::Error::from(error)))?;
-
-            let _profile_id = mca
-                .profile_id
-                .ok_or(Self::Error::ValueNotFound("profile_id".to_string()))?;
+            let profile_id = &mca.profile_id;
 
             cache::publish_and_redact_multiple(
                 self,
@@ -1142,33 +1124,30 @@ impl<T: DatabaseStore> MerchantConnectorAccountInterface for RouterStore<T> {
                     cache::CacheKind::Accounts(
                         format!(
                             "{}_{}",
-                            mca.merchant_id.get_string_repr(),
-                            _profile_id.get_string_repr()
+                            merchant_id.get_string_repr(),
+                            profile_id.get_string_repr()
                         )
                         .into(),
                     ),
                     cache::CacheKind::CGraph(
                         format!(
                             "cgraph_{}_{}",
-                            mca.merchant_id.get_string_repr(),
-                            _profile_id.get_string_repr()
+                            merchant_id.get_string_repr(),
+                            profile_id.get_string_repr()
                         )
                         .into(),
                     ),
                     cache::CacheKind::PmFiltersCGraph(
                         format!(
                             "pm_filters_cgraph_{}_{}",
-                            mca.merchant_id.get_string_repr(),
-                            _profile_id.get_string_repr()
+                            merchant_id.get_string_repr(),
+                            profile_id.get_string_repr()
                         )
                         .into(),
                     ),
                 ]
                 .into_iter()
-                .chain(list_cache::invalidation_kinds(
-                    &mca.merchant_id,
-                    &_profile_id,
-                ))
+                .chain(list_cache::invalidation_kinds(merchant_id, profile_id))
                 .collect::<Vec<_>>(),
                 delete_call,
             )
@@ -1815,13 +1794,12 @@ impl MerchantConnectorAccountInterface for MockDb {
     #[cfg(feature = "v1")]
     async fn delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
-        merchant_connector_id: &common_utils::id_type::MerchantConnectorAccountId,
+        mca: &domain::MerchantConnectorAccount,
     ) -> CustomResult<bool, StorageError> {
         let mut accounts = self.merchant_connector_accounts.lock().await;
         match accounts.iter().position(|account| {
-            account.merchant_id == *merchant_id
-                && account.merchant_connector_id == *merchant_connector_id
+            account.merchant_id == mca.merchant_id
+                && account.merchant_connector_id == mca.merchant_connector_id
         }) {
             Some(index) => {
                 accounts.remove(index);

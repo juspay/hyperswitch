@@ -3251,10 +3251,7 @@ pub async fn delete_connector(
 
     let is_deleted = state
         .accounts_store
-        .delete_merchant_connector_account_by_merchant_id_merchant_connector_id(
-            &merchant_id,
-            &merchant_connector_id,
-        )
+        .delete_merchant_connector_account_by_merchant_id_merchant_connector_id(&mca)
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
             id: merchant_connector_id.get_string_repr().to_string(),

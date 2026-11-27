@@ -469,6 +469,7 @@ jobs:
           done
 
       - name: Run Cypress tests
+        id: cypress
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
@@ -485,8 +486,8 @@ jobs:
 
           kill "${PID}"
 
-      - name: Upload server logs on failure
-        if: env.RUN_TESTS == 'true' && failure()
+      - name: Upload server logs
+        if: ${{ !cancelled() && env.RUN_TESTS == 'true' && (steps.cypress.outcome == 'success' || steps.cypress.outcome == 'failure') }}
         uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
@@ -732,6 +733,7 @@ jobs:
           done
 
       - name: Run Cypress tests
+        id: cypress
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
@@ -743,8 +745,8 @@ jobs:
 
           kill "${PID}"
 
-      - name: Upload server logs on failure
-        if: failure()
+      - name: Upload server logs
+        if: ${{ !cancelled() && (steps.cypress.outcome == 'success' || steps.cypress.outcome == 'failure') }}
         uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
@@ -1176,6 +1178,7 @@ jobs:
           echo "mitmproxy replay started (PID=${MITM_PID})"
 
       - name: Run Cypress tests
+        id: cypress
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
@@ -1208,8 +1211,8 @@ jobs:
           if-no-files-found: ignore
           retention-days: 1
 
-      - name: Upload server logs on failure
-        if: env.RUN_TESTS == 'true' && failure()
+      - name: Upload server logs
+        if: ${{ !cancelled() && env.RUN_TESTS == 'true' && (steps.cypress.outcome == 'success' || steps.cypress.outcome == 'failure') }}
         uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
@@ -1460,6 +1463,7 @@ jobs:
           done
 
       - name: Run Cypress tests
+        id: cypress
         env:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
@@ -1470,8 +1474,8 @@ jobs:
 
           kill "${PID}"
 
-      - name: Upload server logs on failure
-        if: env.RUN_TESTS == 'true' && failure()
+      - name: Upload server logs
+        if: ${{ !cancelled() && env.RUN_TESTS == 'true' && (steps.cypress.outcome == 'success' || steps.cypress.outcome == 'failure') }}
         uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ matrix.batch.server_logs_artifact }}
@@ -1985,3 +1989,45 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ${{ env.CODECOV_FILE }}
           disable_search: true
+
+  check-duplicate-reads:
+    name: Check duplicate database reads after Cypress
+    needs: [mandatory-cypress-tests, extended-cypress-tests, mitm-cassette-replay-cypress-tests, runner-optional-connectors, runner_alpha]
+    if: ${{ !cancelled() && (github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) }}
+    runs-on: hypersage-runners
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Prepare log directory
+        run: mkdir -p duplicate-read-sources
+
+      - name: Download Cypress server logs
+        uses: actions/download-artifact@v8.0.2
+        with:
+          pattern: '*-server-logs-*'
+          path: duplicate-read-sources
+
+      - name: Check all collected logs
+        shell: bash
+        run: |
+          status=0
+          scanned_logs=0
+          while IFS= read -r -d '' server_log; do
+            scanned_logs=$((scanned_logs + 1))
+            echo "Checking $server_log"
+            duplicate_log="${server_log%/*}/duplicate-read-logs.txt"
+            if ! bash scripts/check_duplicate_reads.sh "$server_log" "$duplicate_log"; then
+              status=1
+              if [[ -s "$duplicate_log" ]]; then
+                cat "$duplicate_log"
+              fi
+            fi
+          done < <(find duplicate-read-sources -type f -name 'server-logs.txt' -print0)
+          if (( scanned_logs == 0 )); then
+            echo "::error::No Cypress server logs were available to check for duplicate database reads."
+            exit 1
+          fi
+          exit "$status"
