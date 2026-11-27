@@ -18,7 +18,6 @@ use crate::redis::{
     cache::{CacheId, CacheInterface, CacheKind},
     kv_store::RedisConnInterface,
 };
-#[cfg(feature = "accounts_cache")]
 use crate::{
     behaviour::{Conversion, ForeignFrom, ForeignInto, ReverseConversion},
     kv_router_store,
@@ -155,13 +154,20 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         merchant_key_store: &MerchantKeyStore,
     ) -> CustomResult<domain::MerchantAccount, StorageError> {
         let conn = self.pg_accounts_connection_write().await?;
-        merchant_account
+        let inserted = merchant_account
             .construct_new()
             .await
             .change_context(StorageError::EncryptionError)?
             .insert(&conn)
             .await
-            .map_err(|error| report!(StorageError::from(error)))?
+            .map_err(|error| report!(StorageError::from(error)))?;
+
+        #[cfg(feature = "accounts_cache")]
+        {
+            publish_and_redact_merchant_account_cache(self, &inserted).await?;
+        }
+
+        inserted
             .convert(
                 self.get_keymanager_state()
                     .attach_printable("Missing KeyManagerState")?,
@@ -180,7 +186,7 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
     ) -> CustomResult<domain::MerchantAccount, StorageError> {
         let fetch_func = || async {
             let conn = self.pg_accounts_connection_read().await?;
-            storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
+            storage::MerchantAccount::find_optional_by_merchant_id(&conn, merchant_id)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
         };
@@ -192,6 +198,9 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         {
             fetch_func()
                 .await?
+                .ok_or_else(|| {
+                    report!(StorageError::ValueNotFound("merchant_account".to_string()))
+                })?
                 .convert(
                     state,
                     merchant_key_store.key.get_inner(),
@@ -210,6 +219,7 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
                 CacheId::Accounts,
             ))
             .await?
+            .ok_or_else(|| report!(StorageError::ValueNotFound("merchant_account".to_string())))?
             .convert(
                 state,
                 merchant_key_store.key.get_inner(),
@@ -290,7 +300,7 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         let fetch_by_pub_key_func = || async {
             let conn = self.pg_accounts_connection_read().await?;
 
-            storage::MerchantAccount::find_by_publishable_key(&conn, publishable_key)
+            storage::MerchantAccount::find_optional_by_publishable_key(&conn, publishable_key)
                 .await
                 .map_err(|error| report!(StorageError::from(error)))
         };
@@ -298,7 +308,9 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         let merchant_account;
         #[cfg(not(feature = "accounts_cache"))]
         {
-            merchant_account = fetch_by_pub_key_func().await?;
+            merchant_account = fetch_by_pub_key_func().await?.ok_or_else(|| {
+                report!(StorageError::ValueNotFound("merchant_account".to_string()))
+            })?;
         }
 
         #[cfg(feature = "accounts_cache")]
@@ -309,7 +321,8 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
                 fetch_by_pub_key_func(),
                 CacheId::Accounts,
             ))
-            .await?;
+            .await?
+            .ok_or_else(|| report!(StorageError::ValueNotFound("merchant_account".to_string())))?;
         }
         let key_store = self
             .get_merchant_key_store_by_merchant_id(
@@ -397,9 +410,12 @@ impl<T: DatabaseStore> MerchantAccountInterface for RouterStore<T> {
         #[cfg(feature = "accounts_cache")]
         {
             let merchant_account =
-                storage::MerchantAccount::find_by_merchant_id(&conn, merchant_id)
+                storage::MerchantAccount::find_optional_by_merchant_id(&conn, merchant_id)
                     .await
-                    .map_err(|error| report!(StorageError::from(error)))?;
+                    .map_err(|error| report!(StorageError::from(error)))?
+                    .ok_or_else(|| {
+                        report!(StorageError::ValueNotFound("merchant_account".to_string()))
+                    })?;
 
             is_deleted = is_deleted_func().await?;
 

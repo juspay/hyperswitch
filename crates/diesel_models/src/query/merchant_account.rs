@@ -76,22 +76,22 @@ impl MerchantAccount {
         .await
     }
 
-    pub async fn find_by_merchant_id(
+    pub async fn find_optional_by_merchant_id(
         conn: &DatabaseConnectionWithContext<'_>,
         identifier: &common_utils::id_type::MerchantId,
-    ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+    ) -> StorageResult<Option<Self>> {
+        generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id.eq(identifier.to_owned()),
         )
         .await
     }
 
-    pub async fn find_by_publishable_key(
+    pub async fn find_optional_by_publishable_key(
         conn: &DatabaseConnectionWithContext<'_>,
         publishable_key: &str,
-    ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+    ) -> StorageResult<Option<Self>> {
+        generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::publishable_key.eq(publishable_key.to_owned()),
         )
@@ -221,22 +221,22 @@ impl MerchantAccount {
         .await
     }
 
-    pub async fn find_by_merchant_id(
+    pub async fn find_optional_by_merchant_id(
         conn: &DatabaseConnectionWithContext<'_>,
         identifier: &common_utils::id_type::MerchantId,
-    ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+    ) -> StorageResult<Option<Self>> {
+        generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::id.eq(identifier.to_owned()),
         )
         .await
     }
 
-    pub async fn find_by_publishable_key(
+    pub async fn find_optional_by_publishable_key(
         conn: &DatabaseConnectionWithContext<'_>,
         publishable_key: &str,
-    ) -> StorageResult<Self> {
-        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+    ) -> StorageResult<Option<Self>> {
+        generics::generic_find_one_optional::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::publishable_key.eq(publishable_key.to_owned()),
         )
