@@ -14,10 +14,13 @@ on:
       - reopened
       - ready_for_review
       - synchronize
+      - labeled
 
   merge_group:
     types:
       - checks_requested
+
+permissions: {}
 
 env:
   # Allow more retries for network requests in cargo (downloading crates) and
@@ -37,7 +40,7 @@ jobs:
         with:
           toolchain: stable
 
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@v2.90.8
         with:
           tool: cocogitto
           checksum: true
@@ -69,19 +72,25 @@ jobs:
       - name: Generate GitHub app token
         id: generate_app_token
         if: ${{ github.event_name == 'pull_request_target' }}
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@v3.4.0
         env:
           NODE_USE_ENV_PROXY: "1"
         with:
           client-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
           owner: ${{ github.event.repository.owner.login }}
+          permission-pull-requests: read
+          permission-metadata: read
+          permission-issues: read
 
       - name: Verify PR contains one or more linked issues
         if: ${{ github.event_name == 'pull_request_target' }}
         shell: bash
         env:
           GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
+          REPO_OWNER: ${{ github.event.repository.owner.login }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           # GitHub does not provide information about linked issues for a pull request via the REST API.
           # This information is available only within the GraphQL API.
@@ -107,9 +116,9 @@ jobs:
           linked_issues="$(
             gh api graphql \
               --raw-field "query=${query}" \
-              --field 'owner=${{ github.event.repository.owner.login }}' \
-              --field 'repository=${{ github.event.repository.name }}' \
-              --field 'prNumber=${{ github.event.pull_request.number }}' \
+              --field "owner=${REPO_OWNER}" \
+              --field "repository=${REPO_NAME}" \
+              --field "prNumber=${PR_NUMBER}" \
               --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[] | "\(.repository.nameWithOwner)#\(.number)"'
           )"
 
@@ -143,23 +152,28 @@ jobs:
     steps:
       - name: Generate GitHub app token
         id: generate_app_token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@v3.4.0
         env:
           NODE_USE_ENV_PROXY: "1"
         with:
           client-id: ${{ secrets.HYPERSWITCH_BOT_APP_ID }}
           private-key: ${{ secrets.HYPERSWITCH_BOT_APP_PRIVATE_KEY }}
           owner: ${{ github.event.repository.owner.login }}
+          repositories: ${{ github.event.repository.name }}
+          permission-pull-requests: write
+          permission-metadata: read
 
       - name: Get files changed
+        id: files_changed
         env:
           GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         shell: bash
         run: |
           migration_and_schema_changes=false
           openapi_changes=false
 
-          files_changed="$(gh api --header "Accept: application/vnd.github+json" --header "X-GitHub-Api-Version: 2022-11-28" --paginate https://api.github.com/repos/juspay/hyperswitch/pulls/${{ github.event.pull_request.number }}/files --jq '.[] | .filename')"
+          files_changed="$(gh api --header "Accept: application/vnd.github+json" --header "X-GitHub-Api-Version: 2022-11-28" --paginate "https://api.github.com/repos/juspay/hyperswitch/pulls/${PR_NUMBER}/files" --jq '.[] | .filename')"
 
           if echo "${files_changed}" | grep --quiet --extended-regexp '(^(migrations|v2_migrations)/.*/(up|down)\.sql$|^crates/diesel_models/src/(schema|schema_v2).rs$)' ; then
             migration_and_schema_changes='true'
@@ -169,27 +183,146 @@ jobs:
             openapi_changes='true'
           fi
 
-          echo "migration_and_schema_changes=${migration_and_schema_changes}" >> "${GITHUB_ENV}"
-          echo "openapi_changes=${openapi_changes}" >> "${GITHUB_ENV}"
+          echo "migration_and_schema_changes=${migration_and_schema_changes}" >> "${GITHUB_OUTPUT}"
+          echo "openapi_changes=${openapi_changes}" >> "${GITHUB_OUTPUT}"
 
       - name: Add/Remove 'M-database-changes' based on Migration or Schema changes
         shell: bash
         env:
           GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
+          REPO_NAME: ${{ github.event.repository.full_name }}
+          MIGRATION_AND_SCHEMA_CHANGES: ${{ steps.files_changed.outputs.migration_and_schema_changes }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          if ${{ env.migration_and_schema_changes == 'true' }}; then
-            gh --repo ${{ github.event.repository.full_name }} pr edit --add-label 'M-database-changes' ${{ github.event.pull_request.number }}
+          if [[ "${MIGRATION_AND_SCHEMA_CHANGES}" == "true" ]]; then
+            gh --repo ${REPO_NAME} pr edit --add-label 'M-database-changes' ${PR_NUMBER}
           else
-            gh --repo ${{ github.event.repository.full_name }} pr edit --remove-label 'M-database-changes' ${{ github.event.pull_request.number }}
+            gh --repo ${REPO_NAME} pr edit --remove-label 'M-database-changes' ${PR_NUMBER}
           fi
 
       - name: Add/Remove 'M-api-contract-changes' based on OpenAPI Spec changes
         shell: bash
         env:
           GH_TOKEN: ${{ steps.generate_app_token.outputs.token }}
+          REPO_NAME: ${{ github.event.repository.full_name }}
+          OPENAPI_CHANGES: ${{ steps.files_changed.outputs.openapi_changes }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          if ${{ env.openapi_changes == 'true' }}; then
-            gh --repo ${{ github.event.repository.full_name }} pr edit --add-label 'M-api-contract-changes' ${{ github.event.pull_request.number }}
+          if [[ "${OPENAPI_CHANGES}" == "true" ]]; then
+            gh --repo ${REPO_NAME} pr edit --add-label 'M-api-contract-changes' ${PR_NUMBER}
           else
-            gh --repo ${{ github.event.repository.full_name }} pr edit --remove-label 'M-api-contract-changes' ${{ github.event.pull_request.number }}
+            gh --repo ${REPO_NAME} pr edit --remove-label 'M-api-contract-changes' ${PR_NUMBER}
           fi
+
+  deja_art_latest_head_check:
+    name: Verify latest commit has a Deja ART replay result
+    if: ${{ github.event_name == 'pull_request_target' || github.event_name == 'merge_group' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 130
+    concurrency:
+      # Metadata events must not cancel an active or pending replay waiter.
+      # New commits and explicit replay requests can still replace one another.
+      group: >-
+        deja-art-gate-${{ github.event.pull_request.number || github.run_id }}-${{
+          (github.event.action == 'synchronize' ||
+           (github.event.action == 'labeled' && github.event.label.name == 'deja-art')) &&
+          'request' || github.run_id }}
+      cancel-in-progress: true
+    permissions:
+      checks: read
+      pull-requests: write
+
+    steps:
+      - name: Verify latest commit has a Deja ART replay result
+        if: ${{ github.event_name == 'pull_request_target' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CHECK_NAME: Deja ART Replay
+          STARTED_BY_LABEL: ${{ github.event.action == 'labeled' && github.event.label.name == 'deja-art' }}
+          REPLAY_REQUESTED: ${{ (github.event.action == 'labeled' && github.event.label.name == 'deja-art') || contains(github.event.pull_request.labels.*.name, 'deja-art') }}
+          EVENT_AT: ${{ github.event.pull_request.updated_at }}
+          REPLAY_STARTS_WITHIN_SECONDS: 600
+          COME_BACK_WITHIN_SECONDS: 6000
+          POLL_SECONDS: 30
+        run: |
+          short="${HEAD_SHA:0:10}"
+          runs() {
+            gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs?check_name=${CHECK_NAME// /%20}&filter=all&per_page=100" \
+              --jq '[.check_runs[] | select(.app.slug == "hyperswitch-bot")]'
+          }
+          state() {
+            runs | jq -r --arg since "$EVENT_AT" --arg fresh "$STARTED_BY_LABEL" \
+              'map(select($fresh != "true" or .started_at >= $since)
+                     | . + {verdict: (.status == "completed" and ((.output.title // "") | test(": (FAILED|TIMED_OUT)$") | not))})
+               | if any(.verdict) then "result\t" + ([.[] | select(.verdict)] | sort_by(.completed_at) | last | "\(.output.title)\t\(.conclusion)")
+                 elif any(.status != "completed") then "running"
+                 elif length == 0 then "none"
+                 else "noverdict\t" + (sort_by(.completed_at) | last | .output.title)
+                 end'
+          }
+
+          # Metadata events can arrive before Jenkins publishes the new check.
+          # While the request label is present, follow startup too; an older
+          # failed attempt is not evidence that the requested replay started.
+          if [ "$REPLAY_REQUESTED" = "true" ]; then
+            echo "A Deja ART replay was requested: waiting for a replay of ${short} to start..."
+            waited=0
+            s="$(state)"
+            until [[ "$s" == "running" || "$s" == result$'\t'* ||
+                     ( "$STARTED_BY_LABEL" == "true" && "$s" == noverdict$'\t'* ) ]]; do
+              if [ "$waited" -ge "$REPLAY_STARTS_WITHIN_SECONDS" ]; then
+                echo "::error::Adding the deja-art label did not start a Deja ART replay on ${short} within $((REPLAY_STARTS_WITHIN_SECONDS / 60)) minutes. Add the label again to retry."
+                exit 1
+              fi
+              sleep "$POLL_SECONDS"; waited=$((waited + POLL_SECONDS))
+              s="$(state)"
+            done
+            echo "Replay found; waiting for its result..."
+          fi
+
+          # An edit or automatic label observes the same replay without
+          # replacing the request's waiter or failing while it is running.
+          waited=0
+          s="$(state)"
+          while [ "$s" = "running" ]; do
+            if [ "$waited" -ge "$COME_BACK_WITHIN_SECONDS" ]; then
+              echo "::error::The Deja ART replay on ${short} has not come back after $((COME_BACK_WITHIN_SECONDS / 60)) minutes. See the 'Deja ART Replay' check; add the label again to retry."
+              exit 1
+            fi
+            sleep "$POLL_SECONDS"; waited=$((waited + POLL_SECONDS))
+            s="$(state)"
+          done
+
+          IFS=$'\t' read -r word title conclusion <<< "$s"
+          case "$word" in
+            result)
+              echo "Deja ART replay result is back for ${short}: ${title} (conclusion: ${conclusion})."
+              echo "The gate passes once a result exists, regardless of verdict."
+              ;;
+            running)
+              echo "::error::A Deja ART replay of ${short} is still running. Re-run this check when it has finished."
+              exit 1
+              ;;
+            noverdict)
+              echo "::error::The Deja ART replay on ${short} did not reach a verdict (${title##*: }). See the 'Deja ART Replay' check; add the deja-art label to run it again."
+              exit 1
+              ;;
+            *)
+              echo "::error::No Deja ART replay has run on the latest commit ${short}. When this commit is the one to merge, add the deja-art label: it replays this commit and this check follows."
+              exit 1
+              ;;
+          esac
+
+      - name: Remove the deja-art label
+        if: ${{ always() && github.event_name == 'pull_request_target' && github.event.action == 'labeled' && github.event.label.name == 'deja-art' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh api --method DELETE "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/labels/deja-art" > /dev/null || echo "The label was already gone."
+
+      - name: Nothing to verify in the merge queue
+        if: ${{ github.event_name == 'merge_group' }}
+        run: echo "Merge group - the replay was verified on the pull request."

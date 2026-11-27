@@ -25,7 +25,7 @@ use common_utils::{
     consts::DISCOUNT_PERCENTAGE_PRECISION_LENGTH,
     crypto,
     errors::ValidationError,
-    ext_traits::{ConfigExt, Encode, ValueExt},
+    ext_traits::{ConfigExt, Encode, SecretStringExt, ValueExt},
     hashing::HashedString,
     id_type,
     new_type::MaskedBankAccount,
@@ -41,7 +41,10 @@ pub use self::recipient::{
     MaskedRecipientAccount, MaskedRecipientBankAccount, MaskedRecipientDetails, RecipientAccount,
     RecipientBankAccount, RecipientDetails,
 };
-use crate::customers::CustomerDocumentDetails;
+use crate::{
+    customers::CustomerDocumentDetails,
+    sender::{SenderDetails, SenderDetailsResponse},
+};
 
 #[cfg(any(feature = "v1", feature = "v2"))]
 pub(crate) fn parse_comma_separated<'de, D, T>(v: D) -> Result<Option<Vec<T>>, D::Error>
@@ -394,6 +397,10 @@ pub struct PaymentsCreateIntentRequest {
     #[schema(value_type = Option<RecipientDetails>)]
     pub recipient_details: Option<RecipientDetails>,
 
+    /// Details of the party providing the funds in an account funded transaction.
+    #[schema(value_type = Option<SenderDetails>)]
+    pub sender_details: Option<SenderDetails>,
+
     /// Request address verification using the billing address for supported card payments.
     #[schema(default = false, example = true)]
     pub enable_avs_check: Option<bool>,
@@ -593,6 +600,10 @@ pub struct PaymentsUpdateIntentRequest {
     #[schema(value_type = Option<RecipientDetails>)]
     pub recipient_details: Option<RecipientDetails>,
 
+    /// Details of the party providing the funds in an account funded transaction.
+    #[schema(value_type = Option<SenderDetails>)]
+    pub sender_details: Option<SenderDetails>,
+
     /// Request address verification using the billing address for supported card payments.
     /// Omit this field on updates or confirmation to preserve the existing setting.
     #[schema(default = false, example = true)]
@@ -635,6 +646,7 @@ impl PaymentsUpdateIntentRequest {
             enable_partial_authorization: None,
             is_account_funded_transaction: None,
             recipient_details: None,
+            sender_details: None,
             enable_avs_check: None,
             enable_account_name_verification: None,
         }
@@ -793,6 +805,11 @@ pub struct PaymentsIntentResponse {
     /// Partially masked details of the party receiving the funds in an account funded transaction.
     #[schema(value_type = Option<MaskedRecipientDetails>)]
     pub recipient_details: Option<MaskedRecipientDetails>,
+
+    /// Partially masked details of the party providing the funds in an account funded
+    /// transaction. The sender's date of birth is never returned.
+    #[schema(value_type = Option<SenderDetailsResponse>)]
+    pub sender_details: Option<SenderDetailsResponse>,
 
     /// Whether address verification was requested for this payment.
     #[schema(example = true)]
@@ -1701,6 +1718,11 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<RecipientDetails>)]
     #[remove_in(PaymentsConfirmRequest)]
     pub recipient_details: Option<RecipientDetails>,
+
+    /// Details of the party providing the funds in an account funded transaction.
+    #[schema(value_type = Option<SenderDetails>)]
+    #[remove_in(PaymentsConfirmRequest)]
+    pub sender_details: Option<SenderDetails>,
 
     /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
     #[schema(value_type = Option<Tokenization>, example = "tokenize_at_psp")]
@@ -6887,6 +6909,15 @@ pub struct AddressDetails {
 }
 
 impl AddressDetails {
+    /// The address with surrounding whitespace removed from the first and last names.
+    pub fn with_trimmed_names(self) -> Self {
+        Self {
+            first_name: self.first_name.and_then(SecretStringExt::trim_to_non_empty),
+            last_name: self.last_name.and_then(SecretStringExt::trim_to_non_empty),
+            ..self
+        }
+    }
+
     pub fn get_optional_full_name(&self) -> Option<Secret<String>> {
         match (self.first_name.as_ref(), self.last_name.as_ref()) {
             (Some(first_name), Some(last_name)) => Some(Secret::new(format!(
@@ -7852,6 +7883,11 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<MandateData>")]
     pub mandate_data: Option<MandateData>,
 
+    /// Evidence of the customer's acceptance that was captured when the payment was confirmed, returned as stored on the payment attempt.
+    #[schema(value_type = Option<CustomerAcceptance>)]
+    #[smithy(value_type = "Option<CustomerAcceptance>")]
+    pub customer_acceptance: Option<pii::SecretSerdeValue>,
+
     /// Indicates that you intend to make future payments with this Payment’s payment method. Providing this parameter will attach the payment method to the Customer, if present, after the Payment is confirmed and any required actions from the user are complete.
     #[schema(value_type = Option<FutureUsage>, example = "off_session")]
     #[smithy(value_type = "Option<FutureUsage>")]
@@ -8289,6 +8325,11 @@ pub struct PaymentsResponse {
     /// Partially masked details of the party receiving the funds in an account funded transaction.
     #[schema(value_type = Option<MaskedRecipientDetails>)]
     pub recipient_details: Option<MaskedRecipientDetails>,
+
+    /// Partially masked details of the party providing the funds in an account funded
+    /// transaction. The sender's date of birth is never returned.
+    #[schema(value_type = Option<SenderDetailsResponse>)]
+    pub sender_details: Option<SenderDetailsResponse>,
 
     /// The tokenization preference for the payment method. This is used to control whether a PSP token is created or not.
     #[schema(value_type = Option<Tokenization>,example="skip_psp")]
@@ -8881,6 +8922,10 @@ pub struct PaymentsRequest {
     #[schema(value_type = Option<RecipientDetails>)]
     pub recipient_details: Option<RecipientDetails>,
 
+    /// Details of the party providing the funds in an account funded transaction.
+    #[schema(value_type = Option<SenderDetails>)]
+    pub sender_details: Option<SenderDetails>,
+
     /// Request address verification using the billing address for supported card payments.
     /// Omit this field on updates or confirmation to preserve the existing setting.
     #[schema(default = false, example = true)]
@@ -8926,6 +8971,7 @@ impl From<&PaymentsRequest> for PaymentsCreateIntentRequest {
             enable_partial_authorization: request.enable_partial_authorization,
             is_account_funded_transaction: request.is_account_funded_transaction,
             recipient_details: request.recipient_details.clone(),
+            sender_details: request.sender_details.clone(),
             enable_avs_check: request.enable_avs_check,
             enable_account_name_verification: request.enable_account_name_verification,
             mit_category: None,
@@ -10928,10 +10974,23 @@ pub struct ConnectorMetadata {
     pub paypal: Option<PaypalConnectorMetadata>,
     #[smithy(value_type = "Option<WorldpayxmlData>")]
     pub worldpayxml: Option<WorldpayxmlData>,
+    #[smithy(value_type = "Option<WorldpayraftConnectorMetadata>")]
+    pub worldpayraft: Option<WorldpayraftConnectorMetadata>,
     #[smithy(value_type = "Option<CheckoutData>")]
     pub checkout: Option<CheckoutData>,
     #[smithy(value_type = "Option<StripeConnectorMetadata>")]
     pub stripe: Option<StripeConnectorMetadata>,
+    #[smithy(value_type = "Option<JpmorganConnectorMetadata>")]
+    pub jpmorgan: Option<JpmorganConnectorMetadata>,
+}
+
+/// JPMorgan-specific metadata supplied with a payment request.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct JpmorganConnectorMetadata {
+    /// Request an SCA exemption for a subsequent MIT whose initial CIT completed 3D Secure.
+    #[smithy(value_type = "Option<bool>")]
+    pub request_sca_exemption: Option<bool>,
 }
 
 /// PayPal-specific metadata supplied with a payment request.
@@ -10952,6 +11011,28 @@ pub struct StripeConnectorMetadata {
     /// complete additional authentication.
     #[smithy(value_type = "Option<bool>")]
     pub error_on_requires_action: Option<bool>,
+}
+
+/// Merchant-supplied data forwarded to Worldpay RAFT's UserDefinedData.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+#[serde(deny_unknown_fields)]
+pub struct WorldpayraftConnectorMetadata {
+    /// Worldpay RAFT UserData1. Maximum length: 35 characters.
+    #[schema(max_length = 35)]
+    #[smithy(value_type = "Option<String>")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_data1: Option<String>,
+    /// Worldpay RAFT UserData2. Maximum length: 20 characters.
+    #[schema(max_length = 20)]
+    #[smithy(value_type = "Option<String>")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_data2: Option<String>,
+    /// Worldpay RAFT UserData3. Maximum length: 20 characters.
+    #[schema(max_length = 20)]
+    #[smithy(value_type = "Option<String>")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_data3: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]

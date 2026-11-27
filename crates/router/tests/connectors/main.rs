@@ -112,6 +112,7 @@ mod plaid;
 mod powertranz;
 #[cfg(feature = "dummy_connector")]
 mod prophetpay;
+mod rapidconnect;
 mod rapyd;
 mod razorpay;
 mod redsys;
