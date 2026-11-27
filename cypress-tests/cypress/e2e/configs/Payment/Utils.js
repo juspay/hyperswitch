@@ -729,6 +729,7 @@ export const CONNECTOR_LISTS = {
     ],
     BILLING_DESCRIPTOR_INVALID_PHONE: ["nuvei"],
     FEATURE_METADATA: ["bankofamerica"],
+    CUSTOMER_ACCEPTANCE: ["stripe"],
     AUTO_RETRY: [
       "cybersource",
       "checkout",

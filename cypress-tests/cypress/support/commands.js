@@ -5165,6 +5165,13 @@ Cypress.Commands.add(
           }
           expect(response.body.customer, "customer").to.not.be.empty;
 
+          if (resData.body && "customer_acceptance" in resData.body) {
+            expect(response.body).to.have.property("customer_acceptance");
+            expect(response.body.customer_acceptance).to.deep.equal(
+              resData.body.customer_acceptance
+            );
+          }
+
           if (
             resData.body &&
             Object.prototype.hasOwnProperty.call(
