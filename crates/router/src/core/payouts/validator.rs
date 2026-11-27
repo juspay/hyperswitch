@@ -18,7 +18,7 @@ use hyperswitch_domain_models::{
 use router_env::{instrument, logger, which as router_env_which, Env};
 use url::Url;
 
-use super::helpers;
+use super::{helpers, PayoutActionType, PayoutRequest};
 #[cfg(feature = "v1")]
 use crate::core::{
     payment_methods::cards::get_pm_list_context, payouts::should_allow_payouts::ShouldAllowPayouts,
@@ -39,16 +39,109 @@ use crate::{
 };
 
 pub(crate) trait PayoutExecutionKindValidation {
-    fn validate_persisted_execution_kind(self, req: &payouts::PayoutRequest) -> RouterResult<()>;
+    fn validate_persisted_execution_kind(self, req: &PayoutRequest) -> RouterResult<()>;
     fn validate_normal_execution_kind(self) -> RouterResult<()>;
+}
+
+pub(super) async fn validate_payout_request_status(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
+    req: &PayoutRequest,
+    payout_id: &id_type::PayoutId,
+    status: common_enums::PayoutStatus,
+) -> RouterResult<()> {
+    match req {
+        PayoutRequest::Fulfill(_, PayoutActionType::Review)
+        | PayoutRequest::Cancel(_, PayoutActionType::Review) => {
+            let review_flow_enabled = dimensions
+                .get_should_allow_review_flow(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    None,
+                )
+                .await;
+
+            match review_flow_enabled {
+                true => Ok(()),
+                false => Err(report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "Payout review flow is disabled by configuration".to_string(),
+                })),
+            }
+        }
+        PayoutRequest::Fulfill(_, PayoutActionType::Standard)
+        | PayoutRequest::Cancel(_, PayoutActionType::Standard)
+        | PayoutRequest::Create(_)
+        | PayoutRequest::Retrieve(_)
+        | PayoutRequest::Webhook(_) => Ok(()),
+    }?;
+
+    match req {
+        PayoutRequest::Fulfill(_, action_type) => {
+            action_type.validate_fulfillment_status(payout_id, status)
+        }
+        PayoutRequest::Cancel(_, action_type) => {
+            action_type.validate_cancellation_status(payout_id, status)
+        }
+        PayoutRequest::Create(_) | PayoutRequest::Retrieve(_) | PayoutRequest::Webhook(_) => Ok(()),
+    }
+}
+
+impl PayoutActionType {
+    pub(super) fn validate_fulfillment_status(
+        self,
+        payout_id: &id_type::PayoutId,
+        status: common_enums::PayoutStatus,
+    ) -> RouterResult<()> {
+        let (allowed, action) = match self {
+            Self::Standard => (
+                status == common_enums::PayoutStatus::RequiresFulfillment,
+                "fulfilled",
+            ),
+            Self::Review => (
+                status == common_enums::PayoutStatus::RequiresReview,
+                "accepted",
+            ),
+        };
+        validate_payout_action_status(payout_id, status, allowed, action)
+    }
+
+    pub(super) fn validate_cancellation_status(
+        self,
+        payout_id: &id_type::PayoutId,
+        status: common_enums::PayoutStatus,
+    ) -> RouterResult<()> {
+        let (allowed, action) = match self {
+            // Preserve cancellation for the existing set of non-terminal payout states.
+            Self::Standard => (!helpers::is_payout_terminal_state(status), "cancelled"),
+            Self::Review => (
+                status == common_enums::PayoutStatus::RequiresReview,
+                "rejected",
+            ),
+        };
+        validate_payout_action_status(payout_id, status, allowed, action)
+    }
+}
+
+fn validate_payout_action_status(
+    payout_id: &id_type::PayoutId,
+    status: common_enums::PayoutStatus,
+    allowed: bool,
+    action: &str,
+) -> RouterResult<()> {
+    if !allowed {
+        return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("Payout {payout_id:?} cannot be {action} for status {status}"),
+        }));
+    }
+    Ok(())
 }
 
 impl PayoutExecutionKindValidation for common_enums::PayoutExecutionKind {
     /// Proxy trackers allow read-only retrieval, but not normal mutation or force-sync.
-    fn validate_persisted_execution_kind(self, req: &payouts::PayoutRequest) -> RouterResult<()> {
+    fn validate_persisted_execution_kind(self, req: &PayoutRequest) -> RouterResult<()> {
         match (self, req) {
             (Self::Normal, _) => Ok(()),
-            (Self::ExternalVaultProxy, payouts::PayoutRequest::PayoutRetrieveRequest(retrieve))
+            (Self::ExternalVaultProxy, PayoutRequest::Retrieve(retrieve))
                 if retrieve.force_sync != Some(true) =>
             {
                 Ok(())

@@ -852,7 +852,6 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payouts::PixEmvBankTransfer,
         api_models::payouts::TrustlyBankTransfer,
         api_models::payouts::TrustlyBankTransferData,
-        api_models::payouts::PayoutRequest,
         api_models::payouts::PayoutAttemptResponse,
         api_models::payouts::PayoutActionRequest,
         api_models::payouts::PayoutCreateRequest,

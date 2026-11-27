@@ -29594,43 +29594,6 @@
           "other"
         ]
       },
-      "PayoutRequest": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "PayoutActionRequest"
-            ],
-            "properties": {
-              "PayoutActionRequest": {
-                "$ref": "#/components/schemas/PayoutActionRequest"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "PayoutCreateRequest"
-            ],
-            "properties": {
-              "PayoutCreateRequest": {
-                "$ref": "#/components/schemas/PayoutCreateRequest"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "PayoutRetrieveRequest"
-            ],
-            "properties": {
-              "PayoutRetrieveRequest": {
-                "$ref": "#/components/schemas/PayoutRetrieveRequest"
-              }
-            }
-          }
-        ]
-      },
       "PayoutRetrieveBody": {
         "type": "object",
         "properties": {
