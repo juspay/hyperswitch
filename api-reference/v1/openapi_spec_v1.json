@@ -49717,7 +49717,7 @@
             }
           }
         ],
-        "description": "The IVR's `<Parameter>` tags. The ones read by Hyperswitch are named below; the rest ride along\ninto the payment's `metadata`. Keys must be lowercase — Twilio lowercases parameter names, so a\ncamelCase one lands in the passthrough instead."
+        "description": "The IVR's `<Parameter>` tags. The ones read by Hyperswitch are named below; the rest ride along\ninto the payment's `metadata`. Keys must be lowercase — Twilio lowercases parameter names, so a\ncamelCase one lands in the passthrough instead. A tag's value is always a string, so the\nobject-valued keys — `customer_acceptance` and `billing` — are read from a JSON string as well\nas from an object."
       },
       "ThirdPartySdkSessionResponse": {
         "type": "object",
