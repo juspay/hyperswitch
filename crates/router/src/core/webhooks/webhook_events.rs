@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
-use common_utils::{self, errors::CustomResult, fp_utils};
-use common_utils::{ext_traits::Encode, types::keymanager::Identifier};
+use common_utils::{
+    self, errors::CustomResult, ext_traits::Encode, fp_utils, types::keymanager::Identifier,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
-use hyperswitch_masking::PeekInterface;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::instrument;
 
 use crate::{

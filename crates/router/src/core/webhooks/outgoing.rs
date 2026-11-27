@@ -41,7 +41,7 @@ use crate::{
         storage::{self, enums},
         transformers::{ForeignFrom, ForeignTryFrom},
     },
-    utils::{OptionExt, ValueExt},
+    utils::OptionExt,
     workflows::outgoing_webhook_retry,
 };
 
