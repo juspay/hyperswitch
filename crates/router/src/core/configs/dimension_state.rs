@@ -765,6 +765,16 @@ pub type DimensionsWithProcessorAndProviderMerchantIdAndProfileId = Dimensions<
     NoWebhookEvent,
     NoPaymentMethodType,
 >;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndPaymentMethodType = Dimensions<
+    HasProviderMerchantId,
+    HasProcessorMerchantId,
+    NoOrgId,
+    HasProfileId,
+    NoConnector,
+    NoPayoutRetryType,
+    NoWebhookEvent,
+    HasPaymentMethodType,
+>;
 pub type DimensionsWithOrgId = Dimensions<
     NoProviderMerchantId,
     NoProcessorMerchantId,
