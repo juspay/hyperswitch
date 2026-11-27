@@ -488,7 +488,7 @@ jobs:
 
       - name: Collect server logs for duplicate-read check
         if: ${{ !cancelled() && env.RUN_TESTS == 'true' && (steps.cypress.outcome == 'success' || steps.cypress.outcome == 'failure') }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: duplicate-read-source-mandatory-${{ matrix.batch.name }}
           path: ${{ env.SERVER_LOG_PATH }}
@@ -756,7 +756,7 @@ jobs:
 
       - name: Collect server logs for duplicate-read check
         if: ${{ !cancelled() && (steps.cypress.outcome == 'success' || steps.cypress.outcome == 'failure') }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: duplicate-read-source-extended-${{ matrix.batch.name }}
           path: ${{ env.SERVER_LOG_PATH }}
@@ -1222,7 +1222,7 @@ jobs:
 
       - name: Collect server logs for duplicate-read check
         if: ${{ !cancelled() && env.RUN_TESTS == 'true' && (steps.cypress.outcome == 'success' || steps.cypress.outcome == 'failure') }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: duplicate-read-source-mitm-${{ matrix.batch.name }}
           path: ${{ env.SERVER_LOG_PATH }}
@@ -1503,7 +1503,7 @@ jobs:
 
       - name: Collect server logs for duplicate-read check
         if: ${{ !cancelled() && (steps.cypress.outcome == 'success' || steps.cypress.outcome == 'failure') }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: duplicate-read-source-optional-${{ matrix.batch.name }}
           path: ${{ env.SERVER_LOG_PATH }}
@@ -1758,6 +1758,7 @@ jobs:
       contents: read
     env:
       CODECOV_FILE: "lcov.info"
+      SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.txt
       # sccache on local disk, restored/saved as one archive instead of its
       # native S3 backend — see build-hyperswitch for why.
       RUSTC_WRAPPER: sccache
@@ -1967,7 +1968,7 @@ jobs:
           ROUTER__SUPERPOSITION__POLLING_INTERVAL: 10
         run: |
           # Start the server in the background
-          target/debug/router &
+          target/debug/router >> "${SERVER_LOG_PATH}" 2>&1 &
 
           SERVER_PID=$!
           echo "PID=${SERVER_PID}" >> $GITHUB_ENV
@@ -1999,6 +2000,15 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' && (success() || failure()) }}
         run: |
           kill "${PID}"
+
+      - name: Collect server logs for duplicate-read check
+        if: ${{ !cancelled() && env.RUN_TESTS == 'true' && (steps.cypress.outcome == 'success' || steps.cypress.outcome == 'failure') }}
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: duplicate-read-source-runner-v2
+          path: ${{ env.SERVER_LOG_PATH }}
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Upload Cypress test results
         if: env.RUN_TESTS == 'true' && failure()
@@ -2033,13 +2043,15 @@ jobs:
     runs-on: hypersage-runners
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Prepare log directory
         run: mkdir -p duplicate-read-sources
 
       - name: Download Cypress server logs
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v8.0.2
         with:
           pattern: duplicate-read-source-*
           path: duplicate-read-sources

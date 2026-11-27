@@ -19,7 +19,7 @@ if (( grep_status > 1 )); then
 fi
 
 if [[ -s "$duplicate_log" ]]; then
-  echo "::error::Duplicate database reads detected. See the duplicate-read log artifact for details."
+  echo "::error::Duplicate database reads detected. See the Check duplicate database reads after Cypress job output for details."
   exit 1
 fi
 
