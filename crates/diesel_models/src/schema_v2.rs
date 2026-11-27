@@ -1550,7 +1550,7 @@ diesel::table! {
     use crate::enums::diesel_exports::*;
 
     process_tracker (id) {
-        #[max_length = 127]
+        #[max_length = 255]
         id -> Varchar,
         #[max_length = 64]
         name -> Nullable<Varchar>,
