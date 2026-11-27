@@ -6319,7 +6319,7 @@ async fn override_wallet_session_connector<F, D>(
         Some(PaymentMethodToken::GooglePayDecrypt(_)) => enums::PaymentMethodType::GooglePay,
         _ => return,
     };
-    let Some(selected) = routing::wallet_issuer::route_wallet_confirmation(
+    let Some(connectors) = routing::wallet_issuer::route_wallet_confirmation(
         state,
         processor,
         business_profile,
@@ -6331,6 +6331,9 @@ async fn override_wallet_session_connector<F, D>(
     else {
         return;
     };
+    let Some(selected) = connectors.first() else {
+        return;
+    };
     let selected_customer_id = routing
         .customer
         .zip(selected.merchant_connector_id.as_ref())
@@ -6340,7 +6343,9 @@ async fn override_wallet_session_connector<F, D>(
     payment_data.set_connector_in_payment_attempt(Some(selected.connector_name.to_string()));
     payment_data.set_merchant_connector_id_in_attempt(selected.merchant_connector_id.clone());
     payment_data.set_routing_approach_in_attempt(Some(enums::RoutingApproach::RuleBasedRouting));
-    *connector = Some(ConnectorCallType::PreDetermined(selected.into()));
+    *connector = Some(ConnectorCallType::Retryable(
+        connectors.into_iter().map(Into::into).collect(),
+    ));
 }
 
 #[cfg(feature = "v1")]

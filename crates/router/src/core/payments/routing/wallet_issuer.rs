@@ -35,7 +35,7 @@ pub(in crate::core::payments) async fn route_wallet_confirmation<F, D>(
     payment_data: &D,
     wallet_type: PaymentMethodType,
     routing: &WalletConfirmRouting<'_>,
-) -> Option<api::ConnectorData>
+) -> Option<Vec<api::ConnectorData>>
 where
     F: Clone,
     D: OperationSessionGetters<F> + Sync,
@@ -144,7 +144,7 @@ where
         candidates.clone(),
     )
     .ok()?;
-    let outcome = utils::decision_engine_hybrid_routing(
+    let mut outcome = utils::decision_engine_hybrid_routing(
         state,
         business_profile,
         payment_id,
@@ -157,18 +157,41 @@ where
     .await
     .inspect_err(|_| logger::warn!("Wallet confirm routing failed, keeping the session connector"))
     .ok()?;
-    let selected = outcome.connectors.into_iter().next()?;
+    if outcome.connectors.len() == 1 {
+        outcome.connectors.extend(candidates.iter().cloned());
+    }
+    let mut choices = outcome.connectors.into_iter();
+    let selected = choices.next()?;
     if !outcome.first_connector_matches_static_rule || !candidates.contains(&selected) {
         return None;
     }
 
-    api::ConnectorData::get_connector_by_name(
+    let selected = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         &selected.connector.to_string(),
         api::GetToken::Connector,
         selected.merchant_connector_id,
     )
-    .ok()
+    .ok()?;
+    let mut connectors = vec![selected];
+    for choice in choices {
+        if !candidates.contains(&choice)
+            || connectors
+                .iter()
+                .any(|connector| connector.merchant_connector_id == choice.merchant_connector_id)
+        {
+            continue;
+        }
+        if let Ok(connector) = api::ConnectorData::get_connector_by_name(
+            &state.conf.connectors,
+            &choice.connector.to_string(),
+            api::GetToken::Connector,
+            choice.merchant_connector_id,
+        ) {
+            connectors.push(connector);
+        }
+    }
+    Some(connectors)
 }
 
 async fn google_pay_accepts_decrypted_token(
