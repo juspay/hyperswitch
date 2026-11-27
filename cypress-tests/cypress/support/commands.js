@@ -9259,6 +9259,62 @@ Cypress.Commands.add("blocklistDeleteRule", (type, data, globalState) => {
   });
 });
 
+// Calls an endpoint that validates the payment's client_secret ("eligibility" or
+// "3ds/authentication") and checks the response against the config. The
+// client_secret comes from the global state unless the config's Request sets one;
+// useApiKey calls with the API key and no client_secret, as a merchant server does.
+Cypress.Commands.add(
+  "clientSecretValidationCallTest",
+  (endpoint, requestBody, data, globalState, { useApiKey = false } = {}) => {
+    const { Request: reqData, Response: resData } = data || {};
+    const paymentId = globalState.get("paymentID");
+
+    const body = { ...requestBody };
+    if (useApiKey) {
+      // The fixtures carry an empty client_secret, which would not match.
+      delete body.client_secret;
+    } else {
+      body.client_secret = globalState.get("clientSecret");
+    }
+    for (const key in reqData) {
+      body[key] = reqData[key];
+    }
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/${paymentId}/${endpoint}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": useApiKey
+          ? globalState.get("apiKey")
+          : globalState.get("publishableKey"),
+      },
+      body,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status, "status_code").to.equal(resData.status);
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          expect(response.body.payment_id, "payment_id").to.equal(paymentId);
+          for (const key in resData.body) {
+            expect(response.body[key], key).to.deep.equal(resData.body[key]);
+          }
+        } else {
+          for (const key in resData.body.error) {
+            expect(response.body.error[key], `error.${key}`).to.equal(
+              resData.body.error[key]
+            );
+          }
+        }
+      });
+    });
+  }
+);
+
 Cypress.Commands.add(
   "paymentsEligibilityCheck",
   (requestBody, data, globalState) => {
