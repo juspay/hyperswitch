@@ -14,6 +14,8 @@ on:
         description: The tag that was created by the workflow
         value: ${{ jobs.create-nightly-tag.outputs.tag }}
 
+permissions: {}
+
 env:
   # Allow more retries for network requests in cargo (downloading crates) and
   # rustup (installing toolchains). This should help to reduce flaky CI failures
@@ -33,24 +35,26 @@ jobs:
     steps:
       - name: Generate a token
         id: generate_token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@v3.4.0
         env:
           NODE_USE_ENV_PROXY: "1"
         with:
           client-id: ${{ secrets.client_id }}
           private-key: ${{ secrets.app_private_key }}
+          permission-contents: write
 
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           token: ${{ steps.generate_token.outputs.token }}
+          persist-credentials: false
 
       - name: Check if the workflow is run on an allowed branch
         shell: bash
         run: |
-          if [[ "${{ github.ref }}" != "refs/heads/${ALLOWED_BRANCH_NAME}" ]]; then
-            echo "::error::This workflow is expected to be run from the '${ALLOWED_BRANCH_NAME}' branch. Current branch: '${{ github.ref }}'"
+          if [[ "${GITHUB_REF}" != "refs/heads/${ALLOWED_BRANCH_NAME}" ]]; then
+            echo "::error::This workflow is expected to be run from the '${ALLOWED_BRANCH_NAME}' branch. Current branch: '${GITHUB_REF}'"
             exit 1
           fi
 
@@ -75,7 +79,7 @@ jobs:
           toolchain: stable
 
       - name: Install git-cliff
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.90.8
         with:
           tool: git-cliff
           checksum: true
@@ -159,14 +163,17 @@ jobs:
 
       - name: Commit, tag and push generated changelog
         shell: bash
+        env:
+          PUSH_TOKEN: ${{ steps.generate_token.outputs.token }}
         run: |
           git add CHANGELOG.md
           git commit --message "chore(version): ${NEXT_TAG}"
 
           git tag "${NEXT_TAG}" HEAD
 
-          git push origin "${ALLOWED_BRANCH_NAME}"
-          git push origin "${NEXT_TAG}"
+          PUSH_URL="https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git push "$PUSH_URL" HEAD:"${ALLOWED_BRANCH_NAME}"
+          git push "$PUSH_URL" "${NEXT_TAG}"
 
       - name: Set job outputs
         shell: bash

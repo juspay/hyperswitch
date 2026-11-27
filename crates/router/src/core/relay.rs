@@ -27,10 +27,7 @@ use crate::{
     core::payments::{self, access_token as access_token_core},
     routes::SessionState,
     services::{self, api::ConnectorValidation},
-    types::{
-        api::{self},
-        domain,
-    },
+    types::{api, domain},
     utils::OptionExt,
 };
 

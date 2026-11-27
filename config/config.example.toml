@@ -181,6 +181,7 @@ max_feed_count = 200              # The maximum number of frames that will be fe
 # [cache.success_based_dynamic_algorithm]     # SUCCESS_BASED_DYNAMIC_ALGORITHM_CACHE
 # [cache.elimination_based_dynamic_algorithm] # ELIMINATION_BASED_DYNAMIC_ALGORITHM_CACHE
 # [cache.contract_based_dynamic_algorithm]    # CONTRACT_BASED_DYNAMIC_ALGORITHM_CACHE
+# [cache.gsm]                                 # GSM_CACHE, 5 min time to live by default
 
 # This section provides configs for currency conversion api
 [forex_api]
@@ -773,8 +774,8 @@ slack_invite_url = "https://www.example.com/"   # Slack invite url for hyperswit
 discord_invite_url = "https://www.example.com/" # Discord invite url for hyperswitch
 
 [zero_mandates.supported_payment_methods]
-card.credit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,archipel,mollie,imerchantsolutions,peachpayments,shift4,jpmorgan,rapyd"
-card.debit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,archipel,mollie,imerchantsolutions,peachpayments,shift4,jpmorgan,rapyd"
+card.credit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,archipel,mollie,moneris,imerchantsolutions,peachpayments,shift4,jpmorgan,rapyd"
+card.debit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,archipel,mollie,moneris,imerchantsolutions,peachpayments,shift4,jpmorgan,rapyd"
 wallet.paypal = { connector_list = "adyen" }                                          # Mandate supported payment method type and connector for wallets
 pay_later.klarna = { connector_list = "adyen" }                                       # Mandate supported payment method type and connector for pay_later
 bank_debit.ach = { connector_list = "gocardless,adyen" }                              # Mandate supported payment method type and connector for bank_debit
@@ -1601,7 +1602,7 @@ fetch_altid_url= ""           # base url to fetch Alt-ID and cryptogram for gues
 connector_list = "adyen,cybersource,peachpayments,trustpay" # Supported connectors for network tokenization
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan,worldpayraft" # Supported connectors for network transaction id
+connector_list = "adyen,archipel,authorizedotnet,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3,peachpayments,tsys_transit,jpmorgan,worldpayraft,paypal" # Supported connectors for network transaction id
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit

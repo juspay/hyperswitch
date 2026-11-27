@@ -13092,6 +13092,14 @@
             ],
             "nullable": true
           },
+          "worldpayraft": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WorldpayraftConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
           "checkout": {
             "allOf": [
               {
@@ -13104,6 +13112,22 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/StripeConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "jpmorgan": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JpmorganConnectorMetadata"
+              }
+            ],
+            "nullable": true
+          },
+          "rapyd": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RapydConnectorMetadata"
               }
             ],
             "nullable": true
@@ -18824,6 +18848,17 @@
             "type": "string",
             "description": "The telephone number for Japanese convenience stores",
             "example": "9123456789",
+            "nullable": true
+          }
+        }
+      },
+      "JpmorganConnectorMetadata": {
+        "type": "object",
+        "description": "JPMorgan-specific metadata supplied with a payment request.",
+        "properties": {
+          "request_sca_exemption": {
+            "type": "boolean",
+            "description": "Request an SCA exemption for a subsequent MIT whose initial CIT completed 3D Secure.",
             "nullable": true
           }
         }
@@ -31842,6 +31877,17 @@
           }
         }
       },
+      "RapydConnectorMetadata": {
+        "type": "object",
+        "description": "Rapyd-specific metadata supplied with a payment request.",
+        "properties": {
+          "ewallet": {
+            "type": "string",
+            "description": "Destination wallet sent as ewallet in the Rapyd payment request.",
+            "nullable": true
+          }
+        }
+      },
       "RawCardWithNTDetails": {
         "type": "object",
         "required": [
@@ -39005,6 +39051,31 @@
           "Success",
           "Failure"
         ]
+      },
+      "WorldpayraftConnectorMetadata": {
+        "type": "object",
+        "description": "Merchant-supplied data forwarded to Worldpay RAFT's UserDefinedData.",
+        "properties": {
+          "user_data1": {
+            "type": "string",
+            "description": "Worldpay RAFT UserData1. Maximum length: 35 characters.",
+            "nullable": true,
+            "maxLength": 35
+          },
+          "user_data2": {
+            "type": "string",
+            "description": "Worldpay RAFT UserData2. Maximum length: 20 characters.",
+            "nullable": true,
+            "maxLength": 20
+          },
+          "user_data3": {
+            "type": "string",
+            "description": "Worldpay RAFT UserData3. Maximum length: 20 characters.",
+            "nullable": true,
+            "maxLength": 20
+          }
+        },
+        "additionalProperties": false
       },
       "WorldpayxmlData": {
         "type": "object",
