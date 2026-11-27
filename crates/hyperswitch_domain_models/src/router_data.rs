@@ -7,7 +7,7 @@ use common_types::{payments as common_payment_types, primitive_wrappers};
 use common_utils::{
     errors::IntegrityCheckError,
     ext_traits::{OptionExt, ValueExt},
-    id_type::{self},
+    id_type,
     types::MinorUnit,
 };
 use error_stack::ResultExt;

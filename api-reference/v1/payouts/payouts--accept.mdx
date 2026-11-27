@@ -1,0 +1,7 @@
+---
+openapi: post /payouts/{payout_id}/accept
+---
+
+Accept and reject require review flow to be enabled for the payout's profile. The shared Superposition flag `should_allow_review_flow` defaults to `false` and must be explicitly enabled by a matching organization, merchant, or profile override.
+
+If review flow is disabled, this endpoint returns HTTP 400.

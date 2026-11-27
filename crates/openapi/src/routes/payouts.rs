@@ -62,6 +62,8 @@ pub async fn payouts_create() {}
 pub async fn payouts_retrieve() {}
 
 /// Payouts - Update
+///
+/// Updates payout details while preserving the amount, currency, and associated customer. Supplied customer contact details are ignored. Do not include amount, currency, customer_id, or customer.id.
 #[utoipa::path(
     post,
     path = "/payouts/{payout_id}",
@@ -72,7 +74,8 @@ pub async fn payouts_retrieve() {}
     responses(
         (status = 200, description = "Payout updated", body = PayoutCreateResponse),
         (status = 400, description = "Missing mandatory fields or invalid request"),
-        (status = 404, description = "Payout does not exist in the merchant's records")
+        (status = 404, description = "Payout does not exist in the merchant's records"),
+        (status = 422, description = "Request contains fields that cannot be updated")
     ),
     tag = "Payouts",
     operation_id = "Update a Payout",
@@ -99,13 +102,14 @@ pub async fn payouts_update() {}
 pub async fn payouts_cancel() {}
 
 /// Payouts - Fulfill
+///
+/// Fulfills the existing payout using the payout_id from the URL. Request body fields are ignored.
 #[utoipa::path(
     post,
     path = "/payouts/{payout_id}/fulfill",
     params(
         ("payout_id" = String, Path, description = "The identifier for payout")
     ),
-    request_body=PayoutFulfillRequest,
     responses(
         (status = 200, description = "Payout fulfilled", body = PayoutCreateResponse),
         (status = 400, description = "Missing Mandatory fields")
@@ -115,6 +119,54 @@ pub async fn payouts_cancel() {}
     security(("api_key" = []))
 )]
 pub async fn payouts_fulfill() {}
+
+/// Payouts - Accept
+///
+/// Accept a payout in `requires_review` status and fulfill it using the payout fulfillment flow.
+/// Payouts in any other status cannot be accepted.
+///
+/// Review actions require the shared Superposition flag `should_allow_review_flow`, which defaults to `false`, to be explicitly enabled by a matching organization, merchant, or profile override.
+#[utoipa::path(
+    post,
+    path = "/payouts/{payout_id}/accept",
+    params(
+        ("payout_id" = String, Path, description = "The identifier for payout")
+    ),
+    responses(
+        (status = 200, description = "Payout accepted and fulfilled", body = PayoutCreateResponse),
+        (status = 400, description = "Missing mandatory fields or payout review flow is not enabled for this profile"),
+        (status = 404, description = "Payout does not exist in the merchant's records"),
+        (status = 422, description = "Payout is not in requires_review status")
+    ),
+    tag = "Payouts",
+    operation_id = "Accept a Payout",
+    security(("api_key" = []))
+)]
+pub async fn payouts_accept() {}
+
+/// Payouts - Reject
+///
+/// Reject a payout in `requires_review` status and cancel it using the payout cancellation flow.
+/// Payouts in any other status cannot be rejected.
+///
+/// Review actions require the shared Superposition flag `should_allow_review_flow`, which defaults to `false`, to be explicitly enabled by a matching organization, merchant, or profile override.
+#[utoipa::path(
+    post,
+    path = "/payouts/{payout_id}/reject",
+    params(
+        ("payout_id" = String, Path, description = "The identifier for payout")
+    ),
+    responses(
+        (status = 200, description = "Payout rejected and cancelled", body = PayoutCreateResponse),
+        (status = 400, description = "Missing mandatory fields or payout review flow is not enabled for this profile"),
+        (status = 404, description = "Payout does not exist in the merchant's records"),
+        (status = 422, description = "Payout is not in requires_review status")
+    ),
+    tag = "Payouts",
+    operation_id = "Reject a Payout",
+    security(("api_key" = []))
+)]
+pub async fn payouts_reject() {}
 
 /// Payouts - List
 #[utoipa::path(
@@ -205,6 +257,8 @@ pub async fn payouts_list_by_filter() {}
 pub async fn payouts_list_by_filter_profile() {}
 
 /// Payouts - Confirm
+///
+/// Confirms the existing payout while preserving the amount, currency, and associated customer. Supplied customer contact details are ignored. Do not include amount, currency, customer_id, or customer.id.
 #[utoipa::path(
     post,
     path = "/payouts/{payout_id}/confirm",
@@ -215,7 +269,8 @@ pub async fn payouts_list_by_filter_profile() {}
     responses(
         (status = 200, description = "Payout updated", body = PayoutCreateResponse),
         (status = 400, description = "Missing mandatory fields or invalid request"),
-        (status = 404, description = "Payout does not exist in the merchant's records")
+        (status = 404, description = "Payout does not exist in the merchant's records"),
+        (status = 422, description = "Request contains fields that cannot be updated")
     ),
     tag = "Payouts",
     operation_id = "Confirm a Payout",

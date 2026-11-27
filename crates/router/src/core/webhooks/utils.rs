@@ -27,8 +27,7 @@ use crate::consts::REDACTED_HEADER_VALUE;
 use crate::{
     core::{
         configs::dimension_state,
-        errors::{self},
-        metrics,
+        errors, metrics,
         payments::{self, helpers},
     },
     errors::RouterResult,

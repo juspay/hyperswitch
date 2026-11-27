@@ -42,11 +42,7 @@ use std::future;
 
 #[cfg(feature = "v2")]
 use api_models::payments::RevenueRecoveryGetIntentResponse;
-use api_models::{
-    self, enums,
-    mandates::RecurringDetails,
-    payments::{self as payments_api},
-};
+use api_models::{self, enums, mandates::RecurringDetails, payments as payments_api};
 pub use common_enums::enums::{CallConnectorAction, ExecutionMode, ExecutionPath, GatewaySystem};
 use common_types::payments as common_payments_types;
 use common_utils::{
@@ -153,8 +149,7 @@ use crate::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
             is_googlepay_predecrypted_flow_supported,
         },
-        payouts,
-        routing::{self as core_routing},
+        payouts, routing as core_routing,
         unified_authentication_service::types::{ClickToPay, UnifiedAuthenticationService},
         utils as core_utils,
     },
@@ -2119,6 +2114,8 @@ where
                 return_raw_connector_response,
             )
             .await?;
+
+            add_connector_http_status_code_metrics(router_data.connector_http_status_code);
 
             let payments_response_operation = Box::new(PaymentResponse);
 
@@ -4455,6 +4452,35 @@ pub async fn record_attempt_core(
     payment_id: id_type::GlobalPaymentId,
     header_payload: HeaderPayload,
 ) -> RouterResponse<api_models::payments::PaymentAttemptRecordResponse> {
+    Box::pin(record_attempt_and_get_intent(
+        state,
+        req_state,
+        platform,
+        profile,
+        req,
+        payment_id,
+        header_payload,
+    ))
+    .await
+    .map(|(response, _)| response)
+}
+
+/// Records an attempt like [`record_attempt_core`], and also returns the payment intent as the
+/// record left it, so that a caller who goes on to work with the intent need not read it again.
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn record_attempt_and_get_intent(
+    state: SessionState,
+    req_state: ReqState,
+    platform: domain::Platform,
+    profile: domain::Profile,
+    req: api_models::payments::PaymentsAttemptRecordRequest,
+    payment_id: id_type::GlobalPaymentId,
+    header_payload: HeaderPayload,
+) -> RouterResult<(
+    services::ApplicationResponse<api_models::payments::PaymentAttemptRecordResponse>,
+    domain_payments::PaymentIntent,
+)> {
     tracing::Span::current().record(
         "merchant_id",
         platform
@@ -4576,7 +4602,8 @@ pub async fn record_attempt_core(
         )
         .await?;
 
-    transformers::GenerateResponse::generate_response(
+    let payment_intent = final_payment_data.payment_intent.clone();
+    let response = transformers::GenerateResponse::generate_response(
         final_payment_data,
         &state,
         None,
@@ -4585,7 +4612,8 @@ pub async fn record_attempt_core(
         &platform,
         &profile,
         None,
-    )
+    )?;
+    Ok((response, payment_intent))
 }
 
 #[cfg(feature = "v2")]

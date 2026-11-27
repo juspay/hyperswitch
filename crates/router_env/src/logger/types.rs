@@ -254,6 +254,12 @@ pub enum Flow {
     /// Payouts fulfill flow.
     PayoutsFulfill,
     #[cfg(feature = "payouts")]
+    /// Payouts accept flow.
+    PayoutsAccept,
+    #[cfg(feature = "payouts")]
+    /// Payouts reject flow.
+    PayoutsReject,
+    #[cfg(feature = "payouts")]
     /// Payouts list flow.
     PayoutsList,
     #[cfg(feature = "payouts")]

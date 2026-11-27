@@ -616,6 +616,7 @@ pub enum ConnectorSpecificConfig {
         ssl_merchant_id: Secret<String>,
         ssl_user_id: Secret<String>,
         ssl_pin: Secret<String>,
+        ssl_vendor_id: Option<Secret<String>>,
     },
     /// Elavon Payment Gateway (EPG) - Elavon's JSON REST gateway, HTTP Basic auth.
     /// NOT the `Elavon` variant above, which is Elavon Converge (an XML API).
@@ -1630,8 +1631,22 @@ impl
                     ssl_merchant_id: api_key.clone(),
                     ssl_user_id: key1.clone(),
                     ssl_pin: api_secret.clone(),
+                    ssl_vendor_id: None,
                 }),
-                _ => Err(err("Elavon requires SignatureKey auth type")),
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::Elavon {
+                    ssl_merchant_id: api_key.clone(),
+                    ssl_user_id: key1.clone(),
+                    ssl_pin: api_secret.clone(),
+                    ssl_vendor_id: Some(key2.clone()),
+                }),
+                _ => Err(err(
+                    "Elavon requires SignatureKey, or MultiAuthKey with the vendor ID as key2",
+                )),
             },
             Connector::ElavonPg => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::ElavonPg {

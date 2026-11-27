@@ -22,6 +22,10 @@ The merchant is named by the `x-connected-merchant-id` header, never the request
 
 ## Request
 
+See the [OpenAPI reference](/decision-engine-api-reference/api-reference/endpoint/routing-rules/decide) for the complete request schema and playground.
+
+### One-time card payment
+
 ```bash
 curl --location "$BASE_URL/decide" \
   --header "$AUTH_HEADER" \
@@ -34,14 +38,20 @@ curl --location "$BASE_URL/decide" \
     "currency": "USD",
     "payment_method_type": "card",
     "payment_method_sub_type": "credit",
+    "payment_type": "non_mandate",
+    "setup_future_usage": "on_session",
+    "transaction_initiator": "customer",
     "billing_country": "US",
     "card": {
       "card_isin": "001234",
       "card_extended_bin": "00123456",
       "card_network": "Visa",
       "card_type": "credit",
-      "card_issuing_country_code": "US"
+      "card_issuer": "Chase",
+      "card_issuing_country_code": "US",
+      "card_subtype": "CLASSIC"
     },
+    "customer_id": "cus_demo",
     "metadata": {
       "segment": "premium"
     },
@@ -67,6 +77,63 @@ The required fields are `payment_id`, `amount`, `currency`, `routing_config.algo
 - `authentication_type` is both matched by rules and scored by the decider.
 - `routing_config.decision_arm` names the arm the caller assigned, `control` or `variant`. It is kept in the request audit and does not override Decision Engine's own experiment assignment.
 - `routing_config` also carries `preferred_connectors`, `ranking_algorithm`, `elimination_enabled` and `enable_multi_objective`, which the decider applies where the merchant's feature and experiment gates allow it.
+
+### Recurring card payment
+
+This request describes a merchant-initiated recurring payment using an existing mandate or processor token held by `mca_stripe`. The caller supplies that account as the eligible connector; the routing context is evaluated against the merchant's rules and configuration.
+
+```json
+{
+  "payment_id": "pay_recurring_demo",
+  "merchant_reference_id": "invoice_demo",
+  "amount": 2500,
+  "currency": "USD",
+  "payment_method_type": "card",
+  "payment_method_sub_type": "credit",
+  "payment_type": "recurring_mandate",
+  "setup_future_usage": "off_session",
+  "transaction_initiator": "merchant",
+  "billing_country": "US",
+  "card": {
+    "card_network": "Visa",
+    "card_type": "credit"
+  },
+  "customer_id": "cus_demo",
+  "routing_config": {
+    "algorithm_for": "payment",
+    "eligible_connectors": [
+      { "connector": "stripe", "merchant_connector_id": "mca_stripe" }
+    ]
+  }
+}
+```
+
+### Apple Pay payment
+
+For a wallet payment, the method family is `wallet` and the subtype identifies the wallet. The `wallet` field supplies the corresponding wallet rule parameter.
+
+```json
+{
+  "payment_id": "pay_wallet_demo",
+  "merchant_reference_id": "order_wallet_demo",
+  "amount": 1000,
+  "currency": "USD",
+  "payment_method_type": "wallet",
+  "payment_method_sub_type": "apple_pay",
+  "wallet": "apple_pay",
+  "payment_type": "non_mandate",
+  "setup_future_usage": "on_session",
+  "transaction_initiator": "customer",
+  "billing_country": "US",
+  "customer_id": "cus_demo",
+  "routing_config": {
+    "algorithm_for": "payment",
+    "eligible_connectors": [
+      { "connector": "stripe", "merchant_connector_id": "mca_stripe" }
+    ]
+  }
+}
+```
 
 ## Rule keys
 

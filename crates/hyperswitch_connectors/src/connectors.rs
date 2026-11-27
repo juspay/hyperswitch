@@ -123,6 +123,7 @@ pub mod placetopay;
 pub mod plaid;
 pub mod powertranz;
 pub mod prophetpay;
+pub mod rapidconnect;
 pub mod rapyd;
 pub mod razorpay;
 pub mod recurly;
@@ -202,8 +203,8 @@ pub use self::{
     paynearme::Paynearme, payone::Payone, paypal::Paypal, paysafe::Paysafe, paystack::Paystack,
     paytm::Paytm, payu::Payu, peachpayments::Peachpayments, phonepe::Phonepe,
     placetopay::Placetopay, plaid::Plaid, powertranz::Powertranz, prophetpay::Prophetpay,
-    rapyd::Rapyd, razorpay::Razorpay, recurly::Recurly, redsys::Redsys, revolv3::Revolv3,
-    riskified::Riskified, saferpay::Saferpay, sanlam_payshield::SanlamPayshield,
+    rapidconnect::Rapidconnect, rapyd::Rapyd, razorpay::Razorpay, recurly::Recurly, redsys::Redsys,
+    revolv3::Revolv3, riskified::Riskified, saferpay::Saferpay, sanlam_payshield::SanlamPayshield,
     santander::Santander, shift4::Shift4, sift::Sift, signifyd::Signifyd, silverflow::Silverflow,
     square::Square, stax::Stax, stripe::Stripe, stripebilling::Stripebilling, taxjar::Taxjar,
     tesouro::Tesouro, threedsecureio::Threedsecureio, thunes::Thunes, tokenex::Tokenex,
