@@ -476,18 +476,11 @@ impl TryFrom<&SetupMandateRouterData> for CybersourceZeroMandateRequest {
                 })
             })
             .or_else(|| {
-                get_commerce_indicator_for_moto(
-                    item.request.payment_channel.as_ref(),
-                    &item.request.payment_method_data,
-                    solution.as_ref(),
-                )
-            })
-            .or_else(|| {
-                get_commerce_indicator_for_wallet_payment(
-                    solution.as_ref(),
+                get_commerce_indicator(
                     &item.request.payment_method_data,
                     item.auth_type,
                     network.as_deref(),
+                    item.request.payment_channel.clone(),
                 )
             });
 
@@ -947,20 +940,12 @@ impl
             Option<String>,
         ),
     ) -> Result<Self, Self::Error> {
-        let mut commerce_indicator = get_commerce_indicator_for_wallet_payment(
-            solution.as_ref(),
+        let mut commerce_indicator = get_commerce_indicator(
             &item.router_data.request.payment_method_data,
             item.router_data.auth_type,
             network.as_deref(),
+            item.router_data.request.payment_channel.clone(),
         );
-
-        if let Some(moto_indicator) = get_commerce_indicator_for_moto(
-            item.router_data.request.payment_channel.as_ref(),
-            &item.router_data.request.payment_method_data,
-            solution.as_ref(),
-        ) {
-            commerce_indicator = Some(moto_indicator);
-        }
 
         let connector_merchant_config =
             CybersourceConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?;
@@ -1357,64 +1342,63 @@ fn normalize_cybersource_card_network(card_network: Option<&str>) -> Option<&'st
     })
 }
 
-fn get_commerce_indicator_for_wallet_payment(
-    payment_solution: Option<&PaymentSolution>,
+fn get_commerce_indicator(
     payment_method_data: &PaymentMethodData,
     authentication_type: enums::AuthenticationType,
     card_network: Option<&str>,
+    payment_channel: Option<common_enums::PaymentChannel>,
 ) -> Option<String> {
-    let commerce_indicator = match payment_solution {
-        Some(PaymentSolution::GooglePay) => {
-            if payment_method_data.is_google_pay_pan_only() {
-                if authentication_type.is_three_ds() {
-                    Some(match normalize_cybersource_card_network(card_network) {
-                        Some("diners") => "pb",
-                        Some("mastercard") => "spa",
-                        Some("maestro") => "spa",
-                        Some("visa") => "vbv",
-                        Some("amex") => "aesk",
-                        Some("discover") => "dipb",
-                        Some("jcb") => "js",
+    let commerce_indicator = match payment_method_data {
+        PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+            WalletData::GooglePay(_) => {
+                if payment_method_data.is_google_pay_pan_only() {
+                    if authentication_type.is_three_ds() {
+                        Some(match normalize_cybersource_card_network(card_network) {
+                            Some("diners") => "pb",
+                            Some("mastercard") => "spa",
+                            Some("maestro") => "spa",
+                            Some("visa") => "vbv",
+                            Some("amex") => "aesk",
+                            Some("discover") => "dipb",
+                            Some("jcb") => "js",
+                            _ => "internet",
+                        })
+                    } else {
+                        Some("internet")
+                    }
+                } else {
+                    // CRYPTOGRAM_3DS token already carry the cryptogram and ECI as part
+                    // of the network token, so the commerce_indicator field is omitted.
+                    None
+                }
+            }
+            WalletData::ApplePay(_) | WalletData::SamsungPay(_) => Some(
+                card_network
+                    .map(|card_network| match card_network.to_lowercase().as_str() {
+                        "mastercard" => "spa",
                         _ => "internet",
                     })
-                } else {
-                    Some("internet")
-                }
+                    .unwrap_or("internet"),
+            ),
+            _ => Some("internet"),
+        },
+        PaymentMethodData::Card(_) | PaymentMethodData::CardWithOptionalCVC(_) => {
+            let is_moto_channel = matches!(
+                payment_channel,
+                Some(
+                    common_enums::PaymentChannel::MailOrder
+                        | common_enums::PaymentChannel::TelephoneOrder
+                )
+            );
+            if is_moto_channel {
+                Some("moto")
             } else {
-                // CRYPTOGRAM_3DS token already carry the cryptogram and ECI as part
-                // of the network token, so the commerce_indicator field is omitted.
-                None
+                Some("internet")
             }
         }
-        Some(PaymentSolution::ApplePay) | Some(PaymentSolution::SamsungPay) => Some(
-            card_network
-                .map(|card_network| match card_network.to_lowercase().as_str() {
-                    "mastercard" => "spa",
-                    _ => "internet",
-                })
-                .unwrap_or("internet"),
-        ),
-        None => Some("internet"),
+        _ => Some("internet"),
     };
     commerce_indicator.map(String::from)
-}
-
-fn get_commerce_indicator_for_moto(
-    payment_channel: Option<&common_enums::PaymentChannel>,
-    payment_method_data: &PaymentMethodData,
-    payment_solution: Option<&PaymentSolution>,
-) -> Option<String> {
-    let is_moto_channel = matches!(
-        payment_channel,
-        Some(
-            common_enums::PaymentChannel::MailOrder | common_enums::PaymentChannel::TelephoneOrder
-        )
-    );
-    let is_raw_card = matches!(
-        payment_method_data,
-        PaymentMethodData::Card(_) | PaymentMethodData::CardWithOptionalCVC(_)
-    );
-    (is_moto_channel && is_raw_card && payment_solution.is_none()).then(|| "moto".to_string())
 }
 
 impl
