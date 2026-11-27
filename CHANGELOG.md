@@ -4,6 +4,35 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.11.27.0
+
+### Features
+
+- **connector:**
+  - [PayPal] allow network transaction id MITs ([#15419](https://github.com/juspay/hyperswitch/pull/15419)) ([`1fc2366`](https://github.com/juspay/hyperswitch/commit/1fc2366f23fa595d3827c0964feef54cf3a11989))
+  - Add setupmandate support for moneris ([#15415](https://github.com/juspay/hyperswitch/pull/15415)) ([`bc9e572`](https://github.com/juspay/hyperswitch/commit/bc9e572b5427568f36c3c9fd4192a849c078a0f6))
+  - [JPMorgan] accept MIT SCA exemption flag in connector metadata ([#15314](https://github.com/juspay/hyperswitch/pull/15314)) ([`a9e6561`](https://github.com/juspay/hyperswitch/commit/a9e6561986cb80933fdbc6caf49cddffafc23d2a))
+- **db:** Add payment_intent profile_id merchant_reference_id unique index ([#15391](https://github.com/juspay/hyperswitch/pull/15391)) ([`8b85417`](https://github.com/juspay/hyperswitch/commit/8b854170147422d1fbededa8aaa390c8171ee585))
+
+### Bug Fixes
+
+- **connector:** [checkout] handle asynchronous operation statuses and preserve payment ID on void ([#15387](https://github.com/juspay/hyperswitch/pull/15387)) ([`52d4e62`](https://github.com/juspay/hyperswitch/commit/52d4e62b0b288f0ca53601b033ee331aac3571c2))
+- **gsm:** Add api_key auth for GSM get route ([#15393](https://github.com/juspay/hyperswitch/pull/15393)) ([`99812a6`](https://github.com/juspay/hyperswitch/commit/99812a6c48f3b3a74e1eb93b4f523e34f28bb549))
+- **payment_methods:** Don't list saved payment methods whose token can't be resolved ([#15413](https://github.com/juspay/hyperswitch/pull/15413)) ([`3b0d71a`](https://github.com/juspay/hyperswitch/commit/3b0d71aefef4e164950ff5542d7600872be5a101))
+- **router:** Allow apple pay sessions for all web browsers ([#15380](https://github.com/juspay/hyperswitch/pull/15380)) ([`544c631`](https://github.com/juspay/hyperswitch/commit/544c6311e82566b00da552d21ff8658f0e66ccd8))
+
+### Refactors
+
+- **revenue_recovery:** Cache gsm rules and drop repeated intent reads ([#15401](https://github.com/juspay/hyperswitch/pull/15401)) ([`1cf78a1`](https://github.com/juspay/hyperswitch/commit/1cf78a17004d63ebb2ff86049d1e2ed133458464))
+
+### Miscellaneous Tasks
+
+- **config:** Enable cross-currency MIT in deployment configs ([#15383](https://github.com/juspay/hyperswitch/pull/15383)) ([`c107fd5`](https://github.com/juspay/hyperswitch/commit/c107fd56ffadb5d19dadc910d6ca595db498e3bb))
+
+**Full Changelog:** [`2026.11.26.0...2026.11.27.0`](https://github.com/juspay/hyperswitch/compare/2026.11.26.0...2026.11.27.0)
+
+- - -
+
 ## 2026.11.26.0
 
 ### Features
