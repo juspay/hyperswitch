@@ -10577,7 +10577,7 @@
           "Telephone Order"
         ],
         "summary": "Telephone Order - Charge",
-        "description": "Charges a card that an IVR provider collected over the phone. Only `twilio` is supported as `{provider}`.",
+        "description": "Charges a card that an IVR provider collected over the phone, or stores one without charging it. Only `twilio` is supported as `{provider}`.",
         "operationId": "Charge a telephone order",
         "parameters": [
           {
@@ -10602,14 +10602,14 @@
           }
         ],
         "requestBody": {
-          "description": "The provider's charge request. Shown here in Twilio's Generic Pay Connector shape.",
+          "description": "The provider's request. Shown here in Twilio's Generic Pay Connector shape. `method` follows the `<Pay>` verb's `chargeAmount`: `0` or absent makes it a `tokenize`. Storing a card is asked for by `parameters.setup_future_usage`, which is never assumed, and needs `parameters.customer_id` and `parameters.customer_acceptance` with it. A `<Parameter>` value is always a string, so the structured parameters — `customer_acceptance` and `billing` — carry their JSON as text.",
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/TwilioGenericPayRequest"
               },
               "examples": {
-                "Charge a card collected over the phone": {
+                "01. Charge a card collected over the phone": {
                   "value": {
                     "amount": "1.00",
                     "cardnumber": "4242424242424242",
@@ -10626,6 +10626,42 @@
                     "postal_code": "94122",
                     "transaction_id": "IP1234"
                   }
+                },
+                "02. Charge the card and keep it for later": {
+                  "value": {
+                    "amount": "1.00",
+                    "cardnumber": "4242424242424242",
+                    "currency_code": "USD",
+                    "cvv": "123",
+                    "description": "Order placed over the phone",
+                    "expiry_month": "12",
+                    "expiry_year": "28",
+                    "method": "charge",
+                    "parameters": {
+                      "customer_acceptance": "{\"acceptance_type\":\"offline\",\"accepted_at\":\"2026-11-26T10:11:12Z\"}",
+                      "customer_id": "cus_1234",
+                      "setup_future_usage": "off_session"
+                    },
+                    "transaction_id": "IP1234"
+                  }
+                },
+                "03. Store a card without charging it": {
+                  "value": {
+                    "cardnumber": "4242424242424242",
+                    "cvv": "123",
+                    "expiry_month": "12",
+                    "expiry_year": "28",
+                    "method": "tokenize",
+                    "parameters": {
+                      "billing": "{\"email\":\"caller@example.com\",\"address\":{\"first_name\":\"John\",\"last_name\":\"Doe\",\"line1\":\"1467 Harrison Street\",\"city\":\"San Francisco\",\"state\":\"CA\",\"country\":\"US\"}}",
+                      "currency": "USD",
+                      "customer_acceptance": "{\"acceptance_type\":\"offline\",\"accepted_at\":\"2026-11-26T10:11:12Z\"}",
+                      "customer_id": "cus_1234",
+                      "setup_future_usage": "off_session"
+                    },
+                    "postal_code": "94122",
+                    "transaction_id": "IP1234"
+                  }
                 }
               }
             }
@@ -10634,7 +10670,7 @@
         },
         "responses": {
           "200": {
-            "description": "The outcome of the charge, in the provider's response shape.",
+            "description": "The outcome of the operation, in the provider's response shape.",
             "content": {
               "application/json": {
                 "schema": {
@@ -10657,12 +10693,45 @@
                       }
                     }
                   },
-                  "02. The card was declined": {
+                  "02. The card was charged and kept": {
                     "value": {
-                      "charge_id": null,
+                      "charge_id": "pay_1234",
+                      "error_code": null,
+                      "error_message": null,
+                      "parameters": {
+                        "amount_capturable": "0",
+                        "amount_received": "100",
+                        "connector": "stripe",
+                        "connector_transaction_id": "pi_1234",
+                        "merchant_order_reference_id": "IP1234",
+                        "payment_id": "pay_1234",
+                        "payment_method_id": "pm_1234",
+                        "status": "succeeded"
+                      }
+                    }
+                  },
+                  "03. The card was stored without a charge": {
+                    "value": {
+                      "error_code": null,
+                      "error_message": null,
+                      "parameters": {
+                        "amount_capturable": "0",
+                        "connector": "stripe",
+                        "connector_transaction_id": "seti_1234",
+                        "merchant_order_reference_id": "IP1234",
+                        "payment_id": "pay_1234",
+                        "payment_method_id": "pm_1234",
+                        "status": "succeeded"
+                      },
+                      "token_id": "pm_1234"
+                    }
+                  },
+                  "04. The card was declined": {
+                    "value": {
                       "error_code": "card_declined",
                       "error_message": "Your card was declined.",
                       "parameters": {
+                        "amount_capturable": "0",
                         "connector": "stripe",
                         "merchant_order_reference_id": "IP1234",
                         "payment_id": "pay_1234",
@@ -10671,17 +10740,31 @@
                       }
                     }
                   },
-                  "03. The charge has no final outcome": {
+                  "05. The charge has no final outcome": {
                     "value": {
-                      "charge_id": null,
                       "error_code": "PAYMENT_PENDING",
                       "error_message": "Payment is not yet complete",
                       "parameters": {
+                        "amount_capturable": "0",
                         "connector": "stripe",
                         "merchant_order_reference_id": "IP1234",
                         "payment_id": "pay_1234",
                         "status": "processing"
                       }
+                    }
+                  },
+                  "06. The IVR did not take the caller's consent": {
+                    "value": {
+                      "error_code": "ACCEPTANCE_REQUIRED",
+                      "error_message": "customer_acceptance is required to store a card. Ask the caller to agree and pass it as a <Parameter>",
+                      "parameters": {}
+                    }
+                  },
+                  "07. The card has no customer to be stored against": {
+                    "value": {
+                      "error_code": "CUSTOMER_REQUIRED",
+                      "error_message": "customer_id is required to store a card. Pass it as a <Parameter>",
+                      "parameters": {}
                     }
                   }
                 }
@@ -10689,7 +10772,7 @@
             }
           },
           "400": {
-            "description": "The request was rejected before a charge was attempted: the API key is missing or does not belong to this merchant, the provider in the path is unknown, or the body is not a valid charge request for that provider.",
+            "description": "The request was rejected before the operation was attempted: the API key is missing or does not belong to this merchant, the provider in the path is unknown, or the body is not a valid request for that provider.",
             "content": {
               "application/json": {
                 "schema": {
@@ -49709,11 +49792,47 @@
                   }
                 ],
                 "nullable": true
+              },
+              "setup_future_usage": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/FutureUsage"
+                  }
+                ],
+                "nullable": true
+              },
+              "currency": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Currency"
+                  }
+                ],
+                "nullable": true
+              },
+              "customer_acceptance": {
+                "type": "string",
+                "description": "The caller's agreement to their card being kept, taken on the call. **Required whenever a\ncard is stored** — a `tokenize`, or a charge carrying `setup_future_usage`. Recorded as the\nstored-credential consent the networks require, so it says only what the IVR reported.\n\nA `CustomerAcceptance` as JSON. Use `acceptance_type: offline` — there is no browser\nsession to record an IP against — and `accepted_at` defaults to now.",
+                "example": "{\"acceptance_type\":\"offline\",\"accepted_at\":\"2026-11-26T10:11:12Z\"}",
+                "nullable": true
+              },
+              "tokenization": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Tokenization"
+                  }
+                ],
+                "nullable": true
+              },
+              "billing": {
+                "type": "string",
+                "description": "The caller's billing address and email, as an `Address` in JSON. The provider's own postal\ncode, where it collects one, overrides `address.zip`.",
+                "example": "{\"email\":\"caller@example.com\",\"address\":{\"last_name\":\"Doe\",\"line1\":\"1467 Harrison Street\",\"city\":\"San Francisco\",\"state\":\"CA\",\"country\":\"US\"}}",
+                "nullable": true
               }
             }
           }
         ],
-        "description": "The IVR's `<Parameter>` tags. The four read by Hyperswitch are named below; the rest ride along\ninto the payment's `metadata`. Keys must be lowercase — Twilio lowercases parameter names, so a\ncamelCase one lands in the passthrough instead."
+        "description": "The IVR's `<Parameter>` tags. The ones read by Hyperswitch are named below; the rest ride along\ninto the payment's `metadata`. Keys must be lowercase — Twilio lowercases parameter names, so a\ncamelCase one lands in the passthrough instead. A tag's value is always a string, so the\nstructured keys — `customer_acceptance` and `billing` — carry their JSON as text, which\n`JsonString` reads back into the type."
       },
       "ThirdPartySdkSessionResponse": {
         "type": "object",
@@ -50423,13 +50542,19 @@
         "properties": {
           "charge_id": {
             "type": "string",
-            "description": "The Hyperswitch `payment_id`, on a successful charge.",
+            "description": "The Hyperswitch `payment_id`, on a successful charge. Omitted when there is no charge to\npoint at: a `tokenize`, which answers through `token_id`, or a failure.",
             "example": "pay_1234",
+            "nullable": true
+          },
+          "token_id": {
+            "type": "string",
+            "description": "The stored card, as a Hyperswitch `payment_method_id`: the answer to a successful\n`tokenize`, and sent on nothing else. A charge that kept the card reports it as\n`parameters.payment_method_id` instead. Charge it again as\n`recurring_details.payment_method_id`.",
+            "example": "pm_1234",
             "nullable": true
           },
           "error_code": {
             "type": "string",
-            "description": "Set when the payment did not succeed: the connector's decline code, or one of `INVALID_REQUEST`, `PROFILE_NOT_FOUND`, `PAYMENT_NOT_COMPLETED`, `PAYMENT_PENDING`, `DUPLICATE_TRANSACTION`, `PROCESSING_ERROR`, `TOKENIZE_UNSUPPORTED`, `BANK_ACCOUNT_UNSUPPORTED`. On `PAYMENT_PENDING` the funds may be held, so do not re-prompt for a card.",
+            "description": "Set when the operation did not succeed: the connector's decline code, or one of `INVALID_REQUEST`, `CUSTOMER_REQUIRED`, `ACCEPTANCE_REQUIRED`, `PROFILE_NOT_FOUND`, `PAYMENT_NOT_COMPLETED`, `PAYMENT_PENDING`, `DUPLICATE_TRANSACTION`, `PROCESSING_ERROR`, `TOKENIZE_FAILED`, `BANK_ACCOUNT_UNSUPPORTED`. On `PAYMENT_PENDING` the funds may be held, so do not re-prompt for a card.",
             "example": "PAYMENT_NOT_COMPLETED",
             "nullable": true
           },
@@ -50441,13 +50566,13 @@
           },
           "parameters": {
             "type": "object",
-            "description": "Returned either way, and the only channel carrying a `payment_id` when `charge_id` is `null`. Flat and all-string; the request's own `parameters` are never echoed back."
+            "description": "Returned either way, and the only channel carrying a `payment_id` when there is no `charge_id`. Flat and all-string. The request's own `parameters` are never echoed back."
           }
         }
       },
       "TwilioPayMethod": {
         "type": "string",
-        "description": "The operation Twilio is asking us to perform.",
+        "description": "The operation Twilio is asking us to perform. Set by the `<Pay>` verb's `chargeAmount`: `0` or\nabsent makes it a `tokenize`, any other value a `charge`.",
         "enum": [
           "charge",
           "tokenize"

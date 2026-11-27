@@ -1,9 +1,19 @@
-use std::collections::HashMap;
+use std::{borrow::Cow, collections::HashMap};
 
+#[cfg(feature = "v1")]
+use common_utils::{
+    fp_utils,
+    types::{AmountConvertor, MinorUnit, StringMajorUnitForConnector},
+};
 use hyperswitch_masking::Secret;
 use utoipa::ToSchema;
 
-/// The operation Twilio is asking us to perform.
+use crate::telephone_order::response_parameters;
+#[cfg(feature = "v1")]
+use crate::telephone_order::{error_codes, Context, Failure};
+
+/// The operation Twilio is asking us to perform. Set by the `<Pay>` verb's `chargeAmount`: `0` or
+/// absent makes it a `tokenize`, any other value a `charge`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum TwilioPayMethod {
@@ -15,7 +25,7 @@ pub enum TwilioPayMethod {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct TwilioGenericPayRequest {
-    /// The operation requested. Only `charge` is supported; `tokenize` is rejected.
+    /// The operation requested.
     #[schema(value_type = TwilioPayMethod, example = "charge")]
     pub method: TwilioPayMethod,
 
@@ -55,7 +65,8 @@ pub struct TwilioGenericPayRequest {
     #[schema(value_type = Option<String>, example = "1.00")]
     pub amount: Option<common_utils::types::StringMajorUnit>,
 
-    /// Currency of `amount`. Absent for `tokenize`.
+    /// Currency of `amount`. Absent for `tokenize`, which takes its currency from
+    /// `parameters.currency` instead.
     #[schema(value_type = Option<Currency>, example = "USD")]
     pub currency_code: Option<common_enums::Currency>,
 
@@ -68,14 +79,161 @@ pub struct TwilioGenericPayRequest {
     pub parameters: Option<crate::telephone_order::TelephoneOrderParameters>,
 }
 
+// Mapping onto a `PaymentsRequest` is v1 only, as is the endpoint that asks for it.
+
+/// The card the `<Pay>` verb collected, once it is known to be complete.
+#[cfg(feature = "v1")]
+struct TwilioCardDetails {
+    card_number: cards::CardNumber,
+    card_exp_month: Secret<String>,
+    card_exp_year: Secret<String>,
+    card_cvc: Secret<String>,
+}
+
+#[cfg(feature = "v1")]
+impl TwilioGenericPayRequest {
+    /// Moves money. Keeps the card too when the IVR passed `setup_future_usage`.
+    pub fn build_charge(
+        &self,
+        context: Context,
+    ) -> Result<crate::payments::PaymentsRequest, Failure> {
+        let currency = self
+            .currency_code
+            .ok_or_else(|| invalid_request("currency_code is required"))?;
+
+        let amount = self
+            .amount
+            .clone()
+            .ok_or_else(|| invalid_request("amount is required"))?;
+
+        let amount = StringMajorUnitForConnector
+            .convert_back(amount, currency)
+            .map_err(|error| invalid_request(format!("amount could not be parsed: {error}")))?;
+
+        // Rejected here rather than at the connector, which declines it with a minimum-amount
+        // message naming neither the cause nor the fix.
+        fp_utils::when(amount == MinorUnit::zero(), || {
+            Err(invalid_request(
+                "amount must be greater than zero for a charge. Set chargeAmount to 0 on the \
+                 <Pay> verb to store a card without charging it",
+            ))
+        })?;
+
+        let billing = context.billing_address(self.postal_code.clone());
+
+        Ok(crate::payments::PaymentsRequest {
+            amount: Some(amount.into()),
+            currency: Some(currency),
+            payment_method: Some(common_enums::PaymentMethod::Card),
+            payment_method_data: Some(self.payment_method_data(billing.clone())?),
+            billing,
+            description: self.description.clone(),
+            merchant_order_reference_id: Some(self.transaction_id.clone()),
+            ..context.payments_request()
+        })
+    }
+
+    /// Stores the card and moves no money: a zero-amount verification at the connector.
+    pub fn build_tokenize(
+        &self,
+        context: Context,
+    ) -> Result<crate::payments::PaymentsRequest, Failure> {
+        // Twilio sends no `currency_code` on a tokenize, so the IVR supplies it. Read from
+        // `currency_code` first all the same, for a provider configuration that does send one.
+        let currency = self
+            .currency_code
+            .or_else(|| {
+                self.parameters
+                    .as_ref()
+                    .and_then(|parameters| parameters.currency)
+            })
+            .ok_or_else(|| {
+                invalid_request("currency is required to store a card. Pass it as a <Parameter>")
+            })?;
+
+        let billing = context.billing_address(self.postal_code.clone());
+
+        Ok(crate::payments::PaymentsRequest {
+            amount: Some(crate::payments::Amount::Zero),
+            currency: Some(currency),
+            // Nothing is captured here, so a `capture_method` `<Parameter>` has no bearing.
+            capture_method: Some(common_enums::CaptureMethod::Automatic),
+            payment_method: Some(common_enums::PaymentMethod::Card),
+            payment_method_data: Some(self.payment_method_data(billing.clone())?),
+            billing,
+            description: self.description.clone(),
+            merchant_order_reference_id: Some(self.transaction_id.clone()),
+            ..context.payments_request()
+        })
+    }
+
+    fn payment_method_data(
+        &self,
+        billing: Option<crate::payments::Address>,
+    ) -> Result<crate::payments::PaymentMethodDataRequest, Failure> {
+        let card = self.card_details()?;
+
+        Ok(crate::payments::PaymentMethodDataRequest {
+            payment_method_data: Some(crate::payments::PaymentMethodData::Card(
+                crate::payments::Card {
+                    card_number: card.card_number,
+                    card_exp_month: card.card_exp_month,
+                    card_exp_year: card.card_exp_year,
+                    card_cvc: card.card_cvc,
+                    ..Default::default()
+                },
+            )),
+            billing,
+        })
+    }
+
+    /// All four card fields or none: a half-collected card is rejected here rather than declined
+    /// at the connector.
+    fn card_details(&self) -> Result<TwilioCardDetails, Failure> {
+        let missing =
+            |field: &str| invalid_request(format!("{field} is required for a card payment"));
+
+        Ok(TwilioCardDetails {
+            card_number: self
+                .cardnumber
+                .clone()
+                .ok_or_else(|| missing("cardnumber"))?,
+            card_exp_month: self
+                .expiry_month
+                .clone()
+                .ok_or_else(|| missing("expiry_month"))?,
+            card_exp_year: self
+                .expiry_year
+                .clone()
+                .ok_or_else(|| missing("expiry_year"))?,
+            card_cvc: self.cvv.clone().ok_or_else(|| missing("cvv"))?,
+        })
+    }
+}
+
+#[cfg(feature = "v1")]
+fn invalid_request(message: impl Into<String>) -> Failure {
+    Failure::new(error_codes::INVALID_REQUEST, message)
+}
+
 /// Body Twilio expects back. It reads `error_code` to decide the outcome, so a decline is a `200` with that set.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
 pub struct TwilioGenericPayResponse {
-    /// The Hyperswitch `payment_id`, on a successful charge.
+    /// The Hyperswitch `payment_id`, on a successful charge. Omitted when there is no charge to
+    /// point at: a `tokenize`, which answers through `token_id`, or a failure.
     #[schema(value_type = Option<String>, example = "pay_1234")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub charge_id: Option<common_utils::id_type::PaymentId>,
 
-    /// Set when the payment did not succeed: the connector's decline code, or one of `INVALID_REQUEST`, `PROFILE_NOT_FOUND`, `PAYMENT_NOT_COMPLETED`, `PAYMENT_PENDING`, `DUPLICATE_TRANSACTION`, `PROCESSING_ERROR`, `TOKENIZE_UNSUPPORTED`, `BANK_ACCOUNT_UNSUPPORTED`. On `PAYMENT_PENDING` the funds may be held, so do not re-prompt for a card.
+    /// The stored card, as a Hyperswitch `payment_method_id`: the answer to a successful
+    /// `tokenize`, and sent on nothing else. A charge that kept the card reports it as
+    /// `parameters.payment_method_id` instead. Charge it again as
+    /// `recurring_details.payment_method_id`.
+    #[schema(example = "pm_1234")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token_id: Option<String>,
+
+    /// Set when the operation did not succeed: the connector's decline code, or one of `INVALID_REQUEST`, `CUSTOMER_REQUIRED`, `ACCEPTANCE_REQUIRED`, `PROFILE_NOT_FOUND`, `PAYMENT_NOT_COMPLETED`, `PAYMENT_PENDING`, `DUPLICATE_TRANSACTION`, `PROCESSING_ERROR`, `TOKENIZE_FAILED`, `BANK_ACCOUNT_UNSUPPORTED`. On `PAYMENT_PENDING` the funds may be held, so do not re-prompt for a card.
     #[schema(example = "PAYMENT_NOT_COMPLETED")]
     pub error_code: Option<String>,
 
@@ -83,7 +241,7 @@ pub struct TwilioGenericPayResponse {
     #[schema(example = "Your card was declined.")]
     pub error_message: Option<String>,
 
-    /// Returned either way, and the only channel carrying a `payment_id` when `charge_id` is `null`. Flat and all-string; the request's own `parameters` are never echoed back.
+    /// Returned either way, and the only channel carrying a `payment_id` when there is no `charge_id`. Flat and all-string. The request's own `parameters` are never echoed back.
     #[schema(value_type = Object, example = json!({
         "payment_id": "pay_1234",
         "status": "succeeded",
@@ -91,18 +249,33 @@ pub struct TwilioGenericPayResponse {
         "amount_received": "100",
         "connector": "stripe",
         "connector_transaction_id": "pi_1234",
+        "payment_method_id": "pm_1234",
         "merchant_order_reference_id": "IP1234"
     }))]
     pub parameters: HashMap<String, String>,
 }
 
 impl TwilioGenericPayResponse {
-    pub fn success(
+    /// A charge that went through. No `token_id`: that is a `tokenize`'s answer, and a charge
+    /// that kept the card carries it as `parameters.payment_method_id`.
+    pub fn charged(
         charge_id: common_utils::id_type::PaymentId,
         parameters: HashMap<String, String>,
     ) -> Self {
         Self {
             charge_id: Some(charge_id),
+            token_id: None,
+            error_code: None,
+            error_message: None,
+            parameters,
+        }
+    }
+
+    /// A card stored without a charge. No `charge_id`; the payment is in `parameters.payment_id`.
+    pub fn tokenized(token_id: String, parameters: HashMap<String, String>) -> Self {
+        Self {
+            charge_id: None,
+            token_id: Some(token_id),
             error_code: None,
             error_message: None,
             parameters,
@@ -116,9 +289,32 @@ impl TwilioGenericPayResponse {
     ) -> Self {
         Self {
             charge_id: None,
+            token_id: None,
             error_code: Some(error_code),
             error_message: Some(error_message),
             parameters,
         }
+    }
+
+    /// The payment this response reports: `charge_id` on a charge, `parameters` on a tokenize or
+    /// a failure that reached one. `None` only where a request was rejected on its way in.
+    pub fn payment_id(&self) -> Option<common_utils::id_type::PaymentId> {
+        self.charge_id.clone().or_else(|| {
+            self.parameters
+                .get(response_parameters::PAYMENT_ID)
+                .cloned()
+                .and_then(|payment_id| {
+                    common_utils::id_type::PaymentId::try_from(Cow::Owned(payment_id)).ok()
+                })
+        })
+    }
+
+    /// The card this response stored: a tokenize's `token_id`, or the one a charge kept.
+    pub fn payment_method_id(&self) -> Option<String> {
+        self.token_id.clone().or_else(|| {
+            self.parameters
+                .get(response_parameters::PAYMENT_METHOD_ID)
+                .cloned()
+        })
     }
 }
