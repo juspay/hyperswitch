@@ -94,7 +94,11 @@ describe("Card - Billing Descriptor payment flow test", () => {
           "card_pm"
         ]["PaymentConfirmWithBillingDescriptor"];
 
-        cy.retrievePaymentCallTest({ globalState, data });
+        if (globalState.get("connectorId") === "nmi") {
+          cy.retrieveNmiBillingDescriptorCallTest(globalState);
+        } else {
+          cy.retrievePaymentCallTest({ globalState, data });
+        }
       });
     });
   });
