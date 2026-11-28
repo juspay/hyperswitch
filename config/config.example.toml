@@ -777,7 +777,7 @@ discord_invite_url = "https://www.example.com/" # Discord invite url for hypersw
 card.credit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,archipel,mollie,moneris,imerchantsolutions,peachpayments,shift4,jpmorgan,rapyd"
 card.debit.connector_list = "checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,archipel,mollie,moneris,imerchantsolutions,peachpayments,shift4,jpmorgan,rapyd"
 wallet.paypal = { connector_list = "adyen" }                                          # Mandate supported payment method type and connector for wallets
-pay_later.klarna = { connector_list = "adyen" }                                       # Mandate supported payment method type and connector for pay_later
+pay_later.klarna = { connector_list = "adyen,stripe" }                                # Mandate supported payment method type and connector for pay_later
 bank_debit.ach = { connector_list = "gocardless,adyen" }                              # Mandate supported payment method type and connector for bank_debit
 bank_debit.becs = { connector_list = "gocardless" }                                   # Mandate supported payment method type and connector for bank_debit
 bank_debit.bacs = { connector_list = "adyen" }                                        # Mandate supported payment method type and connector for bank_debit
@@ -806,7 +806,7 @@ connector_list = ["datatrans", "stripe"]
 card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan,ecommpay,worldpayraft,elavon_pg"
 card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,mollie,airwallex,peachpayments,imerchantsolutions,givepayments,shift4,jpmorgan,ecommpay,worldpayraft,elavon_pg"
 wallet.paypal = { connector_list = "adyen,novalnet" }                                          # Mandate supported payment method type and connector for wallets
-pay_later.klarna = { connector_list = "adyen" }                                       # Mandate supported payment method type and connector for pay_later
+pay_later.klarna = { connector_list = "adyen,stripe" }                                # Mandate supported payment method type and connector for pay_later
 bank_debit.ach = { connector_list = "gocardless,adyen" }                              # Mandate supported payment method type and connector for bank_debit
 bank_debit.becs = { connector_list = "gocardless" }                                   # Mandate supported payment method type and connector for bank_debit
 bank_debit.bacs = { connector_list = "adyen" }                                        # Mandate supported payment method type and connector for bank_debit

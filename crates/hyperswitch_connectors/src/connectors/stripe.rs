@@ -490,25 +490,15 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         req: &TokenizationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, ConnectorError> {
-        if matches!(
-            (
-                req.request.split_payments.as_ref(),
-                req.request.payment_method_data.clone()
-            ),
-            (
-                Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(_)),
-                PaymentMethodData::Card(_)
-                    | PaymentMethodData::CardWithOptionalCVC(_)
-                    | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            )
+        let path = if stripe::is_payment_methods_api_tokenization(
+            req.request.split_payments.as_ref(),
+            &req.request.payment_method_data,
         ) {
-            return Ok(format!(
-                "{}{}",
-                self.base_url(connectors),
-                "v1/payment_methods"
-            ));
-        }
-        Ok(format!("{}{}", self.base_url(connectors), "v1/tokens"))
+            "v1/payment_methods"
+        } else {
+            "v1/tokens"
+        };
+        Ok(format!("{}{}", self.base_url(connectors), path))
     }
 
     fn get_request_body(
@@ -3548,7 +3538,7 @@ static STRIPE_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
         common_enums::PaymentMethod::PayLater,
         PaymentMethodType::Klarna,
         PaymentMethodDetails {
-            mandates: common_enums::FeatureStatus::NotSupported,
+            mandates: common_enums::FeatureStatus::Supported,
             refunds: common_enums::FeatureStatus::Supported,
             supported_capture_methods: default_capture_methods.clone(),
             specific_features: None,
