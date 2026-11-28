@@ -1,0 +1,20 @@
+{
+  "name": "hyperswitch",
+  "interface": {
+    "displayName": "Hyperswitch"
+  },
+  "plugins": [
+    {
+      "name": "hyperswitch",
+      "source": {
+        "source": "local",
+        "path": "./plugins/hyperswitch"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

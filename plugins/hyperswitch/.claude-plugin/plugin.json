@@ -1,0 +1,22 @@
+{
+  "name": "hyperswitch",
+  "version": "1.0.0",
+  "description": "Agent skills for running Hyperswitch locally, calling its payments API end to end, and adding new payment processor connectors.",
+  "author": {
+    "name": "Juspay",
+    "url": "https://hyperswitch.io"
+  },
+  "homepage": "https://hyperswitch.io",
+  "repository": "https://github.com/juspay/hyperswitch",
+  "license": "Apache-2.0",
+  "keywords": [
+    "hyperswitch",
+    "payments",
+    "payment-orchestration",
+    "rust",
+    "connectors",
+    "fintech",
+    "agent-skills"
+  ],
+  "skills": "./skills/"
+}

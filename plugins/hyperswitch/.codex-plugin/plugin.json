@@ -1,0 +1,43 @@
+{
+  "name": "hyperswitch",
+  "version": "1.0.0",
+  "description": "Agent skills for running Hyperswitch locally, calling its payments API end to end, and adding new payment processor connectors.",
+  "author": {
+    "name": "Juspay",
+    "url": "https://hyperswitch.io"
+  },
+  "homepage": "https://hyperswitch.io",
+  "repository": "https://github.com/juspay/hyperswitch",
+  "license": "Apache-2.0",
+  "keywords": [
+    "hyperswitch",
+    "payments",
+    "payment-orchestration",
+    "rust",
+    "connectors",
+    "fintech",
+    "agent-skills"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Hyperswitch",
+    "shortDescription": "Open-source payments orchestration",
+    "longDescription": "Skills for Hyperswitch, the open-source composable payments platform. Covers running it locally with the one-click setup script or Docker Compose (profiles, health checks, logs, admin key); calling the v1 REST API with the right admin and merchant authentication to create merchant accounts, API keys and connector accounts, then create, confirm, capture and refund payments; and contributing a new connector with scripts/add_connector.sh, OpenAPI-generated types, transformers, the ConnectorCommon and ConnectorIntegration traits, PII handling and tests.",
+    "developerName": "Juspay",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://hyperswitch.io",
+    "defaultPrompt": [
+      "Spin up Hyperswitch locally and check it is healthy",
+      "Create a test merchant, connector and card payment against my local Hyperswitch",
+      "Scaffold a new connector for my payment processor"
+    ],
+    "brandColor": "#0060F0",
+    "composerIcon": "./assets/logo.png",
+    "logo": "./assets/logo.png"
+  }
+}
