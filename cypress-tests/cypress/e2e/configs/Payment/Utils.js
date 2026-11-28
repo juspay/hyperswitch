@@ -615,6 +615,7 @@ export const CONNECTOR_LISTS = {
     DDC_RACE_CONDITION: ["worldpay"],
     CARD_HOLDER_NAME_BILLING_FALLBACK: ["worldpayxml"],
     VOID_PAYMENT_SYNC: ["zift"],
+    POST_CAPTURE_VOID: ["authorizedotnet"],
     CONNECTOR_TESTING_DATA: ["adyen", "airwallex", "braintree", "noon"],
     // ucs connectors
     UCS_CONNECTORS: [

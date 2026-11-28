@@ -5003,6 +5003,35 @@ Cypress.Commands.add(
   }
 );
 
+Cypress.Commands.add("postCaptureVoidCallTest", (data, globalState) => {
+  const paymentId = globalState.get("paymentID");
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/payments/${paymentId}/cancel_post_capture`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    body: data.Request,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    storeRequestId(response.headers["x-request-id"], globalState);
+    expect(response.status).to.equal(data.Response.status);
+    for (const [path, value] of Object.entries(data.Response.body)) {
+      expect(Cypress._.get(response.body, path), path).to.deep.equal(value);
+    }
+    if (data.Response.status === 200) {
+      expect(response.body.payment_id).to.equal(paymentId);
+    }
+    if (data.Response.connectorReferenceIdRequired) {
+      expect(
+        response.body.state_metadata.post_capture_void.connector_reference_id
+      ).to.be.a("string").and.not.be.empty;
+    }
+  });
+});
+
 Cypress.Commands.add(
   "voidCallTest",
   (requestBody, data, globalState, connectedMerchantId) => {
@@ -5164,6 +5193,18 @@ Cypress.Commands.add(
             expect(response.body.billing, "billing_address").to.not.be.null;
           }
           expect(response.body.customer, "customer").to.not.be.empty;
+
+          if (resData.connectorReferenceIdRequired) {
+            for (const [path, value] of Object.entries(resData.body)) {
+              expect(Cypress._.get(response.body, path), path).to.deep.equal(
+                value
+              );
+            }
+            expect(
+              response.body.state_metadata.post_capture_void
+                .connector_reference_id
+            ).to.be.a("string").and.not.be.empty;
+          }
 
           if (
             resData.body &&

@@ -101,6 +101,7 @@ const PAYMENT_SPEC_METHODS = Object.freeze({
   "05-ThreeDSAutoCapture.cy.js": ["card"],
   "06-NoThreeDSManualCapture.cy.js": ["card"],
   "07-VoidPayment.cy.js": ["card"],
+  "54-PostCaptureVoid.cy.js": ["card"],
   "08-SyncPayment.cy.js": ["card"],
   "09-RefundPayment.cy.js": ["card"],
   "10-SyncRefund.cy.js": ["card"],
