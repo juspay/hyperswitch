@@ -8938,7 +8938,7 @@
           "Event"
         ],
         "summary": "Events - Manual Retry",
-        "description": "Manually retry the delivery of the specified Event.",
+        "description": "Manually retry the delivery of the specified Event.\nSet `refresh_headers` to `true` in the JSON body to use the business profile's current custom headers.",
         "operationId": "Manually retry the delivery of an Event",
         "parameters": [
           {
@@ -8960,6 +8960,25 @@
             }
           }
         ],
+        "requestBody": {
+          "description": "Optional retry settings. An empty body or an omitted refresh_headers field reuses the saved headers.",
+          "content": {
+            "application/json": {
+              "schema": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookDeliveryRetryRequest"
+                  }
+                ],
+                "nullable": true
+              },
+              "example": {
+                "refresh_headers": true
+              }
+            }
+          },
+          "required": false
+        },
         "responses": {
           "200": {
             "description": "The delivery of the Event was attempted. Check the `response` field in the response payload to identify the status of the delivery attempt.",
@@ -52333,6 +52352,16 @@
           "automatic_retry",
           "manual_retry"
         ]
+      },
+      "WebhookDeliveryRetryRequest": {
+        "type": "object",
+        "description": "Options for manually retrying a webhook delivery.",
+        "properties": {
+          "refresh_headers": {
+            "type": "boolean",
+            "description": "Replace saved custom headers with the current business profile's custom headers.\nThe original body and signature are preserved. Defaults to false."
+          }
+        }
       },
       "WebhookDetailsRequest": {
         "type": "object",

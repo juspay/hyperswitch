@@ -11,7 +11,7 @@ use crate::{
     },
     types::api::webhook_events::{
         EventListConstraints, EventListRequestInternal, WebhookDeliveryAttemptListRequestInternal,
-        WebhookDeliveryRetryRequestInternal,
+        WebhookDeliveryRetryRequest, WebhookDeliveryRetryRequestInternal,
     },
 };
 
@@ -145,13 +145,16 @@ pub async fn retry_webhook_delivery_attempt(
     state: web::Data<AppState>,
     req: HttpRequest,
     path: web::Path<(common_utils::id_type::MerchantId, String)>,
+    json_payload: Option<web::Json<WebhookDeliveryRetryRequest>>,
 ) -> impl Responder {
     let flow = Flow::WebhookEventDeliveryRetry;
     let (merchant_id, event_id) = path.into_inner();
+    let options = json_payload.map(web::Json::into_inner).unwrap_or_default();
 
     let request_internal = WebhookDeliveryRetryRequestInternal {
         merchant_id: merchant_id.clone(),
         event_id,
+        refresh_headers: options.refresh_headers,
     };
 
     Box::pin(api::server_wrap(
@@ -164,6 +167,7 @@ pub async fn retry_webhook_delivery_attempt(
                 state,
                 request_internal.merchant_id,
                 request_internal.event_id,
+                request_internal.refresh_headers,
             )
         },
         &auth::JWTAuthMerchantFromRoute {
