@@ -73,72 +73,6 @@ use common_enums::enums::ProcessTrackerStatus;
 #[cfg(feature = "v1")]
 use crate::types::common_enums;
 
-/// Resolves the retry implementation this invoice should use from the A/B configuration and
-/// records it on the intent, so every later retry replays the same one.
-pub async fn assign_and_record_ab_routing(
-    state: &SessionState,
-    payment_id: &GlobalPaymentId,
-    feature_metadata: Option<api_payments::FeatureMetadata>,
-    merchant_context: pcr::RecoveryMerchantContext<'_>,
-    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
-) -> common_enums::RevenueRecoveryABAlgorithm {
-    let assigned_algorithm = dimensions
-        .get_revenue_recovery_ab_algorithm(
-            state.store.as_ref(),
-            state.superposition_service.as_ref(),
-            Some(payment_id),
-        )
-        .await;
-
-    let updated_feature_metadata = feature_metadata.and_then(|mut feature_metadata| {
-        feature_metadata
-            .revenue_recovery
-            .as_mut()
-            .map(|revenue_recovery_metadata| {
-                revenue_recovery_metadata.revenue_recovery_ab_routing = Some(assigned_algorithm);
-            })
-            .map(|_| feature_metadata)
-    });
-
-    match updated_feature_metadata {
-        Some(feature_metadata) => {
-            let payment_update_req =
-                api_payments::PaymentsUpdateIntentRequest::update_feature_metadata_and_active_attempt_with_api(
-                    feature_metadata,
-                    enums::UpdateActiveAttempt::NoAction,
-                );
-
-            match Box::pin(api::update_payment_intent_api(
-                state,
-                payment_id.clone(),
-                merchant_context,
-                payment_update_req,
-            ))
-            .await
-            {
-                Ok(_) => router_env::logger::info!(
-                    payment_id = %payment_id.get_string_repr(),
-                    algorithm = %assigned_algorithm,
-                    "A/B routing assigned a retry implementation to this invoice"
-                ),
-                Err(error) => router_env::logger::error!(
-                    ?error,
-                    payment_id = %payment_id.get_string_repr(),
-                    algorithm = %assigned_algorithm,
-                    "Failed to record the A/B routing assignment on the invoice"
-                ),
-            }
-        }
-        None => router_env::logger::warn!(
-            payment_id = %payment_id.get_string_repr(),
-            "Cannot record an A/B routing assignment: the invoice has no revenue \
-             recovery metadata"
-        ),
-    }
-
-    assigned_algorithm
-}
-
 #[allow(clippy::too_many_arguments)]
 pub async fn upsert_calculate_pcr_task(
     billing_connector_account: &domain::MerchantConnectorAccount,
@@ -228,6 +162,7 @@ pub async fn upsert_calculate_pcr_task(
                     max_hybrid_cascading_retry_count,
                 )),
                 payment_processor_token: None,
+                retry_algorithm: None,
             };
 
             let tag = ["PCR"];
@@ -276,43 +211,6 @@ pub async fn upsert_calculate_pcr_task(
                 1,
                 router_env::metric_attributes!(("flow", "CalculateWorkflow")),
             );
-
-            // A/B routing normally assigns the invoice its retry implementation here, once. The
-            // CALCULATE workflow repeats the assignment only for an invoice that reaches it
-            // without one, which means this write did not land.
-            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
-                .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-                .with_organization_id(
-                    platform
-                        .get_processor()
-                        .get_account()
-                        .organization_id
-                        .clone(),
-                )
-                .with_profile_id(business_profile.get_id().clone());
-
-            if dimensions
-                .get_revenue_recovery_ab_enabled(
-                    state.store.as_ref(),
-                    state.superposition_service.as_ref(),
-                    None,
-                )
-                .await
-            {
-                Box::pin(assign_and_record_ab_routing(
-                    state,
-                    payment_id,
-                    recovery_intent_from_payment_intent.feature_metadata.clone(),
-                    pcr::RecoveryMerchantContext {
-                        merchant_account: platform.get_processor().get_account(),
-                        key_store: platform.get_processor().get_key_store().inner(),
-                        profile: business_profile,
-                    },
-                    &dimensions,
-                ))
-                .await;
-            }
         }
     }
 
@@ -351,6 +249,7 @@ pub async fn record_internal_attempt_and_execute_payment(
         &payment_processor_token
             .payment_processor_token_details
             .payment_processor_token,
+        tracking_data.retry_algorithm,
     )
     .await;
 
@@ -676,6 +575,7 @@ async fn insert_psync_pcr_task_to_pt(
         invoice_scheduled_time: Some(schedule_time),
         static_ladder_progress,
         payment_processor_token: None,
+        retry_algorithm: None,
     };
     let tag = ["REVENUE_RECOVERY"];
     let process_tracker_entry = storage::ProcessTrackerNew::new(
@@ -1013,7 +913,13 @@ pub async fn perform_calculate_workflow(
         1,
         router_env::metric_attributes!(
             ("outcome", payment_processor_token_response.as_str()),
-            ("algorithm", retry_algorithm_type.to_string())
+            ("algorithm", retry_algorithm_type.to_string()),
+            (
+                "error_code",
+                tracking_data
+                    .prev_attempt_error_code
+                    .map_or_else(|| "unknown".to_string(), |code| code.to_string())
+            )
         ),
     );
 
@@ -1021,6 +927,7 @@ pub async fn perform_calculate_workflow(
         revenue_recovery_workflow::PaymentProcessorTokenResponse::ScheduledTime {
             scheduled_time,
             payment_processor_token,
+            retry_algorithm,
         } => {
             logger::info!(
                 process_id = %process.id,
@@ -1050,6 +957,7 @@ pub async fn perform_calculate_workflow(
                 scheduled_time,
                 next_static_ladder_progress.clone(),
                 payment_processor_token,
+                retry_algorithm,
             )
             .await?;
 
@@ -1360,6 +1268,7 @@ async fn insert_execute_pcr_task_to_pt(
     schedule_time: time::PrimitiveDateTime,
     static_ladder_progress: Option<schedule::StaticLadderProgress>,
     payment_processor_token: String,
+    retry_algorithm: Option<common_enums::RevenueRecoveryABAlgorithm>,
 ) -> Result<storage::ProcessTracker, sch_errors::ProcessTrackerError> {
     let task = "EXECUTE_WORKFLOW";
 
@@ -1407,6 +1316,7 @@ async fn insert_execute_pcr_task_to_pt(
             tracking_data.static_ladder_progress = static_ladder_progress;
             tracking_data.prev_attempt_error_code = prev_attempt_error_code;
             tracking_data.payment_processor_token = Some(Secret::new(payment_processor_token));
+            tracking_data.retry_algorithm = retry_algorithm;
 
             let tracking_data_json = serde_json::to_value(&tracking_data)
                 .change_context(errors::RecoveryError::ValueNotFound)
@@ -1474,6 +1384,7 @@ async fn insert_execute_pcr_task_to_pt(
                 invoice_scheduled_time: Some(schedule_time),
                 static_ladder_progress,
                 payment_processor_token: Some(Secret::new(payment_processor_token)),
+                retry_algorithm,
             };
 
             let tag = ["PCR"];

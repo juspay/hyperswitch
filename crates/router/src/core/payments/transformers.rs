@@ -8388,6 +8388,7 @@ impl
                 customer_present: recovery.customer_present,
                 setup_future_usage: recovery.setup_future_usage,
                 recovery_request_id: recovery.recovery_request_id.clone(),
+                retry_algorithm: recovery.retry_algorithm,
             }
         });
         Self { revenue_recovery }

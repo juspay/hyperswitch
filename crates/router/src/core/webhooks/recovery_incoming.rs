@@ -943,6 +943,7 @@ impl RevenueRecoveryAttempt {
                 customer_present,
                 setup_future_usage,
                 recovery_request_id,
+                None,
             )
             .await?;
         let attempt_response = Box::pin(payments::record_attempt_and_get_intent(
@@ -1092,6 +1093,7 @@ impl RevenueRecoveryAttempt {
         Ok((response, recorded_payment_intent))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn create_payment_record_request(
         &self,
         state: &SessionState,
@@ -1100,6 +1102,7 @@ impl RevenueRecoveryAttempt {
         customer_present: Option<common_enums::PresenceOfCustomerDuringPayment>,
         setup_future_usage: Option<common_enums::FutureUsage>,
         recovery_request_id: Option<String>,
+        retry_algorithm: Option<common_enums::RevenueRecoveryABAlgorithm>,
     ) -> CustomResult<api_payments::PaymentsAttemptRecordRequest, errors::RevenueRecoveryError>
     {
         let revenue_recovery_attempt_data = &self.0;
@@ -1113,6 +1116,7 @@ impl RevenueRecoveryAttempt {
                 customer_present,
                 setup_future_usage,
                 recovery_request_id,
+                retry_algorithm,
             }),
         };
 

@@ -4832,6 +4832,9 @@ pub struct PaymentAttemptRecoveryData {
     /// re-run of that recovery request recognises it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recovery_request_id: Option<String>,
+    /// A/B arm of the retry decision that scheduled this attempt.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retry_algorithm: Option<common_enums::RevenueRecoveryABAlgorithm>,
 }
 #[cfg(feature = "v2")]
 common_utils::impl_to_sql_from_sql_json!(PaymentAttemptFeatureMetadata);

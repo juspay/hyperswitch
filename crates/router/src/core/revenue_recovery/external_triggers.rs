@@ -66,6 +66,8 @@ struct NextRetryInputs<'a> {
     ladder_progress: &'a StaticLadderProgress,
     retry_count: u16,
     last_failure_code: Option<common_enums::StandardisedCode>,
+    /// The attempt the merchant reported.
+    reported_attempt_id: &'a id_type::GlobalAttemptId,
     card_availability: CardAvailability,
     retries_after_hard_decline: Option<u16>,
 }
@@ -202,6 +204,7 @@ async fn decide_recovery_request_retry(
             ladder_progress: &ladder_progress,
             retry_count,
             last_failure_code,
+            reported_attempt_id: &recovery_attempt.attempt_id,
             card_availability,
             retries_after_hard_decline,
         },
@@ -302,7 +305,6 @@ async fn decide_next_retry(
             Box::pin(schedule_next_retry(
                 state,
                 platform,
-                profile,
                 &inputs,
                 retry_algorithm_type,
                 grace_window_end,
@@ -322,7 +324,6 @@ async fn decide_next_retry(
 async fn schedule_next_retry(
     state: &SessionState,
     platform: &Platform,
-    profile: &domain::Profile,
     inputs: &NextRetryInputs<'_>,
     retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
     grace_window_end: PrimitiveDateTime,
@@ -331,7 +332,6 @@ async fn schedule_next_retry(
     let retry_time = Box::pin(get_retry_time(
         state,
         platform,
-        profile,
         inputs,
         retry_algorithm_type,
         grace_window_end,
@@ -373,7 +373,6 @@ async fn schedule_next_retry(
 async fn get_retry_time(
     state: &SessionState,
     platform: &Platform,
-    profile: &domain::Profile,
     inputs: &NextRetryInputs<'_>,
     retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
     grace_window_end: PrimitiveDateTime,
@@ -386,17 +385,13 @@ async fn get_retry_time(
             retry_algorithm_type,
             retry_count: u32::from(inputs.retry_count),
             prev_attempt_error_code: inputs.last_failure_code,
+            prev_attempt_id: inputs.reported_attempt_id,
             static_ladder_progress: inputs.ladder_progress,
             remaining_grace_days: u32::try_from((grace_window_end - now).whole_days().max(0))
                 .unwrap_or(0),
             remaining_budget: u32::from(inputs.retry_config.max_retry_count)
                 .saturating_sub(u32::from(inputs.retry_count)),
             provider_merchant_id: platform.get_provider().get_provider_merchant_id(),
-            merchant_context: pcr::RecoveryMerchantContext {
-                merchant_account: platform.get_processor().get_account(),
-                key_store: platform.get_processor().get_key_store().inner(),
-                profile,
-            },
         },
         inputs.dimensions,
     ))

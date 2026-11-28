@@ -97,6 +97,13 @@ impl GlobalAttemptId {
     }
 }
 
+/// Lets a config split experiment traffic per attempt rather than per payment.
+impl crate::id_type::TargetingKey for GlobalAttemptId {
+    fn targeting_key_value(&self) -> &str {
+        self.get_string_repr()
+    }
+}
+
 impl TryFrom<std::borrow::Cow<'static, str>> for GlobalAttemptId {
     type Error = error_stack::Report<errors::ValidationError>;
     fn try_from(value: std::borrow::Cow<'static, str>) -> Result<Self, Self::Error> {

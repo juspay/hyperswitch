@@ -82,7 +82,6 @@ use crate::{
             revenue_recovery as pcr_storage_types,
             revenue_recovery_redis_operation::PaymentProcessorTokenDetails,
         },
-        transformers::ForeignFrom,
     },
 };
 use crate::{routes::SessionState, types::storage};
@@ -644,6 +643,8 @@ pub enum PaymentProcessorTokenResponse {
         scheduled_time: time::PrimitiveDateTime,
         /// The card picked for the retry, which the EXECUTE task pays with
         payment_processor_token: String,
+        /// A/B arm of the retry decision that picked this time
+        retry_algorithm: Option<common_enums::RevenueRecoveryABAlgorithm>,
     },
 
     /// Token locked or unavailable, next attempt possible
@@ -711,61 +712,34 @@ async fn get_retry_time_for_error_code(
     .map(common_utils::date_time::convert_to_pdt)
 }
 
-/// Picks the retry time for an invoice enrolled in A/B routing, then finds a token for it.
+/// Resolves the A/B arm for this retry decision by its error code, then runs it.
 #[cfg(feature = "v2")]
-#[allow(clippy::too_many_arguments)]
 async fn get_ab_routed_retry_time(
     state: &SessionState,
     payment_intent: &PaymentIntent,
     prev_attempt_error_code: Option<common_enums::StandardisedCode>,
+    prev_attempt_id: &id_type::GlobalAttemptId,
     remaining_grace_days: u32,
     remaining_budget: u32,
-    // Both needed only to assign an implementation to an invoice that arrives without one
-    merchant_context: pcr_storage_types::RecoveryMerchantContext<'_>,
     ab_dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
 ) -> (
     Option<time::PrimitiveDateTime>,
     common_enums::RevenueRecoveryABAlgorithm,
 ) {
-    let algorithm = payment_intent
-        .feature_metadata
-        .as_ref()
-        .and_then(|feature_metadata| feature_metadata.payment_revenue_recovery_metadata.as_ref())
-        .and_then(|revenue_recovery_metadata| {
-            revenue_recovery_metadata.revenue_recovery_ab_routing
-        });
-
-    logger::info!(
-        payment_id = %payment_intent.id.get_string_repr(),
-        ?algorithm,
-        "A/B routing read the retry implementation assigned to this invoice"
-    );
-
-    // Resolve the arm first, then run it once. Dispatching inside the arms would leave the
-    // just-assigned invoice on a second path, and an arm added to only one of them would run the
-    // wrong algorithm on an invoice's FIRST retry and the right one thereafter.
-    let assigned_algorithm = match algorithm {
-        Some(assigned_algorithm) => assigned_algorithm,
-        None => {
-            crate::routes::metrics::REVENUE_RECOVERY_AB_UNASSIGNED_ALGORITHM.add(1, &[]);
-
-            pcr::assign_and_record_ab_routing(
-                state,
-                &payment_intent.id,
-                payment_intent
-                    .feature_metadata
-                    .as_ref()
-                    .map(api_models::payments::FeatureMetadata::foreign_from),
-                merchant_context,
-                ab_dimensions,
-            )
-            .await
-        }
-    };
+    let algorithm = crate::core::configs::dimension_state::DimensionsWithRecoveryErrorCode::new(
+        ab_dimensions.clone(),
+        prev_attempt_error_code,
+    )
+    .get_revenue_recovery_ab_algorithm(
+        state.store.as_ref(),
+        state.superposition_service.as_ref(),
+        Some(prev_attempt_id),
+    )
+    .await;
 
     let schedule_time = get_retry_time_for_error_code(
         state,
-        assigned_algorithm,
+        algorithm,
         prev_attempt_error_code,
         remaining_grace_days,
         remaining_budget,
@@ -773,12 +747,15 @@ async fn get_ab_routed_retry_time(
     .await;
 
     logger::info!(
-        ?assigned_algorithm,
+        payment_id = %payment_intent.id.get_string_repr(),
+        prev_attempt_id = %prev_attempt_id.get_string_repr(),
+        error_code = ?prev_attempt_error_code,
+        ?algorithm,
         schedule_time = ?schedule_time,
-        "A/B routing ran the invoice's assigned arm"
+        "A/B routing ran the arm resolved for this decision"
     );
 
-    (schedule_time, assigned_algorithm)
+    (schedule_time, algorithm)
 }
 
 /// When a retry runs, as the algorithm decides it. Which card it is made with is decided apart
@@ -807,13 +784,13 @@ pub(crate) struct RetryTimingParams<'a> {
     pub retry_algorithm_type: RevenueRecoveryAlgorithmType,
     pub retry_count: u32,
     pub prev_attempt_error_code: Option<common_enums::StandardisedCode>,
+    /// The failed attempt this decision is for.
+    pub prev_attempt_id: &'a id_type::GlobalAttemptId,
     pub static_ladder_progress: &'a pcr::schedule::StaticLadderProgress,
     pub remaining_grace_days: u32,
     pub remaining_budget: u32,
     // Needed only to resolve the A/B gate
     pub provider_merchant_id: hyperswitch_domain_models::platform::ProviderMerchantId,
-    // Needed only to assign an implementation to an invoice that arrives without one
-    pub merchant_context: pcr_storage_types::RecoveryMerchantContext<'a>,
 }
 
 /// When the next retry of an invoice runs, under the retry algorithm.
@@ -828,11 +805,11 @@ pub(crate) async fn get_retry_timing(
         retry_algorithm_type,
         retry_count,
         prev_attempt_error_code,
+        prev_attempt_id,
         static_ladder_progress,
         remaining_grace_days,
         remaining_budget,
         provider_merchant_id,
-        merchant_context,
     } = params;
 
     let retry_timing = match retry_algorithm_type {
@@ -901,9 +878,9 @@ pub(crate) async fn get_retry_timing(
                         state,
                         payment_intent,
                         prev_attempt_error_code,
+                        prev_attempt_id,
                         remaining_grace_days,
                         remaining_budget,
-                        merchant_context,
                         &ab_dimensions,
                     )
                     .await;
@@ -940,6 +917,7 @@ pub(crate) async fn get_retry_timing(
                     (time, None)
                 };
 
+                // Consumed rungs are shared across all arms of an invoice.
                 let ladder_role = assigned_algorithm.map_or_else(
                     || RetryModelVariant::default().ladder,
                     |arm| RetryModelVariant::from(arm).ladder,
@@ -1051,6 +1029,7 @@ pub(crate) async fn get_retry_timing(
                     remaining_grace_days = remaining_grace_days,
                     remaining_budget = remaining_budget,
                     ab_enabled = ab_enabled,
+                    algorithm = ?assigned_algorithm,
                     schedule_time = ?decision.schedule_time,
                     "Retry decision"
                 );
@@ -1116,11 +1095,11 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
             retry_algorithm_type,
             retry_count,
             prev_attempt_error_code: tracking_data.prev_attempt_error_code,
+            prev_attempt_id: &tracking_data.payment_attempt_id,
             static_ladder_progress,
             remaining_grace_days,
             remaining_budget,
             provider_merchant_id,
-            merchant_context: revenue_recovery_payment_data.get_merchant_context(),
         },
         &dimensions,
     ))
@@ -1140,7 +1119,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
         RetryTiming::At {
             retry_time,
             next_static_ladder_progress,
-            assigned_ab_algorithm: _,
+            assigned_ab_algorithm,
         } => {
             let payment_processor_token_response = get_token_availability_for_schedule_time(
                 state,
@@ -1148,6 +1127,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
                 payment_intent,
                 card_selection,
                 retry_time,
+                assigned_ab_algorithm,
             )
             .await?;
 
@@ -1250,6 +1230,7 @@ async fn get_token_availability_for_schedule_time(
     payment_intent: &PaymentIntent,
     card_selection: CardSelection,
     scheduled_time: time::PrimitiveDateTime,
+    retry_algorithm: Option<common_enums::RevenueRecoveryABAlgorithm>,
 ) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
     let invoice_token = get_invoice_payment_processor_token(payment_intent);
 
@@ -1273,6 +1254,7 @@ async fn get_token_availability_for_schedule_time(
         } => PaymentProcessorTokenResponse::ScheduledTime {
             scheduled_time,
             payment_processor_token,
+            retry_algorithm,
         },
         CardAvailability::WaitHours(retry_wait_time_hours) => {
             let utc_schedule_time: time::OffsetDateTime = common_utils::date_time::now()
@@ -1659,6 +1641,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
             payment_processor_token_response = PaymentProcessorTokenResponse::ScheduledTime {
                 scheduled_time: token.retry_decision.retry_time,
                 payment_processor_token: token.token_details.payment_processor_token,
+                retry_algorithm: None,
             };
         }
     }

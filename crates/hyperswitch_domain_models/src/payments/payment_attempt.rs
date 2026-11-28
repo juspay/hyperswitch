@@ -1290,6 +1290,12 @@ impl PaymentAttempt {
                             .as_ref()
                             .and_then(|data| data.recovery_request_id.clone())
                     }),
+                    retry_algorithm: request.feature_metadata.as_ref().and_then(|metadata| {
+                        metadata
+                            .revenue_recovery
+                            .as_ref()
+                            .and_then(|data| data.retry_algorithm)
+                    }),
                 }
             }),
         };
@@ -3141,6 +3147,8 @@ pub struct PaymentAttemptRevenueRecoveryData {
     pub setup_future_usage: Option<common_enums::FutureUsage>,
     /// Id of the recovery request that recorded this transaction.
     pub recovery_request_id: Option<String>,
+    /// A/B arm of the retry decision that scheduled this attempt.
+    pub retry_algorithm: Option<common_enums::RevenueRecoveryABAlgorithm>,
 }
 
 #[cfg(feature = "v2")]
@@ -3158,6 +3166,7 @@ impl From<&PaymentAttemptFeatureMetadata> for DieselPaymentAttemptFeatureMetadat
                     customer_present: recovery_data.customer_present,
                     setup_future_usage: recovery_data.setup_future_usage,
                     recovery_request_id: recovery_data.recovery_request_id.clone(),
+                    retry_algorithm: recovery_data.retry_algorithm,
                 });
         Self { revenue_recovery }
     }
@@ -3176,6 +3185,7 @@ impl From<DieselPaymentAttemptFeatureMetadata> for PaymentAttemptFeatureMetadata
                     customer_present: recovery_data.customer_present,
                     setup_future_usage: recovery_data.setup_future_usage,
                     recovery_request_id: recovery_data.recovery_request_id,
+                    retry_algorithm: recovery_data.retry_algorithm,
                 });
         Self { revenue_recovery }
     }

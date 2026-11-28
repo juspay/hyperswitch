@@ -63,6 +63,9 @@ pub struct RevenueRecoveryWorkflowTrackingData {
     /// row, and missing on rows queued before calculate recorded its pick.
     #[serde(default)]
     pub payment_processor_token: Option<Secret<String>>,
+    /// A/B arm of the retry decision that scheduled the execute task
+    #[serde(default)]
+    pub retry_algorithm: Option<enums::RevenueRecoveryABAlgorithm>,
 }
 
 #[derive(Debug, Clone)]
