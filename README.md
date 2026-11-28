@@ -248,6 +248,12 @@ Tooling for running Hyperswitch, from local development through production.
 | **Role** | Umbrella full-suite deployment that wires the core, vault, control-center, and web together. Recommended starting point for the full stack. | Kubernetes deployments for GCP, Azure, or any K8s-compatible platform. |
 
 
+## Agent Skills
+
+An agent-agnostic plugin marketplace at [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) registers
+[`plugins/hyperswitch`](plugins/hyperswitch), with [agent skills](https://agentskills.io/) for running Hyperswitch locally,
+calling the payments API and adding a new connector.
+
 ## Contributing
 
 We welcome contributors from around the world to help build Hyperswitch. Whether you're fixing bugs, improving documentation, or adding new features, your help is appreciated.
