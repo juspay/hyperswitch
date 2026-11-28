@@ -263,6 +263,8 @@ pub struct PaymentLinkConfigRequestForPayments {
     pub skip_status_screen: Option<bool>,
     /// Text for customizing message for card terms
     pub custom_message_for_card_terms: Option<String>,
+    /// Custom label for the save-card checkbox. Omit or leave blank to use the SDK default.
+    pub save_card_checkbox_label: Option<String>,
     /// Text for customizing message for different Payment Method Types
     pub custom_message_for_payment_method_types:
         Option<common_types::payments::PaymentMethodsConfig>,
